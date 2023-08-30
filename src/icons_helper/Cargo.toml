@@ -1,0 +1,11 @@
+[package]
+name = "icons_helper"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0.32"
