@@ -20,7 +20,6 @@ pub fn App() -> impl IntoView {
     } else {
       "corporate"
     }
-    .into()
   };
 
   let theme_attribute = AdditionalAttributes::from([("data-theme", theme)]);

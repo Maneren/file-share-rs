@@ -11,11 +11,11 @@ license = "MIT"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-leptos = { version = "0.5.0-beta", features = ["nightly"] }
-leptos_axum = { version = "0.5.0-beta", optional = true }
-leptos_meta = { version = "0.5.0-beta", features = ["nightly"] }
-leptos_router = { version = "0.5.0-beta", features = ["nightly"] }
-leptos-use = { git = "https://github.com/synphonyte/leptos-use" }  # use git until 0.5.0 support is released
+leptos = { version = "0.5.0-rc1", features = ["nightly"] }
+leptos_axum = { version = "0.5.0-rc1", optional = true }
+leptos_meta = { version = "0.5.0-rc1", features = ["nightly"] }
+leptos_router = { version = "0.5.0-rc1", features = ["nightly"] }
+leptos-use = { git = "https://github.com/synphonyte/leptos-use" } # use git until 0.5.0 support is released
 
 axum = { version = "0.6", optional = true }
 cfg-if = "1"
@@ -60,7 +60,6 @@ zstd = { version = "0.12", optional = true }
 
 # internal proc macro helper
 icons_helper = { version = "0.0.0", path = "src/icons_helper" }
-
 
 [features]
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]

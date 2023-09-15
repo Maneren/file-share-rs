@@ -21,7 +21,7 @@ async fn main() {
     fileserv::{file_and_error_handler, handle_archive_with_path, handle_archive_without_path},
   };
   use if_addrs::Interface;
-  use leptos::{error, get_configuration};
+  use leptos::{get_configuration, logging::error};
   use leptos_axum::{generate_route_list, LeptosRoutes};
   use tower_http::services::ServeDir;
 

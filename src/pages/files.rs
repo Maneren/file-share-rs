@@ -3,7 +3,7 @@ use std::{iter, path::PathBuf};
 mod server;
 mod utils;
 
-use leptos::{ev::SubmitEvent, html::Input, *};
+use leptos::{ev::SubmitEvent, html::Input, logging::*, *};
 use leptos_router::*;
 use server::*;
 use utils::*;
@@ -38,7 +38,7 @@ pub fn FilesPage() -> impl IntoView {
 
   let entries = move || {
     entries
-      .read()
+      .get()
       .map(|entries| view! { <FileEntries path=path entries=entries/> })
   };
 
