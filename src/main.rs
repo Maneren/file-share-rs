@@ -10,6 +10,7 @@ async fn main() {
   };
 
   use axum::{
+    extract::DefaultBodyLimit,
     routing::{get, post},
     Router, Server,
   };
@@ -18,7 +19,10 @@ async fn main() {
   use file_share::{
     app::App,
     config::{get_config, AppState, Cli},
-    fileserv::{file_and_error_handler, handle_archive_with_path, handle_archive_without_path},
+    fileserv::{
+      file_and_error_handler, file_upload_with_path, file_upload_without_path,
+      handle_archive_with_path, handle_archive_without_path,
+    },
   };
   use if_addrs::Interface;
   use leptos::{get_configuration, logging::error};
@@ -47,6 +51,9 @@ async fn main() {
     .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
     .route("/archive/*path", get(handle_archive_with_path))
     .route("/archive/", get(handle_archive_without_path))
+    .route("/upload/*path", post(file_upload_with_path))
+    .route("/upload/", post(file_upload_without_path))
+    .layer(DefaultBodyLimit::disable())
     .leptos_routes(&app_state, routes, App)
     .nest_service("/files", ServeDir::new(&target_dir))
     .fallback(file_and_error_handler)

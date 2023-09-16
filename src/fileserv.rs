@@ -13,12 +13,12 @@ use rust_embed::RustEmbed;
 struct StaticFiles;
 
 use axum::{
-  body::{boxed, Body, StreamBody},
-  extract::{Path, Query, State},
+  body::{Body, StreamBody},
+  extract::{Multipart, Path, Query, State},
   http::{Request, Response, StatusCode, Uri},
-  response::{IntoResponse, Response as AxumResponse},
+  response::{IntoResponse, Redirect},
 };
-use tokio::io;
+use tokio::{io, io::AsyncWriteExt};
 
 pub use crate::fileserv::archive::ArchiveMethod;
 use crate::{app::App, config::get_target_dir, fileserv::pipe::Pipe};
@@ -28,40 +28,30 @@ pub async fn file_and_error_handler(
   uri: Uri,
   State(options): State<LeptosOptions>,
   request: Request<Body>,
-) -> AxumResponse {
-  let response = {
-    let uri = &uri;
-    let path = uri.path().trim_start_matches('/');
+) -> impl IntoResponse {
+  let path = uri.path().trim_start_matches('/');
 
-    // log!("File request: {path:?}");
-
-    let builder = Response::builder();
-
-    let res = if let Some(file) = StaticFiles::get(path) {
-      builder
-        .status(StatusCode::OK)
-        .header(
-          header::CONTENT_TYPE,
-          HeaderValue::from_str(file.metadata.mimetype()).unwrap(),
-        )
-        .body(Body::from(file.data))
-    } else {
-      builder
-        .status(StatusCode::NOT_FOUND)
-        .body(Body::from(format!("File {path} not found")))
-    };
-
-    res.unwrap().map(boxed)
-  };
-
-  // log!("File response: {}", response.status());
-
-  if response.status() == StatusCode::OK {
-    response.into_response()
-  } else {
-    let handler = leptos_axum::render_app_to_stream(options.clone(), App);
-    handler(request).await.into_response()
+  if let Some(file) = StaticFiles::get(path) {
+    return Response::builder()
+      .status(StatusCode::OK)
+      .header(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(file.metadata.mimetype()).unwrap(),
+      )
+      .body(Body::from(file.data))
+      .unwrap()
+      .into_response();
   }
+
+  let handler = leptos_axum::render_app_to_stream(options.clone(), App);
+  handler(request).await.into_response()
+}
+
+fn response(status: StatusCode, message: impl Into<Body>) -> Response<Body> {
+  Response::builder()
+    .status(status)
+    .body(message.into())
+    .unwrap()
 }
 
 /// Handles archive requests.
@@ -89,11 +79,11 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
   let method = method.map_or("tar", String::as_str);
 
   let Ok(archive_method) = ArchiveMethod::try_from(method) else {
-    return Response::builder()
-      .status(StatusCode::BAD_REQUEST)
-      .body(Body::from("Invalid archive method"))
-      .unwrap()
-      .into_response();
+    return response(
+      StatusCode::BAD_REQUEST,
+      format!("Invalid archive method: {method}"),
+    )
+    .into_response();
   };
 
   let path = get_target_dir().join(path);
@@ -142,5 +132,51 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
     }
   });
 
-  response.body(StreamBody::new(rx)).unwrap().map(boxed)
+  response.body(StreamBody::new(rx)).unwrap().into_response()
+}
+
+pub async fn file_upload_with_path(
+  Path(path): Path<String>,
+  multipart: Multipart,
+) -> impl IntoResponse {
+  file_upload(path, multipart).await
+}
+
+pub async fn file_upload_without_path(multipart: Multipart) -> impl IntoResponse {
+  file_upload(String::new(), multipart).await
+}
+
+pub async fn file_upload(path: String, mut multipart: Multipart) -> impl IntoResponse {
+  while let Some(field) = multipart.next_field().await.unwrap() {
+    let Some(file_name) = field.file_name() else {
+      continue;
+    };
+    let path = get_target_dir().join(&path).join(file_name);
+
+    println!("Uploading to {path:?}");
+
+    let Ok(mut file) = tokio::fs::File::create(path).await else {
+      return response(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("Failed to create file"),
+      )
+      .into_response();
+    };
+
+    let Ok(bytes) = field.bytes().await else {
+      return response(StatusCode::BAD_REQUEST, format!("Invalid file content")).into_response();
+    };
+
+    eprintln!("Writing {} bytes", bytes.len());
+
+    if let Err(err) = file.write_all(&bytes).await {
+      return response(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("Failed to write file: {err}"),
+      )
+      .into_response();
+    }
+  }
+
+  Redirect::to(&format!("/?path={path}")).into_response()
 }

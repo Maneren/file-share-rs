@@ -1,4 +1,15 @@
-use std::{ffi::OsStr, path::Path};
+use std::{
+  ffi::OsStr,
+  // io, mem,
+  path::Path,
+  // pin::Pin,
+  // task::{Context, Poll},
+};
+
+// use futures::{executor::block_on, Future, FutureExt};
+// use tokio::io::AsyncRead;
+// use wasm_bindgen_futures::JsFuture;
+// use web_sys::ReadableStreamByobReader;
 
 pub fn os_to_string(str: impl AsRef<OsStr>) -> String {
   str.as_ref().to_string_lossy().to_string()
@@ -35,6 +46,88 @@ pub fn format_bytes(bytes: u64) -> String {
 
   format!("{formatted} {prefix}B")
 }
+
+// struct Sendable(JsFuture);
+// // Safety: WebAssembly will only ever run in a single-threaded context.
+// unsafe impl Send for Sendable {}
+// // impl Deref for Sendable {
+// //   type Target = JsFuture;
+// //   fn deref(&self) -> &JsFuture {
+// //     &self.0
+// //   }
+// // }
+// impl Future for Sendable {
+//   type Output = <JsFuture as Future>::Output;
+//   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+//     self.get_mut().0.poll_unpin(cx)
+//   }
+// }
+//
+// pub struct ReadableStreamAdapter {
+//   reader: ReadableStreamByobReader,
+//   future: Option<JsFuture>,
+//   buffer: [u8; 1024],
+// }
+//
+// impl ReadableStreamAdapter {
+//   pub fn new(reader: ReadableStreamByobReader) -> Self {
+//     Self {
+//       reader,
+//       future: None,
+//       buffer: [0; 1024],
+//     }
+//   }
+// }
+//
+// unsafe impl Send for ReadableStreamAdapter {}
+// unsafe impl Sync for ReadableStreamAdapter {}
+//
+// impl io::Read for ReadableStreamAdapter {
+//   fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+//     let promise = self.reader.read_with_u8_array(buf);
+//
+//     #[allow(clippy::cast_sign_loss)]
+//     #[allow(clippy::cast_possible_truncation)]
+//     block_on(JsFuture::from(promise))
+//       .map(|n| n.as_f64().unwrap() as usize)
+//       .map_err(|e| {
+//         io::Error::new(
+//           io::ErrorKind::Other,
+//           format!("ReadableStreamByobReader::read failed: {:?}", e),
+//         )
+//       })
+//   }
+// }
+//
+// impl AsyncRead for ReadableStreamAdapter {
+//   fn poll_read(
+//     mut self: Pin<&mut Self>,
+//     cx: &mut Context<'_>,
+//     read_buf: &mut tokio::io::ReadBuf<'_>,
+//   ) -> Poll<io::Result<()>> {
+//     match self.future.take() {
+//       None => {
+//         // let mut buffer = mem::take(&mut self.buffer);
+//         let buffer = &mut self.buffer;
+//         // let reader = &self.reader;
+//         let promise = self.reader.read_with_u8_array(buffer);
+//         self.future = Some(JsFuture::from(promise));
+//         Poll::Pending
+//       }
+//       Some(mut future) => future
+//         .poll_unpin(cx)
+//         .map_ok(|_| {
+//           read_buf.put_slice(&self.buffer[..]);
+//         })
+//         .map_err(|e| {
+//           io::Error::new(
+//             io::ErrorKind::Other,
+//             format!("ReadableStreamByobReader::read failed: {:?}", e),
+//           )
+//         }),
+//     }
+//   }
+// }
 
 #[cfg(test)]
 mod tests {

@@ -32,18 +32,3 @@ impl From<SystemTime> for DateTime<Utc> {
     Utc.timestamp_opt(sec, nsec).unwrap()
   }
 }
-// impl From<SystemTime> for HumanTime {
-//   fn from(time: SystemTime) -> Self {
-//     HumanTime::from(DateTime::<Utc>::from(time))
-//   }
-// }
-// impl Humanize for SystemTime {
-//   fn humanize(&self) -> String {
-//     HumanTime::from(*self).to_string()
-//   }
-// }
-// impl From<SystemTime> for DateTime<Local> {
-//   fn from(time: SystemTime) -> DateTime<Local> {
-//     DateTime::<Utc>::from(time).with_timezone(&Local)
-//   }
-// }

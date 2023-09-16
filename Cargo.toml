@@ -17,7 +17,7 @@ leptos_meta = { version = "0.5.0-rc1", features = ["nightly"] }
 leptos_router = { version = "0.5.0-rc1", features = ["nightly"] }
 leptos-use = { git = "https://github.com/synphonyte/leptos-use" } # use git until 0.5.0 support is released
 
-axum = { version = "0.6", optional = true }
+axum = { version = "0.6", optional = true, features = ["multipart"] }
 cfg-if = "1"
 chrono = "0.4"
 chrono-humanize = "0.2"
@@ -61,6 +61,9 @@ zstd = { version = "0.12", optional = true }
 # internal proc macro helper
 icons_helper = { version = "0.0.0", path = "src/icons_helper" }
 
+[profile.dev.package.leptos_macro]
+opt-level = 3
+
 [features]
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 ssr = [
@@ -99,7 +102,6 @@ output-name = "file-share"
 style-file = "style/main.scss"
 assets-dir = "public"
 lib-profile-release = "wasm-release"
-# tailwind-input-file = "style/tailwind.css"
 
 bin-features = ["ssr"]
 lib-features = ["hydrate"]
