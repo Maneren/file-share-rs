@@ -114,6 +114,11 @@ async fn main() {
     process::exit(1);
   };
 
+  if let Err(e) = create_dir_all(&target_dir) {
+    error!("Failed to create target directory: {e}");
+    process::exit(1);
+  }
+
   println!(
     "Serving files from {}",
     target_dir.to_string_lossy().yellow().bold()
