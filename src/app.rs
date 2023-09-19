@@ -22,7 +22,7 @@ pub fn App() -> impl IntoView {
     }
   };
 
-  let theme_attribute = AdditionalAttributes::from([("data-theme", theme)]);
+  let theme_attribute = vec![("data-theme", theme.into_attribute())];
 
   view! {
     <Html lang="en" attributes=theme_attribute/>

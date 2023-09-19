@@ -155,16 +155,26 @@ pub async fn file_upload(path: String, mut multipart: Multipart) -> impl IntoRes
 
     println!("Uploading to {path:?}");
 
-    let Ok(mut file) = tokio::fs::File::create(path).await else {
-      return response(
-        StatusCode::INTERNAL_SERVER_ERROR,
-        format!("Failed to create file"),
-      )
-      .into_response();
+    let mut file = match tokio::fs::File::create(path).await {
+      Ok(file) => file,
+      Err(err) => {
+        return response(
+          StatusCode::INTERNAL_SERVER_ERROR,
+          format!("Failed to create file: {err}"),
+        )
+        .into_response();
+      }
     };
 
-    let Ok(bytes) = field.bytes().await else {
-      return response(StatusCode::BAD_REQUEST, format!("Invalid file content")).into_response();
+    let bytes = match field.bytes().await {
+      Ok(bytes) => bytes,
+      Err(e) => {
+        return response(
+          StatusCode::BAD_REQUEST,
+          format!("Invalid file content: {e}"),
+        )
+        .into_response();
+      }
     };
 
     eprintln!("Writing {} bytes", bytes.len());
