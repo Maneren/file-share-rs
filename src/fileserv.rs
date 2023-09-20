@@ -4,7 +4,7 @@ mod pipe;
 use std::collections::HashMap;
 
 use futures::channel::mpsc::channel;
-use http::header::{self, HeaderValue};
+use http::{header, HeaderValue};
 use leptos::*;
 use rust_embed::RustEmbed;
 
@@ -15,7 +15,7 @@ struct StaticFiles;
 use axum::{
   body::{Body, StreamBody},
   extract::{Multipart, Path, Query, State},
-  http::{Request, Response, StatusCode, Uri},
+  http::{Request, StatusCode, Uri},
   response::{IntoResponse, Redirect},
 };
 use tokio::{io, io::AsyncWriteExt};
@@ -32,26 +32,15 @@ pub async fn file_and_error_handler(
   let path = uri.path().trim_start_matches('/');
 
   if let Some(file) = StaticFiles::get(path) {
-    return Response::builder()
-      .status(StatusCode::OK)
-      .header(
-        header::CONTENT_TYPE,
-        HeaderValue::from_str(file.metadata.mimetype()).unwrap(),
-      )
-      .body(Body::from(file.data))
-      .unwrap()
-      .into_response();
+    let header = (
+      header::CONTENT_TYPE,
+      HeaderValue::from_str(file.metadata.mimetype()).unwrap(),
+    );
+    return (StatusCode::OK, [header], file.data).into_response();
   }
 
   let handler = leptos_axum::render_app_to_stream(options.clone(), App);
   handler(request).await.into_response()
-}
-
-fn response(status: StatusCode, message: impl Into<Body>) -> Response<Body> {
-  Response::builder()
-    .status(status)
-    .body(message.into())
-    .unwrap()
 }
 
 /// Handles archive requests.
@@ -79,7 +68,7 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
   let method = method.map_or("tar", String::as_str);
 
   let Ok(archive_method) = ArchiveMethod::try_from(method) else {
-    return response(
+    return (
       StatusCode::BAD_REQUEST,
       format!("Invalid archive method: {method}"),
     )
@@ -95,32 +84,6 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
 
   eprintln!("Creating: {file_name}");
 
-  let response = Response::builder()
-    .header(
-      header::CONTENT_DISPOSITION,
-      HeaderValue::from_str(&format!("attachment; filename=\"{file_name}\"")).unwrap(),
-    )
-    .header(
-      header::CONTENT_TYPE,
-      HeaderValue::from_str(archive_method.mimetype()).unwrap(),
-    )
-    .header(
-      header::TRANSFER_ENCODING,
-      HeaderValue::from_str("chunked").unwrap(),
-    )
-    .header(
-      header::CACHE_CONTROL,
-      HeaderValue::from_str("no-cache").unwrap(),
-    )
-    .header(
-      header::CONNECTION,
-      HeaderValue::from_str("keep-alive").unwrap(),
-    )
-    .header(
-      header::CONTENT_ENCODING,
-      HeaderValue::from_str("identity").unwrap(),
-    );
-
   // We will create the archive in a separate thread, and stream the content using a pipe.
   // The pipe is an adapter for async Sender to implement sync Write using block_on calls.
   let (tx, rx) = channel::<io::Result<axum::body::Bytes>>(10);
@@ -132,7 +95,24 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
     }
   });
 
-  response.body(StreamBody::new(rx)).unwrap().into_response()
+  let headers: [(_, HeaderValue); 6] = [
+    (
+      header::CONTENT_DISPOSITION,
+      format!("attachment; filename=\"{file_name}\"")
+        .parse()
+        .unwrap(),
+    ),
+    (
+      header::CONTENT_TYPE,
+      archive_method.mimetype().parse().unwrap(),
+    ),
+    (header::TRANSFER_ENCODING, "chunked".parse().unwrap()),
+    (header::CACHE_CONTROL, "no-cache".parse().unwrap()),
+    (header::CONNECTION, "keep-alive".parse().unwrap()),
+    (header::CONTENT_ENCODING, "identity".parse().unwrap()),
+  ];
+
+  (headers, StreamBody::new(rx)).into_response()
 }
 
 pub async fn file_upload_with_path(
@@ -158,33 +138,33 @@ pub async fn file_upload(path: String, mut multipart: Multipart) -> impl IntoRes
     let mut file = match tokio::fs::File::create(path).await {
       Ok(file) => file,
       Err(err) => {
-        return response(
+        return (
           StatusCode::INTERNAL_SERVER_ERROR,
           format!("Failed to create file: {err}"),
         )
-        .into_response();
+          .into_response();
       }
     };
 
     let bytes = match field.bytes().await {
       Ok(bytes) => bytes,
       Err(e) => {
-        return response(
+        return (
           StatusCode::BAD_REQUEST,
           format!("Invalid file content: {e}"),
         )
-        .into_response();
+          .into_response();
       }
     };
 
     eprintln!("Writing {} bytes", bytes.len());
 
     if let Err(err) = file.write_all(&bytes).await {
-      return response(
+      return (
         StatusCode::INTERNAL_SERVER_ERROR,
         format!("Failed to write file: {err}"),
       )
-      .into_response();
+        .into_response();
     }
   }
 
