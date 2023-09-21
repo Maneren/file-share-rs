@@ -16,7 +16,6 @@ async fn main() {
     Router, Server,
   };
   use colored::Colorize;
-  use fast_qr::{QRBuilder, ECL};
   use file_share::{
     app::App,
     config::{get_config, AppState, Cli},
@@ -139,12 +138,12 @@ async fn main() {
   if qr && is_terminal {
     for url in display_urls
       .iter()
-      .filter(|url| !url.contains("//127.0.0.1:") && !url.contains("//[::1]:"))
+      .filter(|url| !url.contains("127.0.0.1") && !url.contains("[::1]"))
     {
-      match QRBuilder::new(url.clone()).ecl(ECL::L).build() {
+      match qr_code::QrCode::new(url) {
         Ok(qr) => {
           println!("QR code for {}:", url.green().bold());
-          qr.print();
+          println!("{}", qr.to_string(false, 1));
         }
         Err(e) => {
           error!("Failed to render QR to terminal: {e}");

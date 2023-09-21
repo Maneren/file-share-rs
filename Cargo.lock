@@ -887,12 +887,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fast_qr"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02b09ccb5449ffa2c57933337563fb82b4e0875f031b71410c9faac0cea3d30b"
-
-[[package]]
 name = "file-share"
 version = "0.1.0"
 dependencies = [
@@ -904,7 +898,6 @@ dependencies = [
  "colored",
  "console_error_panic_hook",
  "console_log",
- "fast_qr",
  "futures",
  "http",
  "icons_helper",
@@ -919,6 +912,7 @@ dependencies = [
  "log",
  "phf",
  "port_check",
+ "qr_code",
  "rust-embed",
  "serde",
  "simple_logger",
@@ -2188,6 +2182,12 @@ dependencies = [
  "quote",
  "syn 1.0.109",
 ]
+
+[[package]]
+name = "qr_code"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43d2564aae5faaf3acb512b35b8bcb9a298d9d8c72d181c598691d800ee78a00"
 
 [[package]]
 name = "quote"
