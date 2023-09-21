@@ -1,0 +1,153 @@
+name: Build and upload binaries to release
+
+on:
+  push:
+    tags:
+      - v[0-9].*
+
+jobs:
+  build-and-release:
+    name: Build and release
+    strategy:
+      matrix:
+        job:
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+
+          - target: i686-unknown-linux-gnu
+            os: ubuntu-latest
+
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+
+          - target: aarch64-apple-darwin
+            os: macos-latest
+
+          - target: x86_64-apple-darwin
+            os: macos-latest
+
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+
+    runs-on: ${{ matrix.job.os }}
+    env:
+      CARGO_TARGET_DIR: target
+      LEPTOS_BIN_TARGET_TRIPLE: ${{ matrix.job.target }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize workflow variables
+        id: vars
+        shell: bash
+        run: |
+          TARGET=${{ matrix.job.target }}
+
+          case $TARGET in
+            *-pc-windows-*) BINARY="file-share.exe" ;;
+            *)              BINARY="file-share" ;;
+          esac;
+
+          echo "BINARY=${BINARY}"
+          echo "BINARY=${BINARY}" >> "$GITHUB_OUTPUT"
+
+
+          case $TARGET in
+            x86_64-*) CROSS="false" ;;
+            *)        CROSS="true" ;;
+          esac;
+
+          echo "CROSS=${CROSS}"
+          echo "CROSS=${CROSS}" >> "$GITHUB_OUTPUT"
+
+
+          case $TARGET in
+            *-linux-*) ARCHIVE="file-share_$TARGET.tar.gz" ;;
+            *)         ARCHIVE="file-share_$TARGET.zip" ;;
+          esac;
+
+          echo "ARCHIVE=${ARCHIVE}"
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_OUTPUT"
+
+
+          RELEASE="target/server/${{ matrix.job.target }}/release"
+
+          echo "RELEASE=${RELEASE}"
+          echo "RELEASE=${RELEASE}" >> "$GITHUB_OUTPUT"
+
+
+          case ${{ matrix.job.target }} in
+            aarch64-*linux*) STRIP="aarch64-linux-gnu-strip" ;;
+            *-pc-windows-msvc) STRIP="" ;;
+            *)                 STRIP="strip"
+          esac;
+
+          echo "STRIP=${STRIP}"
+          echo "STRIP=${STRIP}" >> "$GITHUB_OUTPUT"
+
+      - name: Install strip and gcc for other archs
+        if: contains(matrix.job.target, 'linux')
+        run: |
+          sudo apt-get -y update
+          case ${{ matrix.job.target }} in
+            aarch64-*linux*) sudo apt-get -y install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu ;;
+            i686-*linux*)    sudo apt-get -y install gcc-i686-linux-gnu ;;
+          esac;
+
+      - name: Install NodeJS
+        uses: actions/setup-node@v3
+        with:
+          node-version: latest
+
+      - name: Install Tailwind and compile the stylesheet
+        run: |
+          npm i --no-package-lock
+          npm run build
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: ${{ matrix.job.target }}
+          profile: minimal
+          override: true
+
+      - name: Install cross
+        if: ${{ steps.vars.outputs.CROSS }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Install cargo-leptos and wasm target
+        run: |
+          cargo install --force cargo-leptos
+          rustup target add wasm32-unknown-unknown
+
+      - name: Compile
+        if: ${{ steps.vars.outputs.CROSS == 'false' }}
+        run: cargo leptos build --release
+
+      - name: Compile with cross
+        if: ${{ steps.vars.outputs.CROSS == 'true' }}
+        run: cargo leptos build --release
+        env:
+          LEPTOS_BIN_CARGO_COMMAND: cross
+
+      - name: Strip the binary
+        if: ${{ steps.vars.outputs.STRIP }}
+        run: ${{ steps.vars.outputs.STRIP }} '${{ steps.vars.outputs.RELEASE }}/${{ steps.vars.outputs.BINARY }}'
+
+      - name: Create archive
+        run: |
+          tar caf ${{ steps.vars.outputs.ARCHIVE }} --directory=${{ steps.vars.outputs.RELEASE }} ${{ steps.vars.outputs.BINARY }}
+
+      - name: Upload binary to release
+        uses: svenstaro/upload-release-action@v1-release
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ steps.vars.outputs.ARCHIVE }}
+          asset_name: ${{ steps.vars.outputs.ARCHIVE }}
+          tag: ${{ github.ref }}
