@@ -4,8 +4,7 @@
     "tailwindcss": "^3.3.3"
   },
   "scripts": {
-    "build": "tailwind --config tailwind.config.js --output style/tailwind.css; cargo leptos build --release",
-    "watch-tw": "tailwind --config tailwind.config.js --output style/tailwind.css --watch --poll",
-    "watch-leptos": "cargo leptos watch"
+    "build": "tailwind --config tailwind.config.js --output style/tailwind.css",
+    "watch": "tailwind --config tailwind.config.js --output style/tailwind.css --watch --poll"
   }
 }
