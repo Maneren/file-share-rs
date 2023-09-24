@@ -61,15 +61,9 @@ pub fn FilesPage() -> impl IntoView {
 
       <div class="grid grid-cols-entry-mobile md:grid-cols-entry gap-2 border-b border-base-content mb-1">
         <span></span>
-        <span>
-          Name
-        </span>
-        <span>
-          Size
-        </span>
-        <span class="hidden md:inline">
-          Last Modified
-        </span>
+        <span>Name</span>
+        <span>Size</span>
+        <span class="hidden md:inline">Last Modified</span>
       </div>
 
       <Suspense fallback=move || {
@@ -215,9 +209,7 @@ fn NewFolderButton(path: Signal<PathBuf>) -> impl IntoView {
           on:submit=on_new_folder_submit
           onsubmit="new_folder_modal.close()"
         >
-          <h3 class="font-bold text-lg">
-            New Folder
-          </h3>
+          <h3 class="font-bold text-lg">New Folder</h3>
           <input
             class="input input-bordered w-full max-w-xs py-2 my-2"
             type="text"
@@ -225,9 +217,7 @@ fn NewFolderButton(path: Signal<PathBuf>) -> impl IntoView {
             node_ref=new_folder_input
           />
           <div class="modal-action">
-            <button class="btn">
-              Cancel
-            </button>
+            <button class="btn">Cancel</button>
           </div>
         </form>
         <form method="dialog" class="modal-backdrop">
@@ -306,11 +296,7 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
   log!("Folders: {folders:?}");
 
   if files.is_empty() && folders.is_empty() {
-    return view! {
-      <div class="file-view">
-        The folder is empty
-      </div>
-    };
+    return view! { <div class="file-view">The folder is empty</div> };
   }
 
   let folders = move || {
