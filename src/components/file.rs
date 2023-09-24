@@ -64,7 +64,7 @@ static ADDITIONAL_EXTENSIONS_MAPPING: Map<&'static str, &'static str> = phf_map!
 };
 
 pub fn get_file_icon(extension: &str) -> &str {
-  let KNOWN_EXTENSIONS = icons_helper::get_known_icon_extensions!();
+  let KNOWN_EXTENSIONS = icons_helper::get_known_icon_extensions!("public/icons");
 
   let extension = ADDITIONAL_EXTENSIONS_MAPPING
     .get(extension)

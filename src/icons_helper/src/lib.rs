@@ -4,12 +4,19 @@
 extern crate proc_macro;
 use std::path::Path;
 
-use proc_macro::TokenStream;
+use proc_macro::{TokenStream, TokenTree};
 use quote::quote;
 
 #[proc_macro]
-pub fn get_known_icon_extensions(_tokens: TokenStream) -> TokenStream {
-  let path = Path::new("public/icons");
+pub fn get_known_icon_extensions(tokens: TokenStream) -> TokenStream {
+  let path_token = tokens.into_iter().next().expect("expected a path token");
+
+  let TokenTree::Literal(literal) = path_token else {
+    panic!("expected a literal");
+  };
+
+  let literal = literal.to_string();
+  let path = Path::new(literal.trim_matches('"'));
 
   let extensions = std::fs::read_dir(path)
     .unwrap()
