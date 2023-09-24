@@ -66,7 +66,11 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
     ));
   }
 
-  let path = get_target_dir().join(path);
+  let Ok(path) = get_target_dir().join(path).canonicalize() else {
+    return Err(ServerFnError::ServerError(
+      "Path must be inside target_dir".into(),
+    ));
+  };
 
   let mut files = Vec::new();
   let mut folders = Vec::new();
