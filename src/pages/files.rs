@@ -20,10 +20,9 @@ pub fn FilesPage() -> impl IntoView {
 
   let path = create_memo(move |_| {
     path_query.with(|query| {
-      let path = query
+      query
         .as_ref()
-        .map_or_else(|_| String::new(), |query| query.path.clone());
-      PathBuf::from(path)
+        .map_or_else(|_| PathBuf::new(), |query| PathBuf::from(&query.path))
     })
   });
 
