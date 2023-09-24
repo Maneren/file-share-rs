@@ -26,16 +26,22 @@ pub fn FilesPage() -> impl IntoView {
     })
   });
 
-  let entries = create_resource(path, |path| async {
-    list_dir(path).await.unwrap_or_default()
-  });
+  let create_folder_action = create_server_action::<NewFolder>();
+
+  let entries = create_resource(
+    move || (path.get(), create_folder_action.version().get()),
+    |(path, ..)| list_dir(path),
+  );
 
   let path = Signal::from(path);
 
   let entries = move || {
-    entries
-      .get()
-      .map(|entries| view! { <FileEntries path=path entries=entries/> })
+    entries.with(|entries| {
+      entries.as_ref().map(|entries| match entries {
+        Ok(entries) => view! { <FileEntries path=path entries=entries.clone()/> }.into_view(),
+        Err(e) => view! { <p class="text-lg">{format!("{e}")}</p> }.into_view(),
+      })
+    })
   };
 
   view! {
@@ -43,7 +49,7 @@ pub fn FilesPage() -> impl IntoView {
       <div class="w-full pt-2 flex flex-wrap items-center justify-center gap-2">
         <FileUpload path=path/>
         <div class="flex flex-grow gap-2">
-          <NewFolderButton path=path/>
+          <NewFolderButton path=path action=create_folder_action/>
           <FolderDownloads path=path/>
         </div>
       </div>
@@ -99,21 +105,12 @@ fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
 }
 
 #[component]
-fn NewFolderButton(path: Signal<PathBuf>) -> impl IntoView {
+fn NewFolderButton(
+  path: Signal<PathBuf>,
+  action: Action<NewFolder, Result<(), ServerFnError>>,
+) -> impl IntoView {
   let new_folder_input: NodeRef<Input> = create_node_ref();
 
-  let new_folder = create_action(move |name: &String| {
-    let name = name.clone();
-    async move {
-      new_folder(name, path.get_untracked()).await.unwrap();
-      window().location().reload().unwrap();
-    }
-  });
-
-  let on_new_folder_submit = move |ev: SubmitEvent| {
-    ev.prevent_default();
-    let name = new_folder_input().unwrap().value();
-    new_folder.dispatch(name);
   let on_new_folder_focus = move |_| {
     let input = new_folder_input().unwrap();
     let input_length =
@@ -127,11 +124,9 @@ fn NewFolderButton(path: Signal<PathBuf>) -> impl IntoView {
         Create New Folder
       </button>
       <dialog id="new_folder_modal" class="modal">
-        <form
-          method="dialog"
+        <ActionForm
+          action=action
           class="modal-box"
-          on:submit=on_new_folder_submit
-          onsubmit="new_folder_modal.close()"
         >
           <h3 class="font-bold text-lg">New Folder</h3>
           <input
@@ -140,8 +135,10 @@ fn NewFolderButton(path: Signal<PathBuf>) -> impl IntoView {
             value="New Folder"
             on:focus=on_new_folder_focus
             node_ref=new_folder_input
+            name="name"
             autofocus
           />
+          <input type="hidden" name="target" value=move || path.with(|path| os_to_string(path))/>
           <div class="modal-action">
             <button class="btn" type="reset" onclick="new_folder_modal.close()">
               Cancel
@@ -150,7 +147,7 @@ fn NewFolderButton(path: Signal<PathBuf>) -> impl IntoView {
               Create
             </button>
           </div>
-        </form>
+        </ActionForm>
         <form method="dialog" class="modal-backdrop">
           <button></button>
         </form>
