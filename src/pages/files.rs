@@ -114,6 +114,11 @@ fn NewFolderButton(path: Signal<PathBuf>) -> impl IntoView {
     ev.prevent_default();
     let name = new_folder_input().unwrap().value();
     new_folder.dispatch(name);
+  let on_new_folder_focus = move |_| {
+    let input = new_folder_input().unwrap();
+    let input_length =
+      u32::try_from(input.value().len()).expect("New folder name is shorter than u32::MAX");
+    let _ = input.set_selection_range(0, input_length);
   };
 
   view! {
@@ -133,10 +138,17 @@ fn NewFolderButton(path: Signal<PathBuf>) -> impl IntoView {
             class="input input-bordered w-full max-w-xs py-2 my-2"
             type="text"
             value="New Folder"
+            on:focus=on_new_folder_focus
             node_ref=new_folder_input
+            autofocus
           />
           <div class="modal-action">
-            <button class="btn">Cancel</button>
+            <button class="btn" type="reset" onclick="new_folder_modal.close()">
+              Cancel
+            </button>
+            <button class="btn btn-primary" type="submit" onclick="new_folder_modal.close()">
+              Create
+            </button>
           </div>
         </form>
         <form method="dialog" class="modal-backdrop">
