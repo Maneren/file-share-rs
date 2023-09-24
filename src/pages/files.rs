@@ -1,21 +1,13 @@
 use std::{iter, path::PathBuf};
 
-// mod progress;
 mod server;
 mod utils;
 
 use leptos::{ev::SubmitEvent, html::Input, logging::*, *};
 use leptos_router::*;
-// use reqwest::Body;
 use server::*;
-// use tokio_util::io::ReaderStream;
 use utils::*;
 
-// use wasm_bindgen::JsCast;
-
-// use web_sys::{
-//   FileList, ReadableStreamByobReader, ReadableStreamGetReaderOptions, ReadableStreamReaderMode,
-// };
 use crate::components::{File as FileComponent, Folder as FolderComponent};
 
 #[derive(PartialEq, Eq, Params)]
@@ -76,78 +68,6 @@ pub fn FilesPage() -> impl IntoView {
 #[component]
 fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
   let upload_input: NodeRef<Input> = create_node_ref();
-  //
-  // let upload_files = create_action(move |files: &FileList| {
-  //   let len = files.length();
-  //   let files = (0..len)
-  //     .map(|i| files.get(i).unwrap())
-  //     .inspect(|file| {
-  //       log!("File: {}, {}", file.name(), file.size());
-  //     })
-  //     .map(|file| (file.name(), file.stream()))
-  //     .collect::<Vec<_>>();
-  //
-  //   async move {
-  //     log!("{:?}", files.len());
-  //     // let mut files_final = Vec::new();
-  //     let mut form = reqwest::multipart::Form::new();
-  //     // for (name, array_buffer) in files {
-  //     // let buffer_value = JsFuture::from(array_buffer).await.unwrap();
-  //     // let array_buffer = buffer_value.dyn_into::<js_sys::ArrayBuffer>().unwrap();
-  //     // let uint8_array = js_sys::Uint8Array::new(&array_buffer);
-  //     // files_final.push(File(name, uint8_array.to_vec()));
-  //     // form = form.part(name, reqwest::multipart::Part::bytes(uint8_array));
-  //     // }
-  //     for (name, stream) in files {
-  //       let reader = stream
-  //         .get_reader_with_options(
-  //           ReadableStreamGetReaderOptions::new().mode(ReadableStreamReaderMode::Byob),
-  //         )
-  //         .dyn_into::<ReadableStreamByobReader>()
-  //         .unwrap();
-  //
-  //       let adapter = ReadableStreamAdapter::new(reader);
-  //       let reader_stream = ReaderStream::new(adapter);
-  //
-  //       form = form.part(
-  //         name,
-  //         reqwest::multipart::Part::stream(Body::wrap_stream(reader_stream)),
-  //       );
-  //     }
-  //
-  //     // log!("{:?}", files_final.len());
-  //     // loop {
-  //     //   tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-  //     // }
-  //
-  //     let client = reqwest::Client::new();
-  //     let request = client.post("/upload").multipart(form).send().await.unwrap();
-  //     log!("{:?}", request);
-  //
-  //     // let mut builder = request.header(
-  //     //   http::header::CONTENT_TYPE,
-  //     //   format!("multipart/form-data; boundary={}", form.boundary()).as_str(),
-  //     // );
-  //     //
-  //     // builder = match form.compute_length() {
-  //     //   Some(length) => builder.header(http::header::CONTENT_LENGTH, length),
-  //     //   None => builder,
-  //     // };
-  //     //
-  //     // if let Ok(ref mut req) = builder.request {
-  //     //   *req.body_mut() = Some(form.stream())
-  //     // }
-  //     //
-  //     // builder.send().await.unwrap();
-  //
-  //     // upload_files_server_fn(files_final, path.get_untracked())
-  //     //   .await
-  //     //   .unwrap();
-  //
-  //     // window().location().reload().unwrap();
-  //   }
-  // });
-
   let upload_path = move || path.with(|path| format!("/upload/{}", path.display()));
 
   let on_file_upload_submit = move |ev: SubmitEvent| {

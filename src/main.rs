@@ -33,7 +33,7 @@ async fn main() {
 
   let conf = get_configuration(None).await.unwrap();
   let leptos_options = conf.leptos_options;
-  let routes = generate_route_list(App).await;
+  let routes = generate_route_list(App);
 
   let Cli {
     target_dir,

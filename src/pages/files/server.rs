@@ -54,7 +54,7 @@ pub struct Entries {
   pub folders: Vec<FolderEntry>,
 }
 
-#[server(ListDirFn, "api")]
+#[server]
 pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
   if path.is_absolute() {
     return Err(ServerFnError::ServerError("Path must be relative".into()));
@@ -98,24 +98,7 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
   Ok(Entries { files, folders })
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct File(pub String, pub Vec<u8>);
-
-#[server(UploadFilesFn, "api", "Cbor")]
-pub async fn upload_files_server_fn(
-  files: Vec<File>,
-  target: PathBuf,
-) -> Result<(), ServerFnError> {
-  let base_path = get_target_dir().join(target);
-
-  for File(name, data) in files {
-    let path = base_path.join(name);
-    std::fs::write(path, data)?;
-  }
-  Ok(())
-}
-
-#[server(NewFolderFn, "api")]
+#[server]
 pub async fn new_folder(name: String, target: PathBuf) -> Result<(), ServerFnError> {
   let base_path = get_target_dir().join(target);
 
