@@ -168,5 +168,5 @@ pub async fn file_upload(path: String, mut multipart: Multipart) -> impl IntoRes
     }
   }
 
-  Redirect::to(&format!("/?path={path}")).into_response()
+  Redirect::to(&format!("/index/{path}")).into_response()
 }

@@ -12,6 +12,7 @@ async fn main() {
 
   use axum::{
     extract::DefaultBodyLimit,
+    response::Redirect,
     routing::{get, post},
     Router, Server,
   };
@@ -48,15 +49,16 @@ async fn main() {
   };
 
   let app = Router::new()
+    .route("/", get(|| async { Redirect::to("/index") }))
     .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
     .route("/archive/*path", get(handle_archive_with_path))
     .route("/archive/", get(handle_archive_without_path))
     .route("/upload/*path", post(file_upload_with_path))
     .route("/upload/", post(file_upload_without_path))
-    .layer(DefaultBodyLimit::disable())
-    .leptos_routes(&app_state, routes, App)
     .nest_service("/files", ServeDir::new(&target_dir))
+    .leptos_routes(&app_state, routes, App)
     .fallback(file_and_error_handler)
+    .layer(DefaultBodyLimit::disable())
     .with_state(app_state);
 
   let socket_addresses = interfaces

@@ -1,15 +1,4 @@
-use std::{
-  ffi::OsStr,
-  // io, mem,
-  path::Path,
-  // pin::Pin,
-  // task::{Context, Poll},
-};
-
-// use futures::{executor::block_on, Future, FutureExt};
-// use tokio::io::AsyncRead;
-// use wasm_bindgen_futures::JsFuture;
-// use web_sys::ReadableStreamByobReader;
+use std::{ffi::OsStr, path::Path};
 
 pub fn os_to_string(str: impl AsRef<OsStr>) -> String {
   str.as_ref().to_string_lossy().to_string()

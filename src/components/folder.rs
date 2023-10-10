@@ -10,7 +10,7 @@ pub fn Folder<'a>(
   #[prop(optional)] last_modified: Option<SystemTime>,
 ) -> impl IntoView {
   view! {
-    <a href=format!("?path={target}")>
+    <a href=format!("/index/{target}")>
       <Entry name=name icon=icon last_modified=last_modified/>
     </a>
   }

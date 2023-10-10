@@ -6,24 +6,26 @@ mod utils;
 use leptos::{ev::SubmitEvent, html::Input, logging::*, *};
 use leptos_router::*;
 use server::*;
+use urlencoding::decode;
 use utils::*;
 
 use crate::components::{File as FileComponent, Folder as FolderComponent};
 
-#[derive(PartialEq, Eq, Params)]
+#[derive(PartialEq, Eq, Params, Debug)]
 struct PathQuery {
   path: String,
 }
 
 pub fn FilesPage() -> impl IntoView {
-  let path_query = use_query::<PathQuery>();
+  let path_query = use_params::<PathQuery>();
 
   let path = create_memo(move |_| {
-    path_query.with(|query| {
-      query
-        .as_ref()
-        .map_or_else(|_| PathBuf::new(), |query| PathBuf::from(&query.path))
-    })
+    path_query.with(
+      |query| match query.as_ref().map(|query| decode(&query.path)) {
+        Ok(Ok(path)) => PathBuf::from(path.as_ref()),
+        _ => PathBuf::new(),
+      },
+    )
   });
 
   let create_folder_action = create_server_action::<NewFolder>();
@@ -187,12 +189,12 @@ fn FolderDownloads(path: Signal<PathBuf>) -> impl IntoView {
 fn Breadcrumbs(path: Signal<PathBuf>) -> impl IntoView {
   let breadcrumbs = move || {
     path.with(|path| {
-      let leading_breadcrumb = ("/".into(), "?path=".into());
+      let leading_breadcrumb = ("/".into(), "/index".into());
 
       let path_breadcrumbs = path.iter().scan(PathBuf::new(), |path, part| {
         let part_str = os_to_string(part);
         path.push(part);
-        let path = format!("?path={}", path.display());
+        let path = format!("/index/{}", path.display());
 
         Some((part_str, path))
       });
