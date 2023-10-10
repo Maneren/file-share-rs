@@ -25,10 +25,7 @@ pub fn NewFolderButton(
         Create New Folder
       </button>
       <dialog id="new_folder_modal" class="modal">
-        <ActionForm
-          action=action
-          class="modal-box"
-        >
+        <ActionForm action=action class="modal-box">
           <h3 class="font-bold text-lg">New Folder</h3>
           <input
             class="input input-bordered w-full max-w-xs py-2 my-2"
