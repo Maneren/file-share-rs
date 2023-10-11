@@ -36,7 +36,7 @@ pub fn get_config() -> Cli {
       let target_dir = std::env::current_dir().unwrap().join("files");
       let port = 3000;
       let qr = false;
-      // let qr = true;
+
       let interfaces = vec![
         IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)),
         IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),

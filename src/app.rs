@@ -36,7 +36,6 @@ pub fn App() -> impl IntoView {
         view! { <ErrorTemplate outside_errors/> }.into_view()
     }>
       <Routes>
-        // <Route path="/*path" view=FilesPage/>
         <Route path="/index/*path" view=FilesPage/>
       </Routes>
     </Router>
