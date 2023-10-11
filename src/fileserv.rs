@@ -9,7 +9,7 @@ use leptos::*;
 use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
-#[folder = "$CARGO_TARGET_DIR/site"]
+#[folder = "target/site"]
 struct StaticFiles;
 
 use axum::{
