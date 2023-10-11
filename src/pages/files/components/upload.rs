@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use leptos::{ev::SubmitEvent, html::Input, logging::*, *};
+use leptos::{ev::SubmitEvent, html::Input, *};
 
 #[component]
 pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {

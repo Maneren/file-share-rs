@@ -73,7 +73,7 @@ jobs:
           echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_OUTPUT"
 
 
-          RELEASE="target/server/${{ matrix.job.target }}/release"
+          RELEASE="target/${{ matrix.job.target }}/release"
 
           echo "RELEASE=${RELEASE}"
           echo "RELEASE=${RELEASE}" >> "$GITHUB_OUTPUT"
