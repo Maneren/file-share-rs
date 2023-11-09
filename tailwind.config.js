@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: {
     files: ["./src/**/*.rs"],
   },
@@ -12,7 +12,7 @@ module.exports = {
         "--rounded-btn": ".5rem",
         "--rounded-badge": "1.9rem",
       },
-    }, , "night"],
+    }, "night"],
   },
   theme: {
     extend: {
