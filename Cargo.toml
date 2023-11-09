@@ -87,11 +87,16 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
+# For cranelift backend support
+[profile.server-dev]
+inherits = "dev"
+
 [package.metadata.leptos]
 output-name = "file-share"
 style-file = "style/main.scss"
 assets-dir = "public"
 lib-profile-release = "wasm-release"
+bin-profile-dev = "server-dev"
 
 bin-features = ["ssr"]
 lib-features = ["hydrate"]
