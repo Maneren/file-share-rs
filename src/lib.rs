@@ -24,6 +24,9 @@ pub mod fileserv;
 use wasm_bindgen::prelude::wasm_bindgen;
 use crate::app::*;
 
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
 #[wasm_bindgen]
 pub fn hydrate() {
   // initializes logging using the `log` crate
