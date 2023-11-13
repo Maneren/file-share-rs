@@ -79,7 +79,7 @@ jobs:
           sudo apt-get -y update
           case ${{ matrix.job.target }} in
             aarch64-*linux*) sudo apt-get -y install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu ;;
-            i686-*linux*)    sudo apt-get -y install gcc-i686-linux-gnu ;;
+            x86_64-*linux*)  sudo apt-get -y install mold ;;
           esac;
       - name: Install NodeJS
         uses: actions/setup-node@v3
