@@ -6,8 +6,9 @@ use crate::{
   components::{File as FileComponent, Folder as FolderComponent},
   pages::files::{
     server::Entries,
-    utils::{format_bytes, get_file_extension, os_to_string},
+    utils::{get_file_extension, os_to_string},
   },
+  utils::format_bytes,
 };
 
 #[component]

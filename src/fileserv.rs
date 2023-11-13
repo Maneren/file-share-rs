@@ -72,7 +72,7 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
       StatusCode::BAD_REQUEST,
       format!("Invalid archive method: {method}"),
     )
-    .into_response();
+      .into_response();
   };
 
   let path = get_target_dir().join(path);
@@ -157,7 +157,7 @@ pub async fn file_upload(path: String, mut multipart: Multipart) -> impl IntoRes
       }
     };
 
-    eprintln!("Writing {} bytes", bytes.len());
+    eprintln!("Writing {} bytes", format_bytes(bytes.len() as u64));
 
     if let Err(err) = file.write_all(&bytes).await {
       return (
