@@ -21,7 +21,7 @@ use axum::{
 use tokio::{io, io::AsyncWriteExt};
 
 pub use crate::fileserv::archive::ArchiveMethod;
-use crate::{app::App, config::get_target_dir, fileserv::pipe::Pipe};
+use crate::{app::App, config::get_target_dir, fileserv::pipe::Pipe, utils::format_bytes};
 
 /// Handles static file requests by delegating to `StaticFiles`.
 pub async fn file_and_error_handler(
@@ -72,7 +72,7 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
       StatusCode::BAD_REQUEST,
       format!("Invalid archive method: {method}"),
     )
-    .into_response();
+      .into_response();
   };
 
   let path = get_target_dir().join(path);
@@ -157,7 +157,7 @@ pub async fn file_upload(path: String, mut multipart: Multipart) -> impl IntoRes
       }
     };
 
-    eprintln!("Writing {} bytes", bytes.len());
+    eprintln!("Writing {} bytes", format_bytes(bytes.len() as u64));
 
     if let Err(err) = file.write_all(&bytes).await {
       return (
