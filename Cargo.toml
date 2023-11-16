@@ -99,6 +99,7 @@ output-name = "file-share"
 style-file = "style/main.scss"
 assets-dir = "public"
 lib-profile-release = "wasm-release"
+tailwind-input-file = "style/tailwind.css"
 
 bin-features = ["ssr"]
 lib-features = ["hydrate"]
