@@ -50,7 +50,7 @@ zip = { version = "0.6", optional = true }
 zstd = { version = "0.13", optional = true }
 
 # internal proc macro helper
-icons_helper = { version = "0.0.0", path = "src/icons_helper" }
+icons_helper = { path = "src/icons_helper" }
 
 [profile.dev.package.leptos_macro]
 opt-level = 3
