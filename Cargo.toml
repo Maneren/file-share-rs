@@ -100,6 +100,7 @@ style-file = "style/main.scss"
 assets-dir = "public"
 lib-profile-release = "wasm-release"
 tailwind-input-file = "style/tailwind.css"
+separate-front-target-dir = true
 
 bin-features = ["ssr"]
 lib-features = ["hydrate"]
