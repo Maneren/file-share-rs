@@ -22,6 +22,8 @@ pub enum ServerEntry {
 
 #[server]
 pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
+  use crate::config::get_target_dir;
+
   if path.is_absolute() {
     return Err(ServerFnError::ServerError("Path must be relative".into()));
   }
@@ -32,7 +34,6 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
     ));
   }
 
-  use crate::config::get_target_dir;
   let Ok(path) = get_target_dir().join(path).canonicalize() else {
     return Err(ServerFnError::ServerError(
       "Path must be inside target_dir".into(),
@@ -52,13 +53,13 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
       entries.push(ServerEntry::Folder {
         name,
         last_modified,
-      })
+      });
     } else if metadata.is_file() {
       entries.push(ServerEntry::File {
         name,
         size: metadata.len(),
         last_modified,
-      })
+      });
     }
   }
 

@@ -216,12 +216,9 @@ where
 {
   let name = basename(base_path, path)?;
 
-  zip.start_file(&name, FileOptions::default()).map_err(|e| {
-    Error::Io(
-      format!("Failed to add {} to the ZIP archive", name),
-      e.into(),
-    )
-  })?;
+  zip
+    .start_file(&name, FileOptions::default())
+    .map_err(|e| Error::Io(format!("Failed to add {name} to the ZIP archive"), e.into()))?;
 
   let mut file = fs::File::open(path).map_err(|e| {
     Error::Io(
@@ -231,7 +228,7 @@ where
   })?;
 
   io::copy(&mut file, zip)
-    .map_err(|e| Error::Io(format!("Failed to write {} to the ZIP archive", name), e))?;
+    .map_err(|e| Error::Io(format!("Failed to write {name} to the ZIP archive"), e))?;
 
   Ok(())
 }

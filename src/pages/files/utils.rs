@@ -22,8 +22,8 @@ pub fn get_file_icon(name: &str) -> String {
     .get(&extension)
     .unwrap_or(&extension_str);
 
-  if KNOWN_EXTENSIONS.contains(&extension) {
-    extension.to_string()
+  if KNOWN_EXTENSIONS.contains(extension) {
+    (*extension).to_string()
   } else {
     "file".into()
   }

@@ -24,7 +24,8 @@ pub struct Entry {
   last_modified: SystemTime,
   relative_time: String,
 }
-#[allow(clippy::needless_lifetimes)]
+
+#[allow(clippy::needless_pass_by_value)]
 #[component]
 pub fn Icon(icon: String) -> impl IntoView {
   view! { <img class="icon h-10 w-10" src=format!("/icons/{icon}.svg") alt=format!("{icon} icon")/> }

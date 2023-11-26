@@ -48,7 +48,7 @@ pub async fn handle_archive_with_path(
   Path(path): Path<String>,
   Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
-  eprintln!("path: {:?}", path);
+  eprintln!("path: {path:?}");
   handle_archive(params.get("method"), path)
 }
 
