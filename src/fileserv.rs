@@ -3,25 +3,23 @@ mod pipe;
 
 use std::collections::HashMap;
 
-use futures::channel::mpsc::channel;
-use http::{header, HeaderValue};
-use leptos::*;
-use rust_embed::RustEmbed;
-
-#[derive(RustEmbed)]
-#[folder = "target/site"]
-struct StaticFiles;
-
 use axum::{
   body::{Body, StreamBody},
   extract::{Multipart, Path, Query, State},
-  http::{Request, StatusCode, Uri},
+  http::{header, HeaderValue, Request, StatusCode, Uri},
   response::{IntoResponse, Redirect},
 };
+use futures::channel::mpsc::channel;
+use leptos::*;
+use rust_embed::RustEmbed;
 use tokio::{io, io::AsyncWriteExt};
 
 pub use crate::fileserv::archive::ArchiveMethod;
 use crate::{app::App, config::get_target_dir, fileserv::pipe::Pipe, utils::format_bytes};
+
+#[derive(RustEmbed)]
+#[folder = "target/site"]
+struct StaticFiles;
 
 /// Handles static file requests by delegating to `StaticFiles`.
 pub async fn file_and_error_handler(
