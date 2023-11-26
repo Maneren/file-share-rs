@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-mod components;
-mod server;
-mod utils;
+pub(crate) mod components;
+pub(crate) mod server;
+pub(crate) mod utils;
 
 use components::*;
 use leptos::*;

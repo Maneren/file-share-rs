@@ -5,10 +5,10 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::must_use_candidate)]
+#![feature(generic_arg_infer)]
 
 use cfg_if::cfg_if;
 pub mod app;
-mod components;
 mod error_template;
 mod pages;
 pub mod utils;

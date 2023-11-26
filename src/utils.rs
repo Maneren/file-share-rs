@@ -1,6 +1,8 @@
 use std::time::{self, UNIX_EPOCH};
 
 use chrono::{DateTime, TimeZone, Utc};
+use chrono_humanize::Humanize;
+use leptos::{IntoView, View};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -30,6 +32,19 @@ impl From<SystemTime> for DateTime<Utc> {
   fn from(time: SystemTime) -> Self {
     let SystemTime(sec, nsec) = time;
     Utc.timestamp_opt(sec, nsec).unwrap()
+  }
+}
+impl IntoView for SystemTime {
+  fn into_view(self) -> View {
+    DateTime::from(self)
+      .format("%Y-%m-%d %H:%M:%S")
+      .to_string()
+      .into_view()
+  }
+}
+impl SystemTime {
+  pub fn humanize(&self) -> String {
+    DateTime::from(*self).humanize()
   }
 }
 

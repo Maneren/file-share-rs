@@ -1,62 +1,112 @@
 use std::path::PathBuf;
 
 use leptos::{logging::*, *};
+use leptos_router::A;
 
 use crate::{
-  components::{File as FileComponent, Folder as FolderComponent},
-  pages::files::{
-    server::Entries,
-    utils::{get_file_extension, os_to_string},
-  },
-  utils::format_bytes,
+  pages::files::{server::Entries, utils::get_file_icon},
+  utils::{format_bytes, SystemTime},
 };
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
+pub enum EntryType {
+  File,
+  Folder,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Entry {
+  type_: EntryType,
+  href: String,
+  icon: String,
+  name: String,
+  size: Option<String>,
+  last_modified: SystemTime,
+  relative_time: String,
+}
+#[allow(clippy::needless_lifetimes)]
+#[component]
+pub fn Icon(icon: String) -> impl IntoView {
+  view! { <img class="icon h-10 w-10" src=format!("/icons/{icon}.svg") alt=format!("{icon} icon")/> }
+}
+
+pub fn EntryComponent(data: Entry) -> impl IntoView {
+  let Entry {
+    type_,
+    href,
+    icon,
+    name,
+    size,
+    last_modified,
+    relative_time,
+  } = data;
+
+  let inner = view! {
+    <div class="entry w-full grid grid-cols-entry-mobile md:grid-cols-entry gap-2">
+      <Icon icon=icon/>
+      <span class="flex items-center overflow-x-hidden">{name}</span>
+      <span class="flex items-center justify-end">{size}</span>
+      <span class="hidden md:flex items-center justify-center">{last_modified}</span>
+      <span class="hidden md:flex items-center">{relative_time}</span>
+    </div>
+  };
+
+  if type_ == EntryType::Folder {
+    view! { <A href=href>{inner}</A> }.into_view()
+  } else {
+    view! {
+      <a href=href download>
+        {inner}
+      </a>
+    }
+    .into_view()
+  }
+}
 
 #[component]
 pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
-  let Entries { files, folders } = entries;
-  log!("Files: {files:?}");
-  log!("Folders: {folders:?}");
-
-  if files.is_empty() && folders.is_empty() {
-    return view! { <div class="file-view">The folder is empty</div> };
+  use crate::pages::files::server::ServerEntry;
+  if entries.is_empty() {
+    return view! { <div class="file-view">"The folder is empty"</div> };
   }
+  let path = path.with_untracked(|path| path.to_string_lossy().to_string());
 
-  let folders = move || {
-    path.with(|path| {
-      folders
-        .iter()
-        .map(|folder| {
-          view! {
-            <FolderComponent
-              name=&folder.name
-              icon="folder"
-              target=&os_to_string(path.join(&folder.name))
-              last_modified=folder.last_modified
-            />
-          }
-        })
-        .collect_view()
+  let mut entries = entries
+    .into_iter()
+    .map(|entry| match entry {
+      ServerEntry::File {
+        name,
+        size,
+        last_modified,
+      } => Entry {
+        type_: EntryType::File,
+        href: format!("/files/{path}/{name}"),
+        icon: get_file_icon(&name),
+        name: name.clone(),
+        size: Some(format_bytes(size)),
+        last_modified,
+        relative_time: last_modified.humanize(),
+      },
+      ServerEntry::Folder {
+        name,
+        last_modified,
+      } => Entry {
+        type_: EntryType::Folder,
+        href: format!("/index/{path}/{name}"),
+        icon: "folder".into(),
+        name: name.clone(),
+        size: None,
+        last_modified,
+        relative_time: last_modified.humanize(),
+      },
     })
-  };
+    .collect::<Vec<_>>();
 
-  let files = move || {
-    path.with(|path| {
-      files
-        .iter()
-        .map(|file| {
-          view! {
-            <FileComponent
-              path=&os_to_string(path.join(&file.name))
-              name=&file.name
-              extension=&get_file_extension(&file.name)
-              size=format_bytes(file.size)
-              last_modified=file.last_modified
-            />
-          }
-        })
-        .collect_view()
-    })
-  };
+  entries.sort_unstable();
 
-  view! { <div class="file-view">{folders} {files}</div> }
+  view! {
+    <div class="file-view">
+      {entries.into_iter().map(|entry| { EntryComponent(entry) }).collect_view()}
+    </div>
+  }
 }
