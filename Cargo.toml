@@ -4,6 +4,8 @@ version = "1.2.1"
 edition = "2021"
 authors = ["Maneren <maneren731@gmail.com>"]
 license = "MIT"
+repository = "https://github.com/Maneren/file-share-rs"
+description = "Simple HTTP file sharing server"
 
 [workspace]
 
@@ -54,6 +56,10 @@ icons_helper = { path = "src/icons_helper" }
 
 [profile.dev.package.leptos_macro]
 opt-level = 3
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }_{ target }{ archive-suffix }"
+bin-dir = "{ bin }{ binary-ext }"
 
 [features]
 wee_alloc = ["dep:wee_alloc"]
