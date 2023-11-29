@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use leptos::{logging::*, *};
+use leptos::*;
 use leptos_router::A;
 
 use crate::{
