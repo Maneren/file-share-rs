@@ -38,7 +38,7 @@ jobs:
           esac;
 
           echo "BINARY=${BINARY}"
-          echo "BINARY=${BINARY}" >> "$GITHUB_OUTPUT"
+          echo "BINARY=${BINARY}" >> "$GITHUB_ENV"
 
 
           case $TARGET in
@@ -47,7 +47,7 @@ jobs:
           esac;
 
           echo "CROSS=${CROSS}"
-          echo "CROSS=${CROSS}" >> "$GITHUB_OUTPUT"
+          echo "CROSS=${CROSS}" >> "$GITHUB_ENV"
 
 
           case $TARGET in
@@ -56,13 +56,13 @@ jobs:
           esac;
 
           echo "ARCHIVE=${ARCHIVE}"
-          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_OUTPUT"
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
 
 
           RELEASE="target/${{ matrix.job.target }}/release"
 
           echo "RELEASE=${RELEASE}"
-          echo "RELEASE=${RELEASE}" >> "$GITHUB_OUTPUT"
+          echo "RELEASE=${RELEASE}" >> "$GITHUB_ENV"
 
 
           case ${{ matrix.job.target }} in
@@ -72,7 +72,7 @@ jobs:
           esac;
 
           echo "STRIP=${STRIP}"
-          echo "STRIP=${STRIP}" >> "$GITHUB_OUTPUT"
+          echo "STRIP=${STRIP}" >> "$GITHUB_ENV"
       - name: Install strip and gcc for other archs
         if: contains(matrix.job.target, 'linux')
         run: |
@@ -99,24 +99,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile
-        if: ${{ steps.vars.outputs.CROSS == 'false' }}
+        if: ${{ env.CROSS == 'false' }}
         run: cargo leptos build --release
       - name: Compile with cross
-        if: ${{ steps.vars.outputs.CROSS == 'true' }}
+        if: ${{ env.CROSS == 'true' }}
         run: cargo leptos build --release
         env:
           LEPTOS_BIN_CARGO_COMMAND: cross
       - name: Strip the binary
-        if: ${{ steps.vars.outputs.STRIP }}
-        run: |
-          ${{ steps.vars.outputs.STRIP }} '${{ steps.vars.outputs.RELEASE }}/${{ steps.vars.outputs.BINARY }}'
+        if: ${{ env.STRIP }}
+        run: ${{ env.STRIP }} '${{ env.RELEASE }}/${{ env.BINARY }}'
       - name: Create archive
-        run: |
-          tar caf ${{ steps.vars.outputs.ARCHIVE }} --directory=${{ steps.vars.outputs.RELEASE }} ${{ steps.vars.outputs.BINARY }}
+        run: tar caf ${{ env.ARCHIVE }} -C ${{ env.RELEASE }} ${{ env.BINARY }}
       - name: Upload binary to release
         uses: svenstaro/upload-release-action@2.7.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ steps.vars.outputs.ARCHIVE }}
-          asset_name: ${{ steps.vars.outputs.ARCHIVE }}
+          file: ${{ env.ARCHIVE }}
+          asset_name: ${{ env.ARCHIVE }}
           tag: ${{ github.ref }}
