@@ -85,24 +85,19 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: latest
-      - name: Install TailwindCSS
-        run: npm i --no-package-lock
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: pnpm/action-setup@v2
+        name: Install pnpm and Tailwind
         with:
-          toolchain: nightly
-          target: ${{ matrix.job.target }}
+          version: 8
+          run_install: true
+      - name: Install rust tooling
+        uses: moonrepo/setup-rust@v1
+        with:
+          bins: cargo-leptos, cross
+          targets: '${{ matrix.job.target }},wasm32-unknown-unknown'
           profile: minimal
-          override: true
-      - name: Install cross
-        if: ${{ steps.vars.outputs.CROSS }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cross
-      - name: Install cargo-leptos and wasm target
-        run: |
-          cargo install --force cargo-leptos
-          rustup target add wasm32-unknown-unknown
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile
         if: ${{ steps.vars.outputs.CROSS == 'false' }}
         run: cargo leptos build --release
@@ -113,12 +108,13 @@ jobs:
           LEPTOS_BIN_CARGO_COMMAND: cross
       - name: Strip the binary
         if: ${{ steps.vars.outputs.STRIP }}
-        run: ${{ steps.vars.outputs.STRIP }} '${{ steps.vars.outputs.RELEASE }}/${{ steps.vars.outputs.BINARY }}'
+        run: |
+          ${{ steps.vars.outputs.STRIP }} '${{ steps.vars.outputs.RELEASE }}/${{ steps.vars.outputs.BINARY }}'
       - name: Create archive
         run: |
           tar caf ${{ steps.vars.outputs.ARCHIVE }} --directory=${{ steps.vars.outputs.RELEASE }} ${{ steps.vars.outputs.BINARY }}
       - name: Upload binary to release
-        uses: svenstaro/upload-release-action@v1-release
+        uses: svenstaro/upload-release-action@2.7.0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ steps.vars.outputs.ARCHIVE }}
