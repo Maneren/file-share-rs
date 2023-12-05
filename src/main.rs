@@ -30,6 +30,21 @@ async fn main() {
   use leptos_axum::{generate_route_list, LeptosRoutes};
   use tower_http::services::ServeDir;
 
+  const API_HELP_TEXT: &str = r#"
+File Share
+===========
+Endpoints:
+- /help                         -- show this help text
+- /api/list_dir path=           -- list the contents of a directory
+- /api/new_folder name=&target= -- create a new folder with name in path
+- /archive/*path?method=        -- create an archive from a path
+- /archive?method=              -- create an archive from root directory
+- /upload/*path                 -- upload a file to a path
+- /upload                       -- upload a file to root directory
+
+Available methods are tar, tar.gz, tar.zst, zip.
+"#;
+
   simple_logger::init_with_level(log::Level::Warn).expect("couldn't initialize logging");
 
   let conf = get_configuration(None).await.unwrap();
@@ -50,6 +65,7 @@ async fn main() {
 
   let app = Router::new()
     .route("/", get(|| async { Redirect::to("/index") }))
+    .route("/help", get(|| async { API_HELP_TEXT }))
     .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
     .route("/archive/*path", get(handle_archive_with_path))
     .route("/archive/", get(handle_archive_without_path))

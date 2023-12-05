@@ -20,7 +20,7 @@ pub enum ServerEntry {
   },
 }
 
-#[server]
+#[server(ListDir, "/api", "Url", "list_dir")]
 pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
   use crate::config::get_target_dir;
 
@@ -66,12 +66,13 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
   Ok(entries)
 }
 
-#[server]
-pub async fn new_folder(name: String, target: PathBuf) -> Result<(), ServerFnError> {
+#[server(NewFolder, "/api", "Url", "new_folder")]
+pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError> {
   use crate::config::get_target_dir;
-  let base_path = get_target_dir().join(target);
 
-  std::fs::create_dir(base_path.join(name))?;
+  let path = get_target_dir().join(path).join(name);
+
+  std::fs::create_dir(path)?;
 
   Ok(())
 }
