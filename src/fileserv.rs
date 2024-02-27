@@ -4,7 +4,7 @@ mod pipe;
 use std::collections::HashMap;
 
 use axum::{
-  body::{Body, StreamBody},
+  body::Body,
   extract::{Multipart, Path, Query, State},
   http::{header, HeaderValue, Request, StatusCode, Uri},
   response::{IntoResponse, Redirect},
@@ -110,7 +110,7 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
     (header::CONTENT_ENCODING, "identity".parse().unwrap()),
   ];
 
-  (headers, StreamBody::new(rx)).into_response()
+  (headers, Body::from_stream(rx)).into_response()
 }
 
 pub async fn file_upload_with_path(

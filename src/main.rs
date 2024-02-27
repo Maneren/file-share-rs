@@ -14,7 +14,7 @@ async fn main() {
     extract::DefaultBodyLimit,
     response::Redirect,
     routing::{get, post},
-    Router, Server,
+    Router,
   };
   use colored::Colorize;
   use file_share::{
@@ -25,6 +25,7 @@ async fn main() {
       handle_archive_with_path, handle_archive_without_path,
     },
   };
+  use futures::future::try_join_all;
   use if_addrs::Interface;
   use leptos::{get_configuration, logging::error};
   use leptos_axum::{generate_route_list, LeptosRoutes};
@@ -118,20 +119,6 @@ Available methods are tar, tar.gz, tar.zst, zip.
     .collect::<Vec<_>>()
     .join(", ");
 
-  let server = socket_addresses
-    .iter()
-    .map(Server::try_bind)
-    .find_map(|result| {
-      result
-        .map_err(|e| error!("Failed to bind to socket: {e}"))
-        .ok()
-    });
-
-  let Some(server) = server else {
-    error!("Failed to bind to any socket");
-    process::exit(1);
-  };
-
   if let Err(e) = create_dir_all(&target_dir) {
     error!("Failed to create target directory: {e}");
     process::exit(1);
@@ -160,8 +147,11 @@ Available methods are tar, tar.gz, tar.zst, zip.
     {
       match qr_code::QrCode::new(url) {
         Ok(qr) => {
-          println!("QR code for {}:", url.green().bold());
-          println!("{}", qr.to_string(false, 1));
+          println!(
+            "QR code for {}:\n{}",
+            url.green().bold(),
+            qr.to_string(false, 1)
+          );
         }
         Err(e) => {
           error!("Failed to render QR to terminal: {e}");
@@ -174,5 +164,19 @@ Available methods are tar, tar.gz, tar.zst, zip.
     println!("Quit by pressing CTRL-C");
   }
 
-  server.serve(app.into_make_service()).await.unwrap();
+  async fn start_server(app: Router, addr: SocketAddr) -> io::Result<()> {
+    axum_server::bind(addr)
+      .serve(app.into_make_service())
+      .await
+      .map_err(|e| format!("Failed to start server at {addr}: {e}"))
+  }
+
+  let servers = socket_addresses
+    .into_iter()
+    .map(|addr| tokio::spawn(start_server(app.clone(), addr)));
+
+  // Returns the first error if any of the servers return an error.
+  if let Err(e) = try_join_all(servers).await {
+    error!("{e}");
+  }
 }
