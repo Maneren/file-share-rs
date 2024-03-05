@@ -164,12 +164,12 @@ Available methods are tar, tar.gz, tar.zst, zip.
     println!("Quit by pressing CTRL-C");
   }
 
-  async fn start_server(app: Router, addr: SocketAddr) -> io::Result<()> {
+  let start_server = |app: Router, addr: SocketAddr| async move {
     axum_server::bind(addr)
       .serve(app.into_make_service())
       .await
       .map_err(|e| format!("Failed to start server at {addr}: {e}"))
-  }
+  };
 
   let servers = socket_addresses
     .into_iter()
