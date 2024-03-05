@@ -31,7 +31,7 @@ async fn main() {
   use leptos_axum::{generate_route_list, LeptosRoutes};
   use tower_http::services::ServeDir;
 
-  const API_HELP_TEXT: &str = r#"
+  const API_HELP_TEXT: &str = r"
 File Share
 ===========
 Endpoints:
@@ -44,7 +44,7 @@ Endpoints:
 - /upload                       -- upload a file to root directory
 
 Available methods are tar, tar.gz, tar.zst, zip.
-"#;
+";
 
   simple_logger::init_with_level(log::Level::Warn).expect("couldn't initialize logging");
 
