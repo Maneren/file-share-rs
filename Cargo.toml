@@ -13,12 +13,15 @@ description = "Simple HTTP file sharing server"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-leptos = { version = "0.6.6", features = ["nightly"] }
-leptos_axum = { version = "0.6.6", optional = true }
-leptos_meta = { version = "0.6.6", features = ["nightly"] }
-leptos_router = { version = "0.6.6", features = ["nightly"] }
+leptos = { version = "0.6", features = ["nightly"] }
+leptos_axum = { version = "0.6", optional = true }
+leptos_meta = { version = "0.6", features = ["nightly"] }
+leptos_router = { version = "0.6", features = ["nightly"] }
+leptos_server = { version = "0.6", features = ["nightly"] }
 leptos-use = "0.10"
+server_fn = { version = "0.6", features = ["serde-lite", "rkyv", "multipart"] }
 
+async-broadcast = { version = "0.7", optional = true }
 axum = { version = "0.7", optional = true, features = ["macros", "multipart"] }
 axum-server = { version = "0.6", optional = true }
 cfg-if = "1"
@@ -28,12 +31,16 @@ clap = { version = "4.5", features = ["derive"], optional = true }
 colored = { version = "2", optional = true }
 console_error_panic_hook = "0.1"
 console_log = "1"
-futures = { version = "0.3", optional = true }
+dashmap = { version = "5", optional = true }
+futures = "0.3"
+futures-concurrency = "7.5"
 http = "1.0"
-hyper = { version = "1.2", features = ["http1", "server"] }
+hyper = { version = "1.2", optional = true, features = ["http1", "server"] }
 if-addrs = { version = "0.11", optional = true }
 libflate = { version = "2.0", optional = true }
 log = "0.4"
+notify = { version = "6.1", optional = true }
+once_cell = { version = "1", optional = true }
 phf = { version = "0.11", features = ["macros"] }
 port_check = { version = "0.1", optional = true }
 qr_code = { version = "2.0", optional = true }
@@ -47,8 +54,9 @@ tower = { version = "0.4", optional = true }
 tower-http = { version = "0.5", features = ["fs"], optional = true }
 tracing = { version = "0", optional = true }
 urlencoding = "2"
-wasm-bindgen = "=0.2.91"
-wasm-bindgen-futures = "=0.4.41"
+wasm-bindgen = "=0.2.92"
+wasm-bindgen-futures = "=0.4.42"
+web-sys = { version = "0.3.68", features = ["File", "FileList"] }
 wee_alloc = { version = "0.4", optional = true }
 zip = { version = "0.6", optional = true }
 zstd = { version = "0.13", optional = true }
@@ -72,14 +80,17 @@ hydrate = [
   "wee_alloc",
 ]
 ssr = [
+  "dep:async-broadcast",
   "dep:axum",
   "dep:axum-server",
   "dep:clap",
   "dep:colored",
-  "dep:futures",
+  "dep:dashmap",
+  "dep:hyper",
   "dep:if-addrs",
   "dep:leptos_axum",
   "dep:libflate",
+  "dep:once_cell",
   "dep:port_check",
   "dep:qr_code",
   "dep:rust-embed",
