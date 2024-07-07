@@ -151,7 +151,7 @@ where
       Error::Io(
         format!(
           "Failed to append the content of {} to the TAR archive",
-          src_dir.to_string_lossy()
+          src_dir.display()
         ),
         e,
       )
@@ -203,8 +203,8 @@ fn basename(base_path: &Path, path: &Path) -> Result<String, Error> {
     .map_err(|_| {
       Error::InvalidPath(format!(
         "Failed to strip {} from {}",
-        base_path.to_string_lossy(),
-        path.to_string_lossy()
+        base_path.display(),
+        path.display()
       ))
     })
     .map(|basename| basename.to_string_lossy().into_owned())
@@ -220,12 +220,8 @@ where
     .start_file(&name, FileOptions::default())
     .map_err(|e| Error::Io(format!("Failed to add {name} to the ZIP archive"), e.into()))?;
 
-  let mut file = fs::File::open(path).map_err(|e| {
-    Error::Io(
-      format!("Failed to open {} for reading", path.to_string_lossy()),
-      e,
-    )
-  })?;
+  let mut file = fs::File::open(path)
+    .map_err(|e| Error::Io(format!("Failed to open {} for reading", path.display()), e))?;
 
   io::copy(&mut file, zip)
     .map_err(|e| Error::Io(format!("Failed to write {name} to the ZIP archive"), e))?;
@@ -240,13 +236,13 @@ where
 {
   for entry in fs::read_dir(dir).map_err(|e| {
     Error::Io(
-      format!("Failed to read the content of {}", dir.to_string_lossy()),
+      format!("Failed to read the content of {}", dir.display()),
       e,
     )
   })? {
     let entry = entry.map_err(|e| {
       Error::Io(
-        format!("Failed to read the content of {}", dir.to_string_lossy()),
+        format!("Failed to read the content of {}", dir.display()),
         e,
       )
     })?;
@@ -262,7 +258,7 @@ where
           Error::Io(
             format!(
               "Failed to add {} to the ZIP archive",
-              path.to_string_lossy()
+              path.display()
             ),
             e.into(),
           )
