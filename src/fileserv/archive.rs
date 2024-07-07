@@ -217,7 +217,7 @@ where
   let name = basename(base_path, path)?;
 
   zip
-    .start_file(&name, FileOptions::default())
+    .start_file(name.as_str(), FileOptions::<()>::default())
     .map_err(|e| Error::Io(format!("Failed to add {name} to the ZIP archive"), e.into()))?;
 
   let mut file = fs::File::open(path)
@@ -253,7 +253,7 @@ where
 
     if path.is_dir() {
       zip
-        .add_directory(name, FileOptions::default())
+        .add_directory(name, FileOptions::<()>::default())
         .map_err(|e| {
           Error::Io(
             format!(
