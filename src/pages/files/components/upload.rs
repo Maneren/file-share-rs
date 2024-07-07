@@ -51,14 +51,14 @@ pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
         multiple
         node_ref=upload_input
       />
-      <input type="hidden" name="path" value=upload_path />
-      <input type="hidden" name="file-list" node_ref=file_names_input />
+      <input type="hidden" name="path" value=upload_path/>
+      <input type="hidden" name="file-list" node_ref=file_names_input/>
       <button type="submit" class="btn btn-primary grow-[1]">
         Upload
       </button>
     </form>
 
-    <FileUploadWithProgress path=path />
+    <FileUploadWithProgress path=path/>
   }
 }
 
@@ -195,11 +195,7 @@ pub fn FileUploadWithProgress(path: Signal<PathBuf>) -> impl IntoView {
 
   fn FileProgress(filename: String, progress: UploadProgress) -> impl IntoView {
     let UploadProgress { size, uploaded } = progress;
-    view! {
-      <p>
-        {filename}: <progress max=size.to_string() value=uploaded ></progress>
-      </p>
-    }
+    view! { <p>{filename}: <progress max=size.to_string() value=uploaded></progress></p> }
   }
 
   view! {
@@ -211,13 +207,18 @@ pub fn FileUploadWithProgress(path: Signal<PathBuf>) -> impl IntoView {
       node_ref=form_ref
       on:submit=on_submit
     >
-      <input type="hidden" name="path" value=move || path.with(|path| path.display().to_string()) />
+      <input
+        type="hidden"
+        name="path"
+        value=move || path.with(|path| path.to_string_lossy().into_owned())
+      />
       <input
         type="file"
         name="uploads"
         class="file-input file-input-bordered grow-[3]"
         multiple
-        ref=file_ref />
+        ref=file_ref
+      />
       <button type="submit" class="btn btn-primary grow-[1]">
         Upload
       </button>
@@ -230,15 +231,13 @@ pub fn FileUploadWithProgress(path: Signal<PathBuf>) -> impl IntoView {
     //       view! { <progress max=max value=move || current().unwrap_or_default()></progress> }
     //     })
     // }}
-    //
-      {
-        move || {
-          uploading_files()
+    // 
+
+    {move || {
+        uploading_files()
             .iter()
             .map(|(filename, progress)| FileProgress(filename.to_owned(), *progress))
             .collect::<Vec<_>>()
-        }
-      }
-
+    }}
   }
 }
