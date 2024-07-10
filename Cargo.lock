@@ -1052,6 +1052,7 @@ dependencies = [
  "leptos_server",
  "libflate",
  "log",
+ "multer",
  "notify",
  "once_cell",
  "phf",

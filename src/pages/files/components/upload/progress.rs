@@ -1,29 +1,29 @@
+use std::sync::LazyLock;
+
 use async_broadcast::{broadcast, Receiver, Sender};
 use dashmap::DashMap;
-use futures::Stream;
-use leptos::logging;
-use once_cell::sync::Lazy;
+use futures::{Stream, StreamExt};
+use leptos::*;
 
 struct FileHandle {
   total: usize,
-  tx: Sender<usize>,
-  rx: Receiver<usize>,
+  tx: Sender<Option<usize>>,
+  rx: Receiver<Option<usize>>,
 }
 
 impl Default for FileHandle {
   fn default() -> Self {
-    let (tx, rx) = broadcast(128);
+    let (mut tx, rx) = broadcast(16);
+    tx.set_overflow(true);
     Self { total: 0, tx, rx }
   }
 }
 
-static FILES: Lazy<DashMap<String, FileHandle>> = Lazy::new(DashMap::new);
+static FILES: LazyLock<DashMap<String, FileHandle>> = LazyLock::new(DashMap::new);
 
-pub async fn add_chunk(filename: &str, len: usize) {
-  logging::log!("[{filename}]\trecieved {len} B");
-
-  let mut entry = FILES.entry(filename.to_owned()).or_insert_with(|| {
-    logging::log!("[{filename}]\tinserting channel (chunk)");
+pub async fn add_chunk(id: &str, len: usize) {
+  let mut entry = FILES.entry(id.to_owned()).or_insert_with(|| {
+    logging::log!("[{id}]\tinserting channel (chunk)");
     Default::default()
   });
 
@@ -34,29 +34,40 @@ pub async fn add_chunk(filename: &str, len: usize) {
   let tx = entry.tx.clone();
   drop(entry);
 
-  logging::log!("[{filename}]\tbroadcasting new total {new_total}");
+  logging::log!("[{id}]\tbroadcasting new total {new_total}");
 
-  // now we send the message and don't have to worry about it
-  tx.broadcast(new_total)
+  tx.broadcast(Some(new_total))
     .await
     .expect("couldn't send a message over channel");
 }
 
-pub fn progress_streams(filenames: &[String]) -> Vec<(String, impl Stream<Item = usize>)> {
-  filenames
-    .iter()
-    .map(|filename| {
-      let entry = FILES.entry(filename.to_owned()).or_insert_with(|| {
-        logging::log!("[{filename}]\tinserting channel (progress)");
-        Default::default()
-      });
+pub fn progress_stream(id: String) -> impl Stream<Item = Result<String, ServerFnError>> {
+  let entry = FILES.entry(id.to_owned()).or_insert_with(|| {
+    logging::log!("[{id}]\tinserting channel (progress)");
+    Default::default()
+  });
 
-      (filename.to_owned(), entry.rx.clone())
+  entry
+    .rx
+    .clone()
+    .map(move |bytes| match bytes {
+      Some(bytes) => format!("{id}\0{bytes}\n"),
+      None => format!("{id}\n"),
     })
-    .inspect(|(filename, _)| logging::log!("[{filename}]\tsending stream"))
-    .collect()
+    .map(Ok)
 }
 
-pub fn finish_file(filename: &str) {
+pub async fn finish_file(filename: &str) {
+  if let Some(entry) = FILES.get_mut(filename) {
+    entry
+      .tx
+      .broadcast(None)
+      .await
+      .expect("couldn't send a message over channel");
+
+    entry.tx.close();
+    entry.rx.close();
+  }
+
   FILES.remove(filename);
 }
