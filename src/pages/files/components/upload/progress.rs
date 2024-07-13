@@ -7,13 +7,13 @@ use leptos::*;
 
 struct FileHandle {
   total: usize,
-  tx: Sender<Option<usize>>,
-  rx: Receiver<Option<usize>>,
+  tx: Sender<usize>,
+  rx: Receiver<usize>,
 }
 
 impl Default for FileHandle {
   fn default() -> Self {
-    let (mut tx, rx) = broadcast(16);
+    let (mut tx, rx) = broadcast(1);
     tx.set_overflow(true);
     Self { total: 0, tx, rx }
   }
@@ -36,7 +36,7 @@ pub async fn add_chunk(id: &str, len: usize) {
 
   logging::log!("[{id}]\tbroadcasting new total {new_total}");
 
-  tx.broadcast(Some(new_total))
+  tx.broadcast(new_total)
     .await
     .expect("couldn't send a message over channel");
 }
@@ -50,26 +50,15 @@ pub fn progress_stream(id: String) -> impl Stream<Item = Result<String, ServerFn
   entry
     .rx
     .clone()
-    .map(move |bytes| {
-      if let Some(bytes) = bytes {
-        format!("{id}\0{bytes}\n")
-      } else {
-        format!("{id}\n")
-      }
-    })
+    .map(move |bytes| format!("{id}\0{bytes}\n"))
     .map(Ok)
 }
 
-pub async fn finish_file(filename: &str) {
+pub fn finish(filename: &str) {
   if let Some(entry) = FILES.get_mut(filename) {
-    entry
-      .tx
-      .broadcast(None)
-      .await
-      .expect("couldn't send a message over channel");
-
     entry.tx.close();
     entry.rx.close();
+    logging::log!("[{filename}]\tstream closed");
   }
 
   FILES.remove(filename);

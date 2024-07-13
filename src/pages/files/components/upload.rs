@@ -82,8 +82,10 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     }
 
     logging::log!("[{name}]\tfinished");
-    progress::finish_file(&name).await;
   }
+
+  logging::log!("[{id}]\tfinished");
+  progress::finish(&id);
 
   Ok(())
 }
@@ -120,16 +122,15 @@ async fn update_progress(id: String, uploading_files: RwSignal<HashMap<String, P
         };
 
         update!(|uploaded| *uploaded = size);
-
-        if uploaded.get_untracked() >= size {
-          logging::log!("[{id}]\tfinished");
-          uploading_files.remove(id);
-        }
       }
     });
   }
 
   logging::log!("[{id}]\tfinished (stream)");
+
+  update!(|uploading_files| {
+    _ = uploading_files.remove(&id);
+  });
 }
 
 #[component]
