@@ -120,6 +120,11 @@ pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
       .map(|i| file_list.get(i).unwrap())
       .collect::<Vec<_>>();
 
+    if files.is_empty() {
+      logging::warn!("No files selected. Aborting.");
+      return;
+    }
+
     let total = files.iter().map(|f| f.size() as u64).sum::<u64>();
 
     let id = {
