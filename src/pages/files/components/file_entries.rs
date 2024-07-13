@@ -105,9 +105,5 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
 
   entries.sort_unstable();
 
-  view! {
-    <div class="file-view">
-      {entries.into_iter().map(|entry| EntryComponent(entry)).collect_view()}
-    </div>
-  }
+  view! { <div class="file-view">{entries.into_iter().map(EntryComponent).collect_view()}</div> }
 }
