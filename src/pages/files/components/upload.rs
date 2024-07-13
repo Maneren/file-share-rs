@@ -134,7 +134,7 @@ async fn update_progress(id: String, uploading_files: RwSignal<HashMap<String, P
 }
 
 #[component]
-pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
+pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) -> impl IntoView {
   let uploading_files = create_rw_signal(HashMap::<String, Progress>::new());
 
   let file_ref: NodeRef<Input> = create_node_ref();
@@ -188,12 +188,16 @@ pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
       );
     });
 
-    spawn_local(update_progress(id, uploading_files));
+    spawn_local(update_progress(id.clone(), uploading_files));
 
     spawn_local(async move {
       upload_file(form_data.into())
         .await
         .expect("couldn't upload file");
+
+      logging::log!("[{id}]\tfinished (upload)");
+
+      on_upload(());
     });
   };
 

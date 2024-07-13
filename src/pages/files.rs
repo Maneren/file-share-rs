@@ -29,7 +29,7 @@ pub fn FilesPage() -> impl IntoView {
 
   let create_folder_action = create_server_action::<NewFolder>();
 
-  let entries = create_resource(
+  let entries_resource = create_resource(
     move || (path.get(), create_folder_action.version().get()),
     |(path, ..)| list_dir(path),
   );
@@ -37,7 +37,7 @@ pub fn FilesPage() -> impl IntoView {
   let path = Signal::from(path);
 
   let entries = move || {
-    entries.with(|entries| {
+    entries_resource.with(|entries| {
       entries.as_ref().map(|entries| match entries {
         Ok(entries) => view! { <FileEntries path=path entries=entries.clone()/> }.into_view(),
         Err(e) => view! { <p class="text-lg">{format!("{e}")}</p> }.into_view(),
@@ -48,7 +48,7 @@ pub fn FilesPage() -> impl IntoView {
   view! {
     <div class="App p-3">
       <div class="w-full pt-2 flex flex-wrap items-start justify-center gap-2">
-        <FileUpload path=path/>
+        <FileUpload path=path on_upload=move |_| entries_resource.refetch()/>
         <div class="flex flex-grow gap-2">
           <NewFolderButton path=path action=create_folder_action/>
           <FolderDownloads path=path/>
@@ -64,9 +64,7 @@ pub fn FilesPage() -> impl IntoView {
         <span class="hidden md:inline">Last Modified</span>
       </div>
 
-      <Suspense fallback=move || {
-          view! { <p>"Loading..."</p> }
-      }>{entries}</Suspense>
+      <Suspense fallback=move || view! { <p>"Loading..."</p> }>{entries}</Suspense>
     </div>
   }
 }
