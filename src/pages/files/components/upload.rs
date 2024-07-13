@@ -169,6 +169,7 @@ pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
         uploading_files.update(|map| {
           for (id, size) in messages {
             let Some(entry) = map.get_mut(id) else {
+              logging::warn!("Got progress for unknown id '{id}'");
               continue;
             };
 
