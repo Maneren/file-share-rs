@@ -13,7 +13,7 @@ struct FileHandle {
 
 impl Default for FileHandle {
   fn default() -> Self {
-    let (mut tx, rx) = broadcast(1);
+    let (mut tx, rx) = broadcast(8);
     tx.set_overflow(true);
     Self { total: 0, tx, rx }
   }

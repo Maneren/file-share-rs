@@ -114,9 +114,9 @@ async fn update_progress(id: String, uploading_files: RwSignal<HashMap<String, P
       .filter_map(|line| line.split_once('\0'))
       .filter_map(|(id, size)| size.parse::<u64>().ok().map(|size| (id, size)));
 
-    update!(|uploading_files| {
+    uploading_files.with_untracked(|uploading_files| {
       for (id, size) in messages {
-        let Some(&mut Progress { uploaded, .. }) = uploading_files.get_mut(id) else {
+        let Some(&Progress { uploaded, .. }) = uploading_files.get(id) else {
           logging::warn!("Got progress for unknown id '{id}'");
           continue;
         };
@@ -197,38 +197,54 @@ pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
     });
   };
 
-  let ProgressBar = |Progress { size, uploaded }| view! { <p>Uploading: <progress max=size.to_string() value=uploaded></progress></p> };
+  let ProgressBar = |Progress { size, uploaded }| {
+    let percent = move || with!(|uploaded| *uploaded * 100 / size);
+    view! {
+      <div class="m-2 flex flex-row items-baseline gap-3">
+        <span>{move || format!("Uploading {: >3}%", percent())}</span>
+        <div class="bg-neutral rounded-full flex-grow h-3">
+          <div
+            class="bg-info h-full transition-all ease-linear duration-500 rounded-full"
+            style:width=move || format!("{}%", percent())
+          ></div>
+        </div>
+      </div>
+    }
+  };
 
   view! {
-    <form
-      class="flex flex-wrap grow-[2] gap-2"
-      method="POST"
-      enctype="multipart/form-data"
-      node_ref=form_ref
-      on:submit=on_submit
-    >
-      <input
-        type="hidden"
-        name="path"
-        value=move || path.with(|path| path.to_string_lossy().into_owned())
-      />
-      // placeholder that is filled on submission
-      <input type="hidden" name="id" value=""/>
-      <input
-        type="file"
-        name="uploads"
-        class="file-input file-input-bordered grow-[3]"
-        multiple
-        ref=file_ref
-      />
-      <button type="submit" class="btn btn-primary grow-[1]">
-        Upload
-      </button>
-    </form>
+    <div class="flex flex-grow flex-col gap-2">
+      <form
+        class="flex flex-wrap grow-[2] gap-2"
+        method="POST"
+        enctype="multipart/form-data"
+        node_ref=form_ref
+        on:submit=on_submit
+      >
+        <input
+          type="hidden"
+          name="path"
+          value=move || path.with(|path| path.to_string_lossy().into_owned())
+        />
+        // placeholder that is filled on submission
+        <input type="hidden" name="id" value=""/>
+        <input
+          type="file"
+          name="uploads"
+          class="file-input file-input-bordered grow-[3]"
+          multiple
+          ref=file_ref
+        />
+        <button type="submit" class="btn btn-primary grow-[1]">
+          Upload
+        </button>
+      </form>
 
-    {move || {
-        uploading_files
-            .with(|map| map.values().map(|progress| ProgressBar(*progress)).collect::<Vec<_>>())
-    }}
+      {move || {
+          uploading_files
+              .with(|map| map.values().map(|progress| ProgressBar(*progress)).collect::<Vec<_>>())
+      }}
+
+    </div>
   }
 }
