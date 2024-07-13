@@ -17,7 +17,7 @@ mod progress;
 
 #[server(input = MultipartFormData)]
 pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
-  use server_fn::ServerFnError::*;
+  use server_fn::ServerFnError::ServerError;
   use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
   use crate::config::get_target_dir;
@@ -26,8 +26,6 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     data: &mut multer::Multipart<'static>,
     name: &str,
   ) -> Result<String, ServerFnError> {
-    use server_fn::ServerFnError::*;
-
     let Ok(Some(mut field)) = data.next_field().await else {
       logging::error!("no field");
       return Err(ServerError("No field.".into()));
@@ -90,20 +88,53 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
   Ok(())
 }
 
+#[allow(clippy::unused_async)]
 #[server(output = StreamingText)]
 pub async fn file_progress(id: String) -> Result<TextStream, ServerFnError> {
   Ok(TextStream::new(progress::progress_stream(id.clone())))
 }
 
-#[component]
-pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
-  #[derive(Debug, Clone, Copy, Default)]
-  struct UploadProgress {
-    pub size: u64,
-    pub uploaded: RwSignal<u64>,
+#[derive(Debug, Clone, Copy, Default)]
+struct Progress {
+  pub size: u64,
+  pub uploaded: RwSignal<u64>,
+}
+
+async fn update_progress(id: String, uploading_files: RwSignal<HashMap<String, Progress>>) {
+  let mut progress = file_progress(id.clone())
+    .await
+    .expect("couldn't initialize stream")
+    .into_inner();
+
+  while let Some(Ok(chunk)) = progress.next().await {
+    let messages = chunk
+      .split('\n')
+      .filter_map(|line| line.split_once('\0'))
+      .filter_map(|(id, size)| size.parse::<u64>().ok().map(|size| (id, size)));
+
+    update!(|uploading_files| {
+      for (id, size) in messages {
+        let Some(&mut Progress { uploaded, .. }) = uploading_files.get_mut(id) else {
+          logging::warn!("Got progress for unknown id '{id}'");
+          continue;
+        };
+
+        update!(|uploaded| *uploaded = size);
+
+        if uploaded.get_untracked() >= size {
+          logging::log!("[{id}]\tfinished");
+          uploading_files.remove(id);
+        }
+      }
+    });
   }
 
-  let uploading_files = create_rw_signal(HashMap::<String, UploadProgress>::new());
+  logging::log!("[{id}]\tfinished (stream)");
+}
+
+#[component]
+pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
+  let uploading_files = create_rw_signal(HashMap::<String, Progress>::new());
 
   let file_ref: NodeRef<Input> = create_node_ref();
   let form_ref: NodeRef<Form> = create_node_ref();
@@ -125,6 +156,8 @@ pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
       return;
     }
 
+    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_sign_loss)]
     let total = files.iter().map(|f| f.size() as u64).sum::<u64>();
 
     let id = {
@@ -137,51 +170,25 @@ pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
       hasher.finish().to_string()
     };
 
-    if uploading_files.with(|map| map.contains_key(&id)) {
+    if with!(|uploading_files| uploading_files.contains_key(&id)) {
       logging::warn!("Upload already in progress. Aborting.");
       return;
     }
 
     _ = form_data.set_with_str("id", &id);
 
-    uploading_files.update(|map| {
-      _ = map.insert(
+    update!(|uploading_files| {
+      _ = uploading_files.insert(
         id.clone(),
-        UploadProgress {
+        Progress {
           size: total,
           uploaded: create_rw_signal(0),
         },
-      )
+      );
     });
 
-    spawn_local(async move {
-      let mut progress = file_progress(id)
-        .await
-        .expect("couldn't initialize stream")
-        .into_inner();
+    spawn_local(update_progress(id, uploading_files));
 
-      while let Some(Ok(chunk)) = progress.next().await {
-        let messages = chunk
-          .split('\n')
-          .filter_map(|line| line.split_once('\0'))
-          .filter_map(|(id, size)| size.parse::<u64>().ok().map(|size| (id, size)));
-
-        uploading_files.update(|map| {
-          for (id, size) in messages {
-            let Some(entry) = map.get_mut(id) else {
-              logging::warn!("Got progress for unknown id '{id}'");
-              continue;
-            };
-
-            entry.uploaded.update(|uploaded| *uploaded = size);
-
-            if entry.uploaded.get_untracked() >= entry.size {
-              map.remove(id);
-            }
-          }
-        })
-      }
-    });
     spawn_local(async move {
       upload_file(form_data.into())
         .await
@@ -189,10 +196,7 @@ pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
     });
   };
 
-  fn FileProgress(progress: UploadProgress) -> impl IntoView {
-    let UploadProgress { size, uploaded } = progress;
-    view! { <p>Uploading: <progress max=size.to_string() value=uploaded></progress></p> }
-  }
+  let ProgressBar = |Progress { size, uploaded }| view! { <p>Uploading: <progress max=size.to_string() value=uploaded></progress></p> };
 
   view! {
     <form
@@ -223,7 +227,7 @@ pub fn FileUpload(path: Signal<PathBuf>) -> impl IntoView {
 
     {move || {
         uploading_files
-            .with(|map| map.values().map(|progress| FileProgress(*progress)).collect::<Vec<_>>())
+            .with(|map| map.values().map(|progress| ProgressBar(*progress)).collect::<Vec<_>>())
     }}
   }
 }

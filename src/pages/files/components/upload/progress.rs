@@ -24,7 +24,7 @@ static FILES: LazyLock<DashMap<String, FileHandle>> = LazyLock::new(DashMap::new
 pub async fn add_chunk(id: &str, len: usize) {
   let mut entry = FILES.entry(id.to_owned()).or_insert_with(|| {
     logging::log!("[{id}]\tinserting channel (chunk)");
-    Default::default()
+    FileHandle::default()
   });
 
   entry.total += len;
@@ -42,17 +42,20 @@ pub async fn add_chunk(id: &str, len: usize) {
 }
 
 pub fn progress_stream(id: String) -> impl Stream<Item = Result<String, ServerFnError>> {
-  let entry = FILES.entry(id.to_owned()).or_insert_with(|| {
+  let entry = FILES.entry(id.clone()).or_insert_with(|| {
     logging::log!("[{id}]\tinserting channel (progress)");
-    Default::default()
+    FileHandle::default()
   });
 
   entry
     .rx
     .clone()
-    .map(move |bytes| match bytes {
-      Some(bytes) => format!("{id}\0{bytes}\n"),
-      None => format!("{id}\n"),
+    .map(move |bytes| {
+      if let Some(bytes) = bytes {
+        format!("{id}\0{bytes}\n")
+      } else {
+        format!("{id}\n")
+      }
     })
     .map(Ok)
 }
