@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use leptos::*;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "ssr")]
+use tokio::fs;
 
 use crate::utils::SystemTime;
 
@@ -42,11 +44,11 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
 
   let mut entries = Vec::new();
 
-  for entry in std::fs::read_dir(path)? {
-    let entry = entry?;
+  let mut directory = fs::read_dir(path).await?;
 
+  while let Some(entry) = directory.next_entry().await? {
     let name = entry.file_name().to_string_lossy().into_owned();
-    let metadata = entry.metadata()?;
+    let metadata = entry.metadata().await?;
     let last_modified = metadata.modified()?.into();
 
     if metadata.is_dir() {
@@ -72,7 +74,7 @@ pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError
 
   let path = get_target_dir().join(path).join(name);
 
-  std::fs::create_dir(path)?;
+  fs::create_dir(path).await?;
 
   Ok(())
 }
