@@ -48,7 +48,7 @@ pub fn FilesPage() -> impl IntoView {
   view! {
     <div class="App p-3">
       <div class="w-full pt-2 flex flex-wrap items-start justify-center gap-2">
-        <FileUpload path=path on_upload=move |_| entries_resource.refetch()/>
+        <FileUpload path=path on_upload=move |()| entries_resource.refetch()/>
         <div class="flex flex-grow gap-2">
           <NewFolderButton path=path action=create_folder_action/>
           <FolderDownloads path=path/>
