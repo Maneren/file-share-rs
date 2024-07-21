@@ -1,13 +1,18 @@
-use std::{
-  fmt, fs,
-  io::{self, Cursor},
-  path::Path,
-};
+use std::{fmt, path::Path};
 
-use libflate::gzip;
-use tar::Builder;
+use async_compression::tokio::write::{GzipEncoder, ZstdEncoder};
+use async_walkdir::WalkDir;
+use async_zip::{
+  tokio::write::ZipFileWriter, Compression, StringEncoding, ZipEntryBuilder, ZipString,
+};
 use thiserror::Error as ThisError;
-use zip::{write::FileOptions, ZipWriter};
+use tokio::{
+  fs,
+  io::{self, AsyncWrite, AsyncWriteExt},
+};
+use tokio_stream::StreamExt as _;
+use tokio_tar::Builder;
+use tokio_util::compat::FuturesAsyncWriteCompatExt;
 
 #[derive(Debug, ThisError)]
 pub enum Error {
@@ -18,6 +23,10 @@ pub enum Error {
   /// Any error related to an invalid path (failed to retrieve entry name, unexpected entry type, etc)
   #[error("Invalid path\ncaused by: {0}")]
   InvalidPath(String),
+
+  /// Any other kind of error
+  #[error("Other error\ncaused by: {0}")]
+  Other(String),
 
   /// Might occur when the creation of an archive fails
   #[error("An error occurred while creating the {0}\ncaused by: {1}")]
@@ -43,17 +52,17 @@ impl ArchiveMethod {
     }
   }
 
-  pub fn create_archive<P, W>(self, dir: P, out: W) -> Result<(), Error>
+  pub async fn create_archive<P, W>(self, dir: P, out: W) -> Result<(), Error>
   where
     P: AsRef<Path>,
-    W: io::Write,
+    W: AsyncWrite + Unpin + Send + Sync,
   {
     let dir = dir.as_ref();
     match self {
-      ArchiveMethod::Tar => tar_dir(dir, out),
-      ArchiveMethod::TarGz => tar_gz(dir, out),
-      ArchiveMethod::TarZstd => tar_zstd(dir, out),
-      ArchiveMethod::Zip => zip_dir(dir, out),
+      ArchiveMethod::Tar => tar_dir(dir, out).await,
+      ArchiveMethod::TarGz => tar_gz(dir, out).await,
+      ArchiveMethod::TarZstd => tar_zstd(dir, out).await,
+      ArchiveMethod::Zip => zip_dir(dir, out).await,
     }
   }
 }
@@ -85,81 +94,73 @@ impl fmt::Display for ArchiveMethod {
 }
 
 /// Write a gzipped tarball of `dir` in `out`.
-fn tar_gz<W>(dir: &Path, out: W) -> Result<(), Error>
+async fn tar_gz<W>(dir: &Path, out: W) -> Result<(), Error>
 where
-  W: std::io::Write,
+  W: AsyncWrite + Unpin + Send + Sync,
 {
-  let mut out = gzip::Encoder::new(out).map_err(|e| Error::Io("GZIP".to_string(), e))?;
+  let mut encoder = GzipEncoder::new(out);
 
-  tar_dir(dir, &mut out)?;
+  tar_dir(dir, &mut encoder).await?;
 
-  out
-    .finish()
-    .into_result()
-    .map_err(|e| Error::Io("GZIP finish".to_string(), e))?;
+  encoder.shutdown().await.map_err(|e| {
+    Error::ArchiveCreation(
+      "gzip".to_string(),
+      Box::new(Error::Io(
+        "Finishing GZIP compression failed".to_string(),
+        e,
+      )),
+    )
+  })?;
 
   Ok(())
 }
 
 /// Write a zstd-compressed tarball of `dir` in `out`.
-fn tar_zstd<W>(dir: &Path, out: W) -> Result<(), Error>
+async fn tar_zstd<W>(dir: &Path, out: W) -> Result<(), Error>
 where
-  W: std::io::Write,
+  W: AsyncWrite + Unpin + Send + Sync,
 {
-  let mut out = zstd::Encoder::new(out, 0).map_err(|e| Error::Io("ZSTD".to_string(), e))?;
+  let mut encoder = ZstdEncoder::new(out);
 
-  tar_dir(dir, &mut out)?;
+  tar_dir(dir, &mut encoder).await?;
 
-  out
-    .finish()
-    .map_err(|e| Error::Io("ZSTD finish".to_string(), e))?;
+  encoder
+    .shutdown()
+    .await
+    .map_err(|e| Error::Io("Finishing ZSTD compression failed".to_string(), e))?;
 
   Ok(())
 }
 
 /// Write a tarball of `dir` in `out`.
-fn tar_dir<W>(dir: &Path, out: W) -> Result<(), Error>
+async fn tar_dir<W>(dir: &Path, out: W) -> Result<(), Error>
 where
-  W: std::io::Write,
+  W: AsyncWrite + Unpin + Send + Sync,
 {
-  let inner_folder = dir
+  let folder_name = dir
     .file_name()
     .ok_or_else(|| Error::InvalidPath("Directory name terminates in \"..\"".to_string()))?;
 
-  let directory = inner_folder.to_str().ok_or_else(|| {
-    Error::InvalidPath("Directory name contains invalid UTF-8 characters".to_string())
-  })?;
+  let mut builder = Builder::new_non_terminated(out);
 
-  tar(dir, directory, out).map_err(|e| Error::ArchiveCreation("tarball".to_string(), Box::new(e)))
-}
+  builder.follow_symlinks(false);
 
-/// Writes a tarball of `dir` in `out`.
-///
-/// The content of `src_dir` will be saved in the archive as a folder named `inner_folder`.
-fn tar<W>(src_dir: &Path, inner_folder: &str, out: W) -> Result<(), Error>
-where
-  W: std::io::Write,
-{
-  let mut tar_builder = Builder::new(out);
-
-  tar_builder.follow_symlinks(true);
-
-  // Recursively adds the content of src_dir into the archive stream
-  tar_builder
-    .append_dir_all(inner_folder, src_dir)
+  builder
+    .append_dir_all(folder_name, dir)
+    .await
     .map_err(|e| {
       Error::Io(
         format!(
           "Failed to append the content of {} to the TAR archive",
-          src_dir.display()
+          dir.display()
         ),
         e,
       )
     })?;
 
-  // Finish the archive
-  tar_builder
-    .into_inner()
+  builder
+    .finish()
+    .await
     .map_err(|e| Error::Io("Failed to finish writing the TAR archive".to_string(), e))?;
 
   Ok(())
@@ -167,108 +168,92 @@ where
 
 /// Write a zip archive of `dir` in `out`.
 /// The content of `dir` will be saved in the archive as a folder named `dir`.
-fn zip_dir<W>(dir: &Path, mut out: W) -> Result<(), Error>
+async fn zip_dir<W>(dir: &Path, out: W) -> Result<(), Error>
 where
-  W: io::Write,
+  W: AsyncWrite + Unpin,
 {
-  let mut data = Vec::new();
-  {
-    let mut zip = ZipWriter::new(Cursor::new(&mut data));
+  let mut zip = ZipFileWriter::with_tokio(out);
 
-    zip.set_comment(format!(
-      "This archive was created by the fileserv server at {}",
-      chrono::Local::now().to_rfc2822()
-    ));
+  zip.comment(format!(
+    "This archive was created by the file-share-rs server at {}",
+    chrono::Local::now().to_rfc2822()
+  ));
 
-    add_dir_to_zip(dir, dir, &mut zip)?;
+  let mut walker = WalkDir::new(dir);
 
-    zip.finish().map_err(|e| {
-      Error::Io(
-        "Failed to finish writing the ZIP archive".to_string(),
-        e.into(),
-      )
-    })?;
+  while let Some(entry) = walker.next().await {
+    let Ok(entry) = entry else {
+      continue;
+    };
+
+    if entry.file_type().await.is_ok_and(|t| !t.is_file()) {
+      continue;
+    }
+
+    add_file_to_zip(&entry.path(), dir, &mut zip).await?;
   }
 
-  out
-    .write_all(&data)
-    .map_err(|e| Error::Io("Failed to write the ZIP archive".to_string(), e))?;
+  zip.close().await.map_err(|e| {
+    Error::ArchiveCreation(
+      "Failed to finish writing the ZIP archive".to_string(),
+      Error::Other(e.to_string()).into(),
+    )
+  })?;
 
   Ok(())
 }
 
-fn basename(base_path: &Path, path: &Path) -> Result<String, Error> {
-  path
-    .strip_prefix(base_path)
-    .map_err(|_| {
-      Error::InvalidPath(format!(
-        "Failed to strip {} from {}",
-        base_path.display(),
-        path.display()
-      ))
-    })
-    .map(|basename| basename.to_string_lossy().into_owned())
-}
-
-fn add_file_to_zip<W>(base_path: &Path, path: &Path, zip: &mut ZipWriter<W>) -> Result<(), Error>
+async fn add_file_to_zip<W>(
+  path: &Path,
+  base_dir: &Path,
+  zip: &mut ZipFileWriter<W>,
+) -> Result<(), Error>
 where
-  W: io::Write + io::Seek,
+  W: AsyncWrite + Unpin,
 {
-  let name = basename(base_path, path)?;
+  let name = path.strip_prefix(base_dir).map_err(|_| {
+    Error::InvalidPath(format!(
+      "Failed to strip {} from {}",
+      base_dir.display(),
+      path.display()
+    ))
+  })?;
 
-  zip
-    .start_file(name.as_str(), FileOptions::<()>::default())
-    .map_err(|e| Error::Io(format!("Failed to add {name} to the ZIP archive"), e.into()))?;
+  let zip_name = ZipString::new(
+    name.as_os_str().as_encoded_bytes().to_vec(),
+    StringEncoding::Raw,
+  );
 
   let mut file = fs::File::open(path)
+    .await
     .map_err(|e| Error::Io(format!("Failed to open {} for reading", path.display()), e))?;
 
-  io::copy(&mut file, zip)
-    .map_err(|e| Error::Io(format!("Failed to write {name} to the ZIP archive"), e))?;
+  let entry = ZipEntryBuilder::new(zip_name, Compression::Deflate).build();
 
-  Ok(())
-}
+  let mut sink = zip
+    .write_entry_stream(entry)
+    .await
+    .map_err(|e| {
+      Error::ArchiveCreation(
+        format!("Failed to write {} to the ZIP archive", name.display()),
+        Error::Other(e.to_string()).into(),
+      )
+    })?
+    .compat_write();
 
-/// Recursively add the content of `src_dir` to the zip archive `zip`.
-fn add_dir_to_zip<W>(base_path: &Path, dir: &Path, zip: &mut ZipWriter<W>) -> Result<(), Error>
-where
-  W: io::Write + io::Seek,
-{
-  for entry in fs::read_dir(dir).map_err(|e| {
+  io::copy(&mut file, &mut sink).await.map_err(|e| {
     Error::Io(
-      format!("Failed to read the content of {}", dir.display()),
+      format!("Failed to write {} to the ZIP archive", name.display()),
       e,
     )
-  })? {
-    let entry = entry.map_err(|e| {
-      Error::Io(
-        format!("Failed to read the content of {}", dir.display()),
-        e,
-      )
-    })?;
+  })?;
 
-    let path = entry.path();
-
-    let name = basename(base_path, &path)?;
-
-    if path.is_dir() {
-      zip
-        .add_directory(name, FileOptions::<()>::default())
-        .map_err(|e| {
-          Error::Io(
-            format!(
-              "Failed to add {} to the ZIP archive",
-              path.display()
-            ),
-            e.into(),
-          )
-        })?;
-
-      add_dir_to_zip(base_path, &path, zip)?;
-    } else {
-      add_file_to_zip(base_path, &path, zip)?;
-    }
-  }
+  sink.shutdown().await.map_err(|e| {
+    Error::ArchiveCreation(
+      format!("Failed to write {} to the ZIP archive", name.display()),
+      Error::Other(e.to_string()).into(),
+    )
+  })?;
 
   Ok(())
 }

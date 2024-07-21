@@ -1,5 +1,4 @@
 mod archive;
-mod pipe;
 
 use std::collections::HashMap;
 
@@ -9,13 +8,13 @@ use axum::{
   http::{header, HeaderValue, Request, StatusCode, Uri},
   response::{IntoResponse, Redirect},
 };
-use futures::channel::mpsc::channel;
 use leptos::*;
 use rust_embed::RustEmbed;
-use tokio::{io, io::AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
+use tokio_util::io::ReaderStream;
 
 pub use crate::fileserv::archive::ArchiveMethod;
-use crate::{app::App, config::get_target_dir, fileserv::pipe::Pipe, utils::format_bytes};
+use crate::{app::App, config::get_target_dir, utils::format_bytes};
 
 #[derive(RustEmbed)]
 #[folder = "target/site"]
@@ -80,16 +79,15 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
     archive_method
   );
 
-  eprintln!("Creating: {file_name}");
+  logging::log!("Creating: {file_name}");
 
-  // We will create the archive in a separate thread, and stream the content using a pipe.
-  // The pipe is an adapter for async Sender to implement sync Write using block_on calls.
-  let (tx, rx) = channel::<io::Result<axum::body::Bytes>>(10);
-  let pipe = Pipe::new(tx);
+  let (mut writer, reader) = tokio::io::duplex(256 * 1024);
+  let stream = ReaderStream::new(reader);
 
-  std::thread::spawn(move || {
-    if let Err(err) = archive_method.create_archive(path, pipe) {
+  tokio::spawn(async move {
+    if let Err(err) = archive_method.create_archive(path, &mut writer).await {
       log::error!("Error during archive creation: {err:?}");
+      writer.shutdown().await.expect("Failed to shutdown writer");
     }
   });
 
@@ -110,7 +108,7 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
     (header::CONTENT_ENCODING, "identity".parse().unwrap()),
   ];
 
-  (headers, Body::from_stream(rx)).into_response()
+  (headers, Body::from_stream(stream)).into_response()
 }
 
 pub async fn file_upload_with_path(
