@@ -33,8 +33,9 @@ pub enum Error {
   ArchiveCreation(String, Box<Error>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub enum ArchiveMethod {
+  #[default]
   Tar,
   TarGz,
   TarZstd,

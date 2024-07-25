@@ -62,7 +62,7 @@ pub async fn handle_archive_without_path(
 }
 
 fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
-  let method = method.map_or("tar", String::as_str);
+  let method = method.map_or_else(Default::default, String::as_str);
 
   let Ok(archive_method) = ArchiveMethod::try_from(method) else {
     return (
