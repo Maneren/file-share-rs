@@ -11,7 +11,7 @@ pub struct Cli {
   pub target_dir: PathBuf,
 
   /// Port to serve on
-  #[arg(short, long, default_value = "8080")]
+  #[arg(short, long, default_value = "3000")]
   pub port: u16,
 
   /// Show QR code with link to the site
@@ -47,7 +47,7 @@ pub fn get_config() -> Cli {
     }
   }
 
-  let port = if port == 0 {
+  let port = if port == 0 || !port_check::is_local_port_free(port) {
     port_check::free_local_port().expect("no free port found")
   } else {
     port
