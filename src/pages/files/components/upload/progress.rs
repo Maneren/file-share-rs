@@ -34,8 +34,6 @@ pub async fn add_chunk(id: &str, len: usize) {
   let tx = entry.tx.clone();
   drop(entry);
 
-  logging::log!("[{id}]\tbroadcasting new total {new_total}");
-
   tx.broadcast(new_total)
     .await
     .expect("couldn't send a message over channel");

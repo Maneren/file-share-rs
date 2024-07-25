@@ -6,7 +6,7 @@ use axum::{
   body::Body,
   extract::{Multipart, Path, Query, State},
   http::{header, HeaderValue, Request, StatusCode, Uri},
-  response::{IntoResponse, Redirect},
+  response::IntoResponse,
 };
 use leptos::*;
 use rust_embed::RustEmbed;
@@ -47,7 +47,7 @@ pub async fn handle_archive_with_path(
   Path(path): Path<String>,
   Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
-  eprintln!("path: {path:?}");
+  logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
   handle_archive(params.get("method"), path)
 }
 
@@ -57,7 +57,7 @@ pub async fn handle_archive_with_path(
 pub async fn handle_archive_without_path(
   Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
-  eprintln!("without path");
+  logging::log!("Handling archive without path and params '{params:?}'");
   handle_archive(params.get("method"), String::new())
 }
 
@@ -123,15 +123,16 @@ pub async fn file_upload_without_path(multipart: Multipart) -> impl IntoResponse
 }
 
 pub async fn file_upload(path: String, mut multipart: Multipart) -> impl IntoResponse {
+  let base_path = get_target_dir().join(&path);
   while let Some(field) = multipart.next_field().await.unwrap() {
     let Some(file_name) = field.file_name() else {
       continue;
     };
-    let path = get_target_dir().join(&path).join(file_name);
+    let path = base_path.join(file_name);
 
-    println!("Uploading to {path:?}");
+    logging::log!("Uploading to {path:?}");
 
-    let mut file = match tokio::fs::File::create(path).await {
+    let mut file = match tokio::fs::File::create(&path).await {
       Ok(file) => file,
       Err(err) => {
         return (
@@ -153,7 +154,11 @@ pub async fn file_upload(path: String, mut multipart: Multipart) -> impl IntoRes
       }
     };
 
-    eprintln!("Writing {} bytes", format_bytes(bytes.len() as u64));
+    logging::log!(
+      "Writing {} bytes to {}",
+      format_bytes(bytes.len() as u64),
+      path.display()
+    );
 
     if let Err(err) = file.write_all(&bytes).await {
       return (

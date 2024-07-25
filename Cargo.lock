@@ -730,6 +730,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dahlia"
+version = "1.1.0"
+source = "git+https://github.com/Maneren/dahlia.rs#759166ec3ef4776459a8c9266e0401e67bb98053"
+dependencies = [
+ "lazy_static",
+ "regex",
+]
+
+[[package]]
 name = "darling"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -949,6 +958,7 @@ dependencies = [
  "colored",
  "console_error_panic_hook",
  "console_log",
+ "dahlia",
  "dashmap 6.0.1",
  "futures",
  "http 1.1.0",

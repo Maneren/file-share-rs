@@ -16,7 +16,7 @@ async fn main() {
     routing::{get, post},
     Router,
   };
-  use colored::Colorize;
+  use dahlia::{dprintln, Dahlia};
   use file_share::{
     app::App,
     config::{get_config, AppState, Cli},
@@ -124,16 +124,16 @@ Available methods are tar, tar.gz, tar.zst, zip.
     process::exit(1);
   }
 
-  println!(
-    "Serving files from {}",
-    target_dir.to_string_lossy().yellow().bold()
-  );
+  let d = Dahlia::default().with_auto_depth();
+
+  dprintln!(d, "Serving files from &4&l{}", target_dir.display());
   println!("Listening on {display_sockets}");
-  println!(
-    "Available on:\n{}",
+  dprintln!(
+    d,
+    "Available on:&a&l\n{}",
     display_urls
       .iter()
-      .map(|url| format!("   {url}").green().bold().to_string())
+      .map(|url| format!("   {url}"))
       .collect::<Vec<_>>()
       .join("\n")
   );
@@ -147,11 +147,7 @@ Available methods are tar, tar.gz, tar.zst, zip.
     {
       match qr_code::QrCode::new(url) {
         Ok(qr) => {
-          println!(
-            "QR code for {}:\n{}",
-            url.green().bold(),
-            qr.to_string(false, 1)
-          );
+          dprintln!(d, "QR code for &a&l{}&R\n{}", url, qr.to_string(false, 1));
         }
         Err(e) => {
           error!("Failed to render QR to terminal: {e}");
