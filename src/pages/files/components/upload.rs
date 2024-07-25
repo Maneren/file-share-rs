@@ -4,7 +4,6 @@ use std::{
   path::PathBuf,
 };
 
-use futures::StreamExt;
 use leptos::{
   ev::SubmitEvent,
   html::{Form, Input},
@@ -103,6 +102,8 @@ struct Progress {
 }
 
 async fn update_progress(id: String, uploading_files: RwSignal<HashMap<String, Progress>>) {
+  use futures::StreamExt;
+
   let mut progress = file_progress(id.clone())
     .await
     .expect("couldn't initialize stream")

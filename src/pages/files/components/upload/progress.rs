@@ -2,8 +2,8 @@ use std::sync::LazyLock;
 
 use async_broadcast::{broadcast, Receiver, Sender};
 use dashmap::DashMap;
-use futures::{Stream, StreamExt};
 use leptos::*;
+use tokio_stream::{Stream, StreamExt};
 
 struct FileHandle {
   total: usize,
