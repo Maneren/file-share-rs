@@ -53,7 +53,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
 
   let id = collect_field_with_name(&mut data, "id").await?;
 
-  logging::log!("Base path: {base_path:?}; id: {id:?}");
+  logging::log!("[{id}]\tbase path: {base_path:?}");
 
   while let Ok(Some(mut field)) = data.next_field().await {
     let Some(name) = field.file_name().map(ToOwned::to_owned) else {
@@ -140,6 +140,8 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
 
   let file_ref: NodeRef<Input> = create_node_ref();
   let form_ref: NodeRef<Form> = create_node_ref();
+
+  // TODO: convert progress to local resource
 
   let on_submit = move |ev: SubmitEvent| {
     ev.prevent_default();
