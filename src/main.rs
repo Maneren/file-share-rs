@@ -57,7 +57,8 @@ Available methods are tar, tar.gz, tar.zst, zip.
     port,
     qr,
     interfaces,
-  } = get_config();
+    ..
+  } = get_config().await;
 
   let app_state = AppState {
     leptos_options,
