@@ -2,7 +2,6 @@ use std::{net::IpAddr, path::PathBuf, sync::OnceLock};
 
 use cfg_if::cfg_if;
 use clap::Parser;
-use rfd::AsyncFileDialog;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -33,7 +32,7 @@ pub struct Cli {
 /// # Panics
 ///
 /// Panics if `CWD`/`target_dir` is unreadable or when there's no free port.
-pub async fn get_config() -> Cli {
+pub async fn get_config() -> Result<Cli, String> {
   cfg_if! {
     if #[cfg(debug_assertions)] {
       use std::net::{Ipv4Addr, Ipv6Addr};
@@ -50,33 +49,33 @@ pub async fn get_config() -> Cli {
     } else {
       let Cli { target_dir, port, qr, interfaces, picker } = Cli::parse();
       let target_dir =if picker {
-        AsyncFileDialog::new()
+        rfd::AsyncFileDialog::new()
           .set_title("Select directory to share")
           .pick_folder()
           .await
-          .expect("a folder was selected")
+          .ok_or("No directory selected")?
           .path()
           .to_path_buf()
       } else {
-        target_dir.canonicalize().expect("target_dir is a valid path")
+        target_dir.canonicalize().map_err(|e| e.to_string())?
       };
     }
   }
 
-  let port = if port == 0 || !port_check::is_local_port_free(port) {
-    port_check::free_local_port().expect("no free port found")
-  } else {
-    port
-  };
+  let port = (port != 0 && port_check::is_local_port_free(port))
+    .then_some(port)
+    .or_else(|| port_check::free_local_port())
+    .ok_or("Couldn't find an open port")?;
+
   let _ = TARGET_DIR.set(target_dir.clone());
 
-  Cli {
+  Ok(Cli {
     target_dir,
     port,
     qr,
     interfaces,
     picker,
-  }
+  })
 }
 
 pub static TARGET_DIR: OnceLock<PathBuf> = OnceLock::new();

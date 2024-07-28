@@ -58,7 +58,10 @@ Available methods are tar, tar.gz, tar.zst, zip.
     qr,
     interfaces,
     ..
-  } = get_config().await;
+  } = get_config().await.unwrap_or_else(|e| {
+    eprintln!("Failed to get config: {e}");
+    process::exit(1);
+  });
 
   let app_state = AppState {
     leptos_options,
