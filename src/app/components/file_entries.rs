@@ -4,7 +4,7 @@ use leptos::*;
 use leptos_router::A;
 
 use crate::{
-  pages::files::{server::Entries, utils::get_file_icon},
+  app::{server::Entries, utils::get_file_icon},
   utils::{format_bytes, SystemTime},
 };
 
@@ -66,7 +66,7 @@ pub fn EntryComponent(data: Entry) -> impl IntoView {
 
 #[component]
 pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
-  use crate::pages::files::server::ServerEntry;
+  use crate::app::server::ServerEntry;
   if entries.is_empty() {
     return view! { <div class="file-view">"The folder is empty"</div> };
   }

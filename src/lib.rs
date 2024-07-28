@@ -9,7 +9,6 @@
 use cfg_if::cfg_if;
 pub mod app;
 mod error_template;
-mod pages;
 pub mod utils;
 
 cfg_if! {

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use leptos::{html::Input, *};
 use leptos_router::*;
 
-use crate::pages::files::{server::NewFolder, utils::os_to_string};
+use crate::app::{server::NewFolder, utils::os_to_string};
 
 #[component]
 pub fn NewFolderButton(
