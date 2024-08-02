@@ -71,10 +71,10 @@ jobs:
             x86_64-*linux*)  sudo apt-get -y install mold ;;
           esac;
       - name: Install NodeJS
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: latest
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v4
         name: Install pnpm and Tailwind
         with:
           version: 9
