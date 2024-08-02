@@ -95,3 +95,4 @@ jobs:
         run: cargo leptos build --release
         env:
           LEPTOS_BIN_CARGO_COMMAND: cross
+          LEPTOS_BIN_TARGET: ${{ matrix.job.target }}
