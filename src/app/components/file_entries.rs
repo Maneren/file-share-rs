@@ -1,41 +1,36 @@
+mod icon;
+
 use std::path::PathBuf;
 
+use icon::Icon;
 use leptos::*;
 use leptos_router::A;
 
 use crate::{
-  app::{server::Entries, utils::get_file_icon},
+  app::server::Entries,
   utils::{format_bytes, SystemTime},
 };
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub enum EntryType {
-  File,
   Folder,
+  File,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Entry {
   type_: EntryType,
   href: String,
-  icon: String,
   name: String,
   size: Option<String>,
   last_modified: SystemTime,
   relative_time: String,
 }
 
-#[allow(clippy::needless_pass_by_value)]
-#[component]
-pub fn Icon(icon: String) -> impl IntoView {
-  view! { <img class="icon h-10 w-10" src=format!("/icons/{icon}.svg") alt=format!("{icon} icon")/> }
-}
-
 pub fn EntryComponent(data: Entry) -> impl IntoView {
   let Entry {
     type_,
     href,
-    icon,
     name,
     size,
     last_modified,
@@ -44,7 +39,7 @@ pub fn EntryComponent(data: Entry) -> impl IntoView {
 
   let inner = view! {
     <div class="entry w-full grid grid-cols-entry-mobile md:grid-cols-entry gap-2">
-      <Icon icon=icon/>
+      <Icon type_=type_ name=name.clone() />
       <span class="flex items-center overflow-x-hidden">{name}</span>
       <span class="flex items-center justify-end">{size}</span>
       <span class="hidden md:flex items-center justify-center">{last_modified}</span>
@@ -82,7 +77,6 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
       } => Entry {
         type_: EntryType::File,
         href: format!("/files/{path}/{name}"),
-        icon: get_file_icon(&name),
         name: name.clone(),
         size: Some(format_bytes(size)),
         last_modified,
@@ -94,7 +88,6 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
       } => Entry {
         type_: EntryType::Folder,
         href: format!("/index/{path}/{name}"),
-        icon: "folder".into(),
         name: name.clone(),
         size: None,
         last_modified,
