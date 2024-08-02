@@ -24,6 +24,7 @@ jobs:
       target: ${{ matrix.job.target }}
       os: ${{ matrix.job.os }}
   release:
+    needs: build-for-release
     strategy:
       matrix:
         job:
