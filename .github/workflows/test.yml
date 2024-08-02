@@ -1,7 +1,6 @@
 name: Test building binaries
 on:
   pull_request:
-    types: [synchronize]
 jobs:
   build-for-release:
     name: Build and release
