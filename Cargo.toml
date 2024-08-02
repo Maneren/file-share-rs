@@ -85,8 +85,11 @@ hydrate = [
   "wee_alloc",
 ]
 ssr = [
-  "dep:async-broadcast",
+  "leptos/ssr",
+  "leptos_meta/ssr",
+  "leptos_router/ssr",  "dep:async-broadcast",
   "dep:async-compression",
+  "dep:async-walkdir",
   "dep:async_zip",
   "dep:axum",
   "dep:axum-server",
@@ -99,16 +102,11 @@ ssr = [
   "dep:port_check",
   "dep:qr_code",
   "dep:rfd",
-  "dep:rust-embed",
   "dep:tokio",
   "dep:tokio-stream",
   "dep:tokio-tar",
   "dep:tokio-util",
   "dep:tower-http",
-  "dep:async-walkdir",
-  "leptos/ssr",
-  "leptos_meta/ssr",
-  "leptos_router/ssr",
 ]
 
 # Defines a size-optimized profile for the WASM bundle in release mode
