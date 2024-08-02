@@ -1,0 +1,81 @@
+name: Build and upload binaries to release
+on:
+  push:
+    tags:
+      - v[0-9].*
+jobs:
+  build-for-release:
+    name: Build for release
+    strategy:
+      matrix:
+        job:
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    uses: ./.github/workflows/build.yml
+    with:
+      target: ${{ matrix.job.target }}
+      os: ${{ matrix.job.os }}
+  release:
+    name: Release the binaries
+    needs: build-for-release
+    strategy:
+      matrix:
+        job:
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+    runs-on: ${{ matrix.job.os }}
+    env:
+      CARGO_TARGET_DIR: target
+      LEPTOS_BIN_TARGET_TRIPLE: ${{ matrix.job.target }}
+    steps:
+      - name: Initialize workflow variables
+        id: vars
+        shell: bash
+        run: |
+          TARGET=${{ matrix.job.target }}
+
+          case $TARGET in
+            *-pc-windows-*) BINARY="file-share.exe" ;;
+            *)              BINARY="file-share" ;;
+          esac;
+
+          echo "BINARY=${BINARY}"
+          echo "BINARY=${BINARY}" >> "$GITHUB_ENV"
+
+
+          case $TARGET in
+            *-linux-*) ARCHIVE="file-share_$TARGET.tar.gz" ;;
+            *)         ARCHIVE="file-share_$TARGET.zip" ;;
+          esac;
+
+          echo "ARCHIVE=${ARCHIVE}"
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.job.target }}-${{ env.BINARY }}
+      - name: Create archive
+        run: tar caf ${{ env.ARCHIVE }} ${{ env.BINARY }}
+      - name: Upload binary to release
+        uses: svenstaro/upload-release-action@2.7.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ env.ARCHIVE }}
+          asset_name: ${{ env.ARCHIVE }}
+          tag: ${{ github.ref }}
