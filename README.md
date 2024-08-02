@@ -28,7 +28,7 @@ Options:
 
 ## Installation
 
-Download the binary from Github Releases and put it in `$PATH`.
+Download the binary from GitHub Releases and put it in `$PATH`.
 
 ## Compilation
 
