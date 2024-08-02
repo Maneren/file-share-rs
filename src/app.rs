@@ -45,7 +45,7 @@ pub fn FilesPage() -> impl IntoView {
   let entries = move || {
     entries_resource.with(|entries| {
       entries.as_ref().map(|entries| match entries {
-        Ok(entries) => view! { <FileEntries path=path entries=entries.clone()/> }.into_view(),
+        Ok(entries) => view! { <FileEntries path=path entries=entries.clone() /> }.into_view(),
         Err(e) => view! { <p class="text-lg">{format!("{e}")}</p> }.into_view(),
       })
     })
@@ -54,14 +54,14 @@ pub fn FilesPage() -> impl IntoView {
   view! {
     <div class="App p-3">
       <div class="w-full pt-2 flex flex-wrap items-start justify-center gap-2">
-        <FileUpload path=path on_upload=move |()| entries_resource.refetch()/>
+        <FileUpload path=path on_upload=move |()| entries_resource.refetch() />
         <div class="flex flex-grow gap-2">
-          <NewFolderButton path=path action=create_folder_action/>
-          <FolderDownloads path=path/>
+          <NewFolderButton path=path action=create_folder_action />
+          <FolderDownloads path=path />
         </div>
       </div>
 
-      <Breadcrumbs path=path/>
+      <Breadcrumbs path=path />
 
       <div class="grid grid-cols-entry-mobile md:grid-cols-entry gap-2 border-b border-base-content mb-1">
         <span></span>
@@ -92,18 +92,18 @@ pub fn App() -> impl IntoView {
   let theme_attribute = vec![("data-theme", theme.into_attribute())];
 
   view! {
-    <Html lang="en" attributes=theme_attribute/>
-    <Stylesheet id="leptos" href="/pkg/file-share.css"/>
+    <Html lang="en" attributes=theme_attribute />
+    <Stylesheet id="leptos" href="/pkg/file-share.css" />
 
-    <Title text="File Sharing"/>
+    <Title text="File Sharing" />
 
     <Router fallback=|| {
         let mut outside_errors = Errors::default();
         outside_errors.insert_with_default_key(AppError::NotFound);
-        view! { <ErrorTemplate outside_errors/> }.into_view()
+        view! { <ErrorTemplate outside_errors /> }.into_view()
     }>
       <Routes>
-        <Route path="/index/*path" view=FilesPage/>
+        <Route path="/index/*path" view=FilesPage />
       </Routes>
     </Router>
   }

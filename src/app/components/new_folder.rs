@@ -36,7 +36,7 @@ pub fn NewFolderButton(
             name="name"
             autofocus
           />
-          <input type="hidden" name="target" value=move || path.with(|path| os_to_string(path))/>
+          <input type="hidden" name="target" value=move || path.with(|path| os_to_string(path)) />
           <div class="modal-action">
             <button class="btn" type="reset" onclick="new_folder_modal.close()">
               Cancel

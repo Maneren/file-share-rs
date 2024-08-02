@@ -234,7 +234,7 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
           value=move || path.with(|path| path.to_string_lossy().into_owned())
         />
         // placeholder that is filled on submission
-        <input type="hidden" name="id" value=""/>
+        <input type="hidden" name="id" value="" />
         <input
           type="file"
           name="uploads"
