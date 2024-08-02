@@ -43,3 +43,15 @@ cargo binstall cargo-leptos
 ```
 
 Then run `cargo leptos build --release` and the binary will be under `target/release/file-share`.
+
+## License
+
+The source code is licensed under the MIT license.
+
+## Credits
+
+The files and folders icons are [Material Design Icons](https://pictogrammers.com/library/mdi)
+licensed under Apache License 2.0 from <https://pictogrammers.com/>.
+
+The app icon is from
+[File sharing icons created by smashingstocks - Flaticon](https://www.flaticon.com/free-icons/file-sharing "file sharing icons")
