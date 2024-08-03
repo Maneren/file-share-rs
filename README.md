@@ -11,6 +11,10 @@ Simple utility to share selected folder over HTTP
 - Uploading files
 - Material Design Icons
 
+## Preview
+
+![Screenshot](.github/assets/screenshot.png)
+
 ## Usage
 
 ```txt
