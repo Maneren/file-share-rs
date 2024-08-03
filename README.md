@@ -4,26 +4,50 @@ Simple utility to share selected folder over HTTP
 
 ## Features
 
-- web page GUI
-- downloading files
-- downloading folders as on-the-fly created archives (zip, tar, tar.gz, tar.zst)
-- creating folders
-- uploading files
+- Viewing files and folders in the web browser
+- Downloading individual files
+- Downloading folders as on-the-fly created archives (zip, tar, tar.gz, tar.zst)
+- Creating new folders
+- Uploading files
+- Material Design Icons
 
 ## Usage
 
 ```txt
-file-share [OPTIONS] [TARGET_DIR]
+Fast HTTP file sharing server with leptos GUI
+
+Usage: file-share [OPTIONS] [TARGET_DIR]
 
 Arguments:
-  [TARGET_DIR]  Target directory to serve [default: .]
+  [TARGET_DIR]
+          Target directory to share
+
+          [default: .]
 
 Options:
-  -p, --port <PORT>                 Port to serve on [default: 8080]
-  -q, --qr                          Show QR code with link to the site
-  -i, --interfaces <INTERFACES>...  IP address(es) on which file-share will be available [default: 0.0.0.0,::]
-  -h, --help                        Print help
-  -V, --version                     Print version
+  -p, --port <PORT>
+          Port to listen on
+
+          [default: 3000]
+
+  -q, --qr
+          Show QR codes that link to the site
+
+  -i, --interfaces <INTERFACES>...
+          IP address(es) on which file-share will be available
+
+          Accepts comma separated list of both IPv4 and IPv6 addresses
+
+          [default: 0.0.0.0,::]
+
+  -P, --picker
+          Use a file picker to choose a target directory
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 ```
 
 ## Installation

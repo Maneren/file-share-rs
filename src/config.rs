@@ -10,19 +10,21 @@ pub struct Cli {
   #[arg(default_value = ".")]
   pub target_dir: PathBuf,
 
-  /// Port to serve on
+  /// Port to listen on
   #[arg(short, long, default_value = "3000")]
   pub port: u16,
 
-  /// Show QR code with link to the site
+  /// Show QR codes that link to the site
   #[arg(short, long)]
   pub qr: bool,
 
   /// IP address(es) on which file-share will be available
+  ///
+  /// Accepts comma separated list of both IPv4 and IPv6 addresses
   #[arg(short, long, num_args = 1.., value_delimiter = ',', default_value = "0.0.0.0,::")]
   pub interfaces: Vec<IpAddr>,
 
-  /// Use the file picker to choose a target directory
+  /// Use a file picker to choose a target directory
   #[arg(short = 'P', long, default_value = "false")]
   pub picker: bool,
 }

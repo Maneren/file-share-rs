@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Maneren <maneren731@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/Maneren/file-share-rs"
-description = "Simple HTTP file sharing server"
+description = "Fast HTTP file sharing server with leptos GUI"
 
 [workspace]
 
