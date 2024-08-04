@@ -1,4 +1,4 @@
-use std::{iter, path::PathBuf};
+use std::path::PathBuf;
 
 use leptos::*;
 
@@ -8,32 +8,36 @@ use crate::app::utils::os_to_string;
 pub fn Breadcrumbs(path: Signal<PathBuf>) -> impl IntoView {
   let breadcrumbs = move || {
     path.with(|path| {
-      let leading_breadcrumb = ("/".into(), "/index".into());
+      path
+        .iter()
+        .scan(PathBuf::new(), |path, part| {
+          path.push(part);
+          let path = format!("/index/{}", path.display());
 
-      let path_breadcrumbs = path.iter().scan(PathBuf::new(), |path, part| {
-        let part_str = os_to_string(part);
-        path.push(part);
-        let path = format!("/index/{}", path.display());
-
-        Some((part_str, path))
-      });
-
-      iter::once(leading_breadcrumb)
-        .chain(path_breadcrumbs)
-        .map(|(name, path)| {
-          view! {
+          Some(view! {
             <li>
-              <a href=path>{name}</a>
+              <a href=path>{os_to_string(part)}</a>
             </li>
-          }
+          })
         })
         .collect_view()
     })
   };
 
+  let home_icon = view! {
+    <a href="/index">
+      <svg class="h-6 w-6 fill-current" viewBox="0 0 24 24">
+        <path d="M12,3L20,9V21H15V14H9V21H4V9L12,3Z" />
+      </svg>
+    </a>
+  };
+
   view! {
     <div class="text-lg breadcrumbs max-w-full">
-      <ul>{breadcrumbs}</ul>
+      <ul class="h-8">
+        <li>{home_icon}</li>
+        {breadcrumbs}
+      </ul>
     </div>
   }
 }
