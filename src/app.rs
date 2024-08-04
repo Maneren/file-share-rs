@@ -70,7 +70,7 @@ pub fn FilesPage() -> impl IntoView {
         <span class="hidden md:inline">Last Modified</span>
       </div>
 
-      <Suspense fallback=move || view! { <p>"Loading..."</p> }>{entries}</Suspense>
+      <Transition fallback=move || view! { <p>"Loading..."</p> }>{entries}</Transition>
     </div>
   }
 }
