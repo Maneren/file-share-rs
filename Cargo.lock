@@ -1082,7 +1082,7 @@ checksum = "9fc0510504f03c51ada170672ac806f1f105a88aa97a5281117e1ddc3368e51a"
 
 [[package]]
 name = "file-share"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "async-broadcast",
  "async-compression",
