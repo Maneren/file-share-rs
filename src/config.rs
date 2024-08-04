@@ -34,6 +34,7 @@ pub struct Cli {
 /// # Panics
 ///
 /// Panics if `CWD`/`target_dir` is unreadable or when there's no free port.
+#[allow(clippy::unused_async)] // it's used only in release build
 pub async fn get_config() -> Result<Cli, String> {
   cfg_if! {
     if #[cfg(debug_assertions)] {
@@ -66,7 +67,7 @@ pub async fn get_config() -> Result<Cli, String> {
 
   let port = (port != 0 && port_check::is_local_port_free(port))
     .then_some(port)
-    .or_else(|| port_check::free_local_port())
+    .or_else(port_check::free_local_port)
     .ok_or("Couldn't find an open port")?;
 
   let _ = TARGET_DIR.set(target_dir.clone());

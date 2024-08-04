@@ -25,20 +25,20 @@ fn get_icon(name: &str) -> Option<String> {
 }
 
 static LANGUAGES_MAP: LazyLock<HashMap<String, String>> =
-  LazyLock::new(|| serde_json::from_str(&*LANGUAGES_MAP_JSON).expect("The language map is valid"));
+  LazyLock::new(|| serde_json::from_str(&LANGUAGES_MAP_JSON).expect("The language map is valid"));
 
 static FILENAMES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
-  let file_map = serde_json::from_str::<HashMap<String, String>>(&*FILENAMES_MAP_JSON)
+  let file_map = serde_json::from_str::<HashMap<String, String>>(&FILENAMES_MAP_JSON)
     .expect("The filename map is valid");
 
-  let extensions_name = serde_json::from_str::<HashMap<String, String>>(&*EXTENSIONS_MAP_JSON)
+  let extensions_name = serde_json::from_str::<HashMap<String, String>>(&EXTENSIONS_MAP_JSON)
     .expect("The extension map is valid");
 
   file_map.into_iter().chain(extensions_name).collect()
 });
 
 static FOLDER_MAP: LazyLock<HashMap<String, String>> =
-  LazyLock::new(|| serde_json::from_str(&*FOLDER_MAP_JSON).expect("The folder map is valid"));
+  LazyLock::new(|| serde_json::from_str(&FOLDER_MAP_JSON).expect("The folder map is valid"));
 
 fn longest_matching_suffix<'a, 'b>(
   target: &str,
@@ -61,9 +61,8 @@ fn get_folder_icon(folder_name: &str) -> String {
 }
 
 fn get_file_icon(file_name: &str) -> String {
-  let file_type = longest_matching_suffix(file_name, FILENAMES_MAP.iter())
-    .map(String::as_str)
-    .unwrap_or("file");
+  let file_type =
+    longest_matching_suffix(file_name, FILENAMES_MAP.iter()).map_or("file", String::as_str);
 
   get_icon(file_type)
     .or_else(|| LANGUAGES_MAP.get(file_type).and_then(|lang| get_icon(lang)))
@@ -77,7 +76,5 @@ pub fn Icon(type_: EntryType, name: String) -> impl IntoView {
     EntryType::File => get_file_icon(&name),
     EntryType::Folder => get_folder_icon(&name),
   };
-  view! {
-    <div class="icon" inner_html=icon />
-  }
+  view! { <div class="icon" inner_html=icon /> }
 }
