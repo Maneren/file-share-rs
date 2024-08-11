@@ -1,9 +1,6 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::wildcard_imports)]
 #![allow(clippy::module_name_repetitions)]
-#![allow(clippy::unsafe_derive_deserialize)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::missing_panics_doc)]
 #![allow(clippy::must_use_candidate)]
 
 use cfg_if::cfg_if;

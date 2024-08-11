@@ -34,7 +34,7 @@ pub enum Error {
 }
 
 #[derive(Default, Debug, Clone, Copy)]
-pub enum ArchiveMethod {
+pub enum Method {
   #[default]
   Tar,
   TarGz,
@@ -42,17 +42,25 @@ pub enum ArchiveMethod {
   Zip,
 }
 
-impl ArchiveMethod {
+impl Method {
   #[must_use]
   pub fn mimetype(&self) -> &'static str {
     match self {
-      ArchiveMethod::Tar => "application/x-tar",
-      ArchiveMethod::TarGz => "application/gzip",
-      ArchiveMethod::TarZstd => "application/zstd",
-      ArchiveMethod::Zip => "application/zip",
+      Method::Tar => "application/x-tar",
+      Method::TarGz => "application/gzip",
+      Method::TarZstd => "application/zstd",
+      Method::Zip => "application/zip",
     }
   }
 
+  /// Create an archive from given dir using current method.
+  ///
+  /// Writes an output stream into a passed [`AsyncWrite`] sink.
+  ///
+  /// # Errors
+  ///
+  /// This function will return an error if there is any error during the archive creation, usually
+  /// due to IO or invalid input dir.
   pub async fn create_archive<P, W>(self, dir: P, out: W) -> Result<(), Error>
   where
     P: AsRef<Path>,
@@ -60,35 +68,35 @@ impl ArchiveMethod {
   {
     let dir = dir.as_ref();
     match self {
-      ArchiveMethod::Tar => tar_dir(dir, out).await,
-      ArchiveMethod::TarGz => tar_gz(dir, out).await,
-      ArchiveMethod::TarZstd => tar_zstd(dir, out).await,
-      ArchiveMethod::Zip => zip_dir(dir, out).await,
+      Method::Tar => tar_dir(dir, out).await,
+      Method::TarGz => tar_gz(dir, out).await,
+      Method::TarZstd => tar_zstd(dir, out).await,
+      Method::Zip => zip_dir(dir, out).await,
     }
   }
 }
 
-impl TryFrom<&str> for ArchiveMethod {
+impl TryFrom<&str> for Method {
   type Error = ();
 
   fn try_from(value: &str) -> Result<Self, Self::Error> {
     match value {
-      "tar" => Ok(ArchiveMethod::Tar),
-      "tar.gz" => Ok(ArchiveMethod::TarGz),
-      "tar.zst" => Ok(ArchiveMethod::TarZstd),
-      "zip" => Ok(ArchiveMethod::Zip),
+      "tar" => Ok(Method::Tar),
+      "tar.gz" => Ok(Method::TarGz),
+      "tar.zst" => Ok(Method::TarZstd),
+      "zip" => Ok(Method::Zip),
       _ => Err(()),
     }
   }
 }
 
-impl fmt::Display for ArchiveMethod {
+impl fmt::Display for Method {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let extension = match self {
-      ArchiveMethod::Tar => "tar",
-      ArchiveMethod::TarGz => "tar.gz",
-      ArchiveMethod::TarZstd => "tar.zst",
-      ArchiveMethod::Zip => "zip",
+      Method::Tar => "tar",
+      Method::TarGz => "tar.gz",
+      Method::TarZstd => "tar.zst",
+      Method::Zip => "zip",
     };
     write!(f, "{extension}")
   }

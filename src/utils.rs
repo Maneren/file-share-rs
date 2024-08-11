@@ -31,7 +31,7 @@ impl From<SystemTime> for DateTime<Utc> {
   #[allow(clippy::similar_names)]
   fn from(time: SystemTime) -> Self {
     let SystemTime(sec, nsec) = time;
-    Utc.timestamp_opt(sec, nsec).unwrap()
+    Utc.timestamp_opt(sec, nsec).unwrap() // per docs, Utc can't fail
   }
 }
 impl IntoView for SystemTime {

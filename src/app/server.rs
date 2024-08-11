@@ -30,7 +30,7 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
     return Err(ServerFnError::ServerError("Path must be relative".into()));
   }
 
-  if path.as_os_str().to_string_lossy().contains("..") {
+  if path.to_string_lossy().contains("..") {
     return Err(ServerFnError::ServerError(
       "Path must not contain ..".into(),
     ));

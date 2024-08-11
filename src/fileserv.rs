@@ -2,7 +2,7 @@ mod archive;
 
 use std::collections::HashMap;
 
-pub use archive::ArchiveMethod;
+pub use archive::Method;
 use axum::{
   body::Body,
   extract::{Multipart, Path, Query, State},
@@ -10,7 +10,7 @@ use axum::{
   response::IntoResponse,
 };
 use file_share::{app::App, config::get_target_dir, utils::format_bytes};
-use leptos::*;
+use leptos::{logging, LeptosOptions};
 use rust_embed::RustEmbed;
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;
@@ -20,6 +20,10 @@ use tokio_util::io::ReaderStream;
 struct StaticFiles;
 
 /// Handles static file requests by delegating to `StaticFiles`.
+///
+/// # Panics
+///
+/// This function will panic if the mimetype from `RustEmbed` is not recognized by `http` crate
 pub async fn file_and_error_handler(
   uri: Uri,
   State(options): State<LeptosOptions>,
@@ -30,7 +34,7 @@ pub async fn file_and_error_handler(
   if let Some(file) = StaticFiles::get(path) {
     let header = (
       header::CONTENT_TYPE,
-      HeaderValue::from_str(file.metadata.mimetype()).unwrap(),
+      HeaderValue::from_str(file.metadata.mimetype()).expect("RustEmbed returns valid mimetypes"),
     );
     return (StatusCode::OK, [header], file.data).into_response();
   }
@@ -41,29 +45,28 @@ pub async fn file_and_error_handler(
 
 /// Handles archive requests.
 #[allow(clippy::implicit_hasher)]
-#[allow(clippy::unused_async)]
 pub async fn handle_archive_with_path(
   Path(path): Path<String>,
   Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
   logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
-  handle_archive(params.get("method"), path)
+  handle_archive(params.get("method"), path).await
 }
 
 /// Handles archive requests.
 #[allow(clippy::implicit_hasher)]
-#[allow(clippy::unused_async)]
 pub async fn handle_archive_without_path(
   Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
   logging::log!("Handling archive without path and params '{params:?}'");
-  handle_archive(params.get("method"), String::new())
+  handle_archive(params.get("method"), String::new()).await
 }
 
-fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
+#[allow(clippy::unused_async)] // has to be in an async context, but doesn't await directly
+async fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
   let method = method.map_or_else(Default::default, String::as_str);
 
-  let Ok(archive_method) = ArchiveMethod::try_from(method) else {
+  let Ok(archive_method) = Method::try_from(method) else {
     return (
       StatusCode::BAD_REQUEST,
       format!("Invalid archive method: {method}"),
@@ -72,11 +75,14 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
   };
 
   let path = get_target_dir().join(path);
-  let file_name = format!(
-    "{}.{}",
-    path.file_name().unwrap().to_string_lossy(),
-    archive_method
-  );
+  let Some(name) = path.file_name() else {
+    return (
+      StatusCode::BAD_REQUEST,
+      format!("Invalid path (missing folder name): {path:?}"),
+    )
+      .into_response();
+  };
+  let file_name = format!("{}.{}", name.display(), archive_method);
 
   logging::log!("Creating: {file_name}");
 
@@ -93,7 +99,7 @@ fn handle_archive(method: Option<&String>, path: String) -> impl IntoResponse {
   let headers: [(_, HeaderValue); 6] = [
     (
       header::CONTENT_DISPOSITION,
-      format!("attachment; filename=\"{file_name}\"")
+      format!(r#"attachment; filename="{file_name}""#)
         .parse()
         .unwrap(),
     ),
@@ -123,7 +129,7 @@ pub async fn file_upload_without_path(multipart: Multipart) -> impl IntoResponse
 
 pub async fn file_upload(path: String, mut multipart: Multipart) -> impl IntoResponse {
   let base_path = get_target_dir().join(&path);
-  while let Some(field) = multipart.next_field().await.unwrap() {
+  while let Ok(Some(field)) = multipart.next_field().await {
     let Some(file_name) = field.file_name() else {
       continue;
     };

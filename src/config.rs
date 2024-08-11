@@ -31,16 +31,20 @@ pub struct Cli {
 
 /// Get the config from CLI arguments.
 ///
+/// # Errors
+///
+/// Returns error if `CWD`/`target_dir` is unreadable or when there's no free port.
+///
 /// # Panics
 ///
-/// Panics if `CWD`/`target_dir` is unreadable or when there's no free port.
+/// Panics if the current working directory is invalid or unreadable for current process.
 #[allow(clippy::unused_async)] // it's used only in release build
 pub async fn get_config() -> Result<Cli, String> {
   cfg_if! {
     if #[cfg(debug_assertions)] {
       use std::net::{Ipv4Addr, Ipv6Addr};
 
-      let target_dir = std::env::current_dir().unwrap().join("files");
+      let target_dir = std::env::current_dir().expect("CWD is a valid path").join("files");
       let port = 3000;
       let qr = false;
       let picker = false;
@@ -87,7 +91,7 @@ pub static TARGET_DIR: OnceLock<PathBuf> = OnceLock::new();
 ///
 /// # Panics
 ///
-/// Panics if `TARGET_DIR` isn't initialized.
+/// Panics if `TARGET_DIR` isn't initialized. That is, if `get_config()` hasn't been called yet.
 pub fn get_target_dir() -> &'static PathBuf {
   TARGET_DIR.get().unwrap()
 }
