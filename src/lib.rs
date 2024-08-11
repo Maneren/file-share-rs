@@ -14,7 +14,6 @@ pub mod utils;
 cfg_if! {
 if #[cfg(feature = "ssr")] {
   pub mod config;
-  pub mod fileserv;
 } else if #[cfg(feature = "hydrate")] {
   use wasm_bindgen::prelude::wasm_bindgen;
   use crate::app::*;

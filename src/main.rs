@@ -1,37 +1,37 @@
 #![warn(clippy::pedantic)]
+#![feature(os_str_display)]
 
-#[cfg(feature = "ssr")]
-#[tokio::main]
-async fn main() {
-  use std::{
-    fs::create_dir_all,
-    io,
-    net::{IpAddr, SocketAddr},
-    process,
-  };
+pub mod fileserv;
 
-  use axum::{
-    extract::DefaultBodyLimit,
-    response::Redirect,
-    routing::{get, post},
-    Router,
-  };
-  use dahlia::{dprintln, Dahlia};
-  use file_share::{
-    app::App,
-    config::{get_config, AppState, Cli},
-    fileserv::{
-      file_and_error_handler, file_upload_with_path, file_upload_without_path,
-      handle_archive_with_path, handle_archive_without_path,
-    },
-  };
-  use futures::future::try_join_all;
-  use if_addrs::Interface;
-  use leptos::{get_configuration, logging::error};
-  use leptos_axum::{generate_route_list, LeptosRoutes};
-  use tower_http::services::ServeDir;
+use std::{
+  fs::create_dir_all,
+  io,
+  net::{IpAddr, SocketAddr},
+  process,
+};
 
-  const API_HELP_TEXT: &str = r"
+use axum::{
+  extract::DefaultBodyLimit,
+  response::Redirect,
+  routing::{get, post},
+  Router,
+};
+use dahlia::{dprintln, Dahlia};
+use file_share::{
+  app::App,
+  config::{get_config, AppState, Cli},
+};
+use fileserv::{
+  file_and_error_handler, file_upload_with_path, file_upload_without_path,
+  handle_archive_with_path, handle_archive_without_path,
+};
+use futures::future::try_join_all;
+use if_addrs::Interface;
+use leptos::{get_configuration, logging::error};
+use leptos_axum::{generate_route_list, LeptosRoutes};
+use tower_http::services::ServeDir;
+
+const API_HELP_TEXT: &str = r"
 File Share
 ===========
 Endpoints:
@@ -46,6 +46,8 @@ Endpoints:
 Available methods are tar, tar.gz, tar.zst, zip.
 ";
 
+#[tokio::main]
+async fn main() {
   simple_logger::init_with_level(log::Level::Warn).expect("couldn't initialize logging");
 
   let conf = get_configuration(None).await.unwrap();
