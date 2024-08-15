@@ -64,7 +64,7 @@ You'll need [`cargo-leptos`](https://github.com/leptos-rs/cargo-leptos). You can
 get it either by compiling it from source or downloading a binary using
 [`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall).
 
-```txt
+```sh
 cargo install cargo-leptos
 # or
 cargo binstall cargo-leptos
