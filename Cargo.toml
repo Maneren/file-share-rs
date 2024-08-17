@@ -17,7 +17,7 @@ leptos = { version = "0.6", features = ["nightly"] }
 leptos_axum = { version = "0.6", optional = true }
 leptos_meta = { version = "0.6", features = ["nightly"] }
 leptos_router = { version = "0.6", features = ["nightly"] }
-leptos-use = "0.11"
+leptos-use = "0.12"
 server_fn = { version = "0.6", features = ["multipart"] }
 
 async-broadcast = { version = "0.7", optional = true }
@@ -65,8 +65,8 @@ tokio-tar = { version = "0.3", optional = true }
 tokio-util = { version = "0.7", optional = true }
 tower-http = { version = "0.5", features = ["fs"], optional = true }
 urlencoding = "2"
-wasm-bindgen = "=0.2.92"
-web-sys = { version = "0.3.69", features = ["File", "FileList"] }
+wasm-bindgen = "=0.2.93"
+web-sys = { version = "0.3.70", features = ["File", "FileList"] }
 wee_alloc = { version = "0.4", optional = true }
 
 [profile.dev.package.leptos_macro]
