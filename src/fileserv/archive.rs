@@ -229,8 +229,8 @@ where
   })?;
 
   let zip_name = ZipString::new(
-    name.as_os_str().as_encoded_bytes().to_vec(),
-    StringEncoding::Raw,
+    name.to_string_lossy().as_bytes().to_owned(),
+    StringEncoding::Utf8,
   );
 
   let mut file = fs::File::open(path)
