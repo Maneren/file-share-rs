@@ -5,14 +5,16 @@ use async_walkdir::WalkDir;
 use async_zip::{
   tokio::write::ZipFileWriter, Compression, StringEncoding, ZipEntryBuilder, ZipString,
 };
+use cfg_if::cfg_if;
+use leptos::logging;
 use thiserror::Error as ThisError;
 use tokio::{
   fs,
-  io::{self, AsyncWrite, AsyncWriteExt},
+  io::{AsyncWrite, AsyncWriteExt as _},
 };
 use tokio_stream::StreamExt as _;
 use tokio_tar::Builder;
-use tokio_util::compat::FuturesAsyncWriteCompatExt;
+use tokio_util::compat::TokioAsyncReadCompatExt as _;
 
 #[derive(Debug, ThisError)]
 pub enum Error {
@@ -73,6 +75,7 @@ impl Method {
       Method::TarZstd => tar_zstd(dir, out).await,
       Method::Zip => zip_dir(dir, out).await,
     }
+    .inspect_err(|e| logging::error!("Error while creating archive: {e}"))
   }
 }
 
@@ -195,7 +198,7 @@ where
       continue;
     };
 
-    if entry.file_type().await.is_ok_and(|t| !t.is_file()) {
+    if !entry.file_type().await.is_ok_and(|t| t.is_file()) {
       continue;
     }
 
@@ -233,31 +236,32 @@ where
     StringEncoding::Utf8,
   );
 
-  let mut file = fs::File::open(path)
+  let file = fs::File::open(path)
     .await
     .map_err(|e| Error::Io(format!("Failed to open {} for reading", path.display()), e))?;
 
-  let entry = ZipEntryBuilder::new(zip_name, Compression::Deflate).build();
+  let entry = ZipEntryBuilder::new(zip_name, Compression::Deflate);
 
-  let mut sink = zip
-    .write_entry_stream(entry)
-    .await
-    .map_err(|e| {
-      Error::ArchiveCreation(
-        format!("Failed to write {} to the ZIP archive", name.display()),
-        Error::Other(e.to_string()).into(),
-      )
-    })?
-    .compat_write();
 
-  io::copy(&mut file, &mut sink).await.map_err(|e| {
-    Error::Io(
+  let mut sink = zip.write_entry_stream(entry).await.map_err(|e| {
+    Error::ArchiveCreation(
       format!("Failed to write {} to the ZIP archive", name.display()),
-      e,
+      Error::Other(e.to_string()).into(),
     )
   })?;
 
-  sink.shutdown().await.map_err(|e| {
+  let bytes = futures::io::copy(&mut file.compat(), &mut sink)
+    .await
+    .map_err(|e| {
+      Error::Io(
+        format!("Failed to write {} to the ZIP archive", name.display()),
+        e,
+      )
+    })?;
+
+  logging::log!("Wrote {} bytes to the ZIP archive", bytes);
+
+  sink.close().await.map_err(|e| {
     Error::ArchiveCreation(
       format!("Failed to write {} to the ZIP archive", name.display()),
       Error::Other(e.to_string()).into(),
