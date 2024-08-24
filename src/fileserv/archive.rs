@@ -242,7 +242,6 @@ where
 
   let entry = ZipEntryBuilder::new(zip_name, Compression::Deflate);
 
-
   let mut sink = zip.write_entry_stream(entry).await.map_err(|e| {
     Error::ArchiveCreation(
       format!("Failed to write {} to the ZIP archive", name.display()),
@@ -258,8 +257,6 @@ where
         e,
       )
     })?;
-
-  logging::log!("Wrote {} bytes to the ZIP archive", bytes);
 
   sink.close().await.map_err(|e| {
     Error::ArchiveCreation(
