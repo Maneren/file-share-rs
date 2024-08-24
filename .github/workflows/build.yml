@@ -57,7 +57,8 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@v4
         with:
-          node-version: latest
+          node-version: lts/*
+          check-latest: true
       - uses: pnpm/action-setup@v4
         name: Install pnpm and Tailwind
         with:
