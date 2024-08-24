@@ -1,3 +1,5 @@
+#![allow(clippy::items_after_statements)]
+
 use std::{fmt, path::Path};
 
 use async_compression::tokio::write::{GzipEncoder, ZstdEncoder};
@@ -242,6 +244,19 @@ where
 
   let entry = ZipEntryBuilder::new(zip_name, Compression::Deflate);
 
+  cfg_if! { if #[cfg(target_family = "unix")] {
+    use std::os::unix::fs::PermissionsExt as _;
+    #[allow(clippy::cast_possible_truncation)]
+    let entry = entry.unix_permissions(
+      file
+        .metadata()
+        .await
+        .map_err(|e| Error::Io(format!("Failed to get metadata for {}", path.display()), e))?
+        .permissions()
+        .mode() as u16
+    );
+  }}
+
   let mut sink = zip.write_entry_stream(entry).await.map_err(|e| {
     Error::ArchiveCreation(
       format!("Failed to write {} to the ZIP archive", name.display()),
@@ -249,7 +264,7 @@ where
     )
   })?;
 
-  let bytes = futures::io::copy(&mut file.compat(), &mut sink)
+  futures::io::copy(&mut file.compat(), &mut sink)
     .await
     .map_err(|e| {
       Error::Io(
