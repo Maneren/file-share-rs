@@ -839,15 +839,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dahlia"
-version = "1.1.0"
-source = "git+https://github.com/Maneren/dahlia.rs#d7c2d33581a7204522e7dee309d6215947591255"
-dependencies = [
- "lazy_static",
- "regex",
-]
-
-[[package]]
 name = "darling"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1114,9 +1105,9 @@ dependencies = [
  "chrono",
  "chrono-humanize",
  "clap",
+ "colored",
  "console_error_panic_hook",
  "console_log",
- "dahlia",
  "dashmap 6.0.1",
  "futures",
  "http 1.1.0",

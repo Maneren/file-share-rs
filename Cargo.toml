@@ -37,10 +37,9 @@ cfg-if = "1"
 chrono = "0.4"
 chrono-humanize = "0.2"
 clap = { version = "4.5", features = ["derive"], optional = true }
+colored = { version = "2.1", optional = true }
 console_error_panic_hook = "0.1"
 console_log = "1"
-# TODO: switch to release when https://github.com/dahlia-lib/dahlia-rs/pull/6 is merged
-dahlia = { git = "https://github.com/Maneren/dahlia.rs", optional = true }
 dashmap = { version = "6", optional = true }
 futures = "0.3"
 http = "1.1"
@@ -95,7 +94,7 @@ ssr = [
   "dep:axum",
   "dep:axum-server",
   "dep:clap",
-  "dep:dahlia",
+  "dep:colored",
   "dep:dashmap",
   "dep:if-addrs",
   "dep:leptos_axum",

@@ -16,7 +16,7 @@ use axum::{
   routing::{get, post},
   Router,
 };
-use dahlia::{dprintln, Dahlia};
+use colored::Colorize;
 use file_share::{
   app::App,
   config::{get_config, AppState, Cli},
@@ -130,16 +130,16 @@ async fn main() {
     process::exit(1);
   }
 
-  let d = Dahlia::default().with_auto_depth();
-
-  dprintln!(d, "Serving files from &4&l{}", target_dir.display());
+  println!(
+    "Serving files from {}",
+    target_dir.to_string_lossy().yellow().bold()
+  );
   println!("Listening on {display_sockets}");
-  dprintln!(
-    d,
-    "Available on:&a&l\n{}",
+  println!(
+    "Available on:\n{}",
     display_urls
       .iter()
-      .map(|url| format!("   {url}"))
+      .map(|url| format!("   {url}").green().bold().to_string())
       .collect::<Vec<_>>()
       .join("\n")
   );
@@ -153,7 +153,11 @@ async fn main() {
     {
       match qr_code::QrCode::new(url) {
         Ok(qr) => {
-          dprintln!(d, "QR code for &a&l{}&R\n{}", url, qr.to_string(false, 1));
+          println!(
+            "QR code for {}:\n{}",
+            url.green().bold(),
+            qr.to_string(false, 1)
+          );
         }
         Err(e) => {
           error!("Failed to render QR to terminal: {e}");
