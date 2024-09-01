@@ -2,19 +2,26 @@
 
 use std::path::PathBuf;
 
-pub(crate) mod components;
-pub(crate) mod server;
-pub(crate) mod utils;
+mod components;
+mod error_template;
+mod server;
+#[cfg(feature = "ssr")]
+mod state;
+pub mod utils;
 
-use components::*;
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 use leptos_use::use_preferred_dark;
-use server::*;
 use urlencoding::decode;
 
-use crate::error_template::{AppError, ErrorTemplate};
+#[cfg(feature = "ssr")]
+pub use crate::state::AppState;
+use crate::{
+  components::*,
+  error_template::{AppError, ErrorTemplate},
+  server::*,
+};
 
 #[derive(PartialEq, Eq, Params, Debug)]
 struct PathQuery {

@@ -19,8 +19,6 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
   use server_fn::ServerFnError::ServerError;
   use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
-  use crate::config::get_target_dir;
-
   async fn collect_field_with_name(
     data: &mut multer::Multipart<'static>,
     name: &str,
@@ -46,14 +44,15 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     unreachable!("should always return Some on the server side");
   };
 
-  let base_path = {
+  let base_req_path = {
+    let base_path = expect_context::<PathBuf>().clone();
     let req_path = collect_field_with_name(&mut data, "path").await?;
-    get_target_dir().join(req_path.trim())
+    base_path.join(req_path.trim())
   };
 
   let id = collect_field_with_name(&mut data, "id").await?;
 
-  logging::log!("[{id}]\tbase path: {base_path:?}");
+  logging::log!("[{id}]\tbase path: {base_req_path:?}");
 
   while let Ok(Some(mut field)) = data.next_field().await {
     let Some(name) = field.file_name().map(ToOwned::to_owned) else {
@@ -61,7 +60,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
       return Err(ServerError("Missing file name in multipart".into()));
     };
 
-    let path = base_path.join(&name);
+    let path = base_req_path.join(&name);
     logging::log!("[{name}]\tpath: {path:?}");
 
     let mut file = OpenOptions::new()

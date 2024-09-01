@@ -8,7 +8,6 @@ use async_zip::{
   tokio::write::ZipFileWriter, Compression, StringEncoding, ZipEntryBuilder, ZipString,
 };
 use cfg_if::cfg_if;
-use leptos::logging;
 use thiserror::Error as ThisError;
 use tokio::{
   fs,
@@ -77,7 +76,6 @@ impl Method {
       Method::TarZstd => tar_zstd(dir, out).await,
       Method::Zip => zip_dir(dir, out).await,
     }
-    .inspect_err(|e| logging::error!("Error while creating archive: {e}"))
   }
 }
 

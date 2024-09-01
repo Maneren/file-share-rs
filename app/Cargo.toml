@@ -1,0 +1,48 @@
+[package]
+name = "file-share-app"
+version = "1.4.4"
+edition = "2021"
+
+[dependencies]
+leptos.workspace = true
+leptos_meta.workspace = true
+leptos_router.workspace = true
+leptos_axum = { workspace = true, optional = true }
+leptos-use.workspace = true
+
+async-broadcast = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+chrono.workspace = true
+chrono-humanize.workspace = true
+cfg-if.workspace = true
+dashmap = { workspace = true, optional = true }
+futures.workspace = true
+http.workspace = true
+include-flate.workspace = true
+multer = { workspace = true, optional = true }
+rust-embed.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+server_fn.workspace = true
+thiserror.workspace = true
+tokio-stream = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+urlencoding.workspace = true
+web-sys.workspace = true
+
+[features]
+default = []
+hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
+ssr = [
+  "leptos/ssr",
+  "leptos_meta/ssr",
+  "leptos_router/ssr",
+  "dep:leptos_axum",
+  "dep:async-broadcast",
+  "dep:axum",
+  "dep:dashmap",
+  "dep:multer",
+  "dep:tokio",
+  "dep:tokio",
+  "dep:tokio-stream",
+]

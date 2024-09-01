@@ -10,7 +10,7 @@ use std::{collections::HashMap, sync::LazyLock};
 
 use rust_embed::RustEmbed;
 
-use crate::app::components::file_entries::EntryType;
+use crate::components::file_entries::EntryType;
 
 flate!(static FILE_ICON: str from "assets/icons/file.svg");
 flate!(static FOLDER_ICON: str from "assets/icons/folder.svg");

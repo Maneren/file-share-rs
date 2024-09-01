@@ -1,4 +1,4 @@
-use std::{net::IpAddr, path::PathBuf, sync::OnceLock};
+use std::{net::IpAddr, path::PathBuf};
 
 use cfg_if::cfg_if;
 use clap::Parser;
@@ -29,6 +29,14 @@ pub struct Cli {
   pub picker: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct Config {
+  pub target_dir: PathBuf,
+  pub port: u16,
+  pub qr: bool,
+  pub interfaces: Vec<IpAddr>,
+}
+
 /// Get the config from CLI arguments.
 ///
 /// # Errors
@@ -39,7 +47,7 @@ pub struct Cli {
 ///
 /// Panics if the current working directory is invalid or unreadable for current process.
 #[allow(clippy::unused_async)] // it's used only in release build
-pub async fn get_config() -> Result<Cli, String> {
+pub async fn get_config() -> Result<Config, String> {
   cfg_if! {
     if #[cfg(debug_assertions)] {
       use std::net::{Ipv4Addr, Ipv6Addr};
@@ -47,7 +55,6 @@ pub async fn get_config() -> Result<Cli, String> {
       let target_dir = std::env::current_dir().expect("CWD is a valid path").join("files");
       let port = 3000;
       let qr = false;
-      let picker = false;
 
       let interfaces = vec![
         IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)),
@@ -55,7 +62,7 @@ pub async fn get_config() -> Result<Cli, String> {
       ];
     } else {
       let Cli { target_dir, port, qr, interfaces, picker } = Cli::parse();
-      let target_dir =if picker {
+      let target_dir = if picker {
         rfd::AsyncFileDialog::new()
           .set_title("Select directory to share")
           .pick_folder()
@@ -74,35 +81,10 @@ pub async fn get_config() -> Result<Cli, String> {
     .or_else(port_check::free_local_port)
     .ok_or("Couldn't find an open port")?;
 
-  let _ = TARGET_DIR.set(target_dir.clone());
-
-  Ok(Cli {
+  Ok(Config {
     target_dir,
     port,
     qr,
     interfaces,
-    picker,
   })
-}
-
-pub static TARGET_DIR: OnceLock<PathBuf> = OnceLock::new();
-
-/// Get the target directory from config.
-///
-/// # Panics
-///
-/// Panics if `TARGET_DIR` isn't initialized. That is, if `get_config()` hasn't been called yet.
-pub fn get_target_dir() -> &'static PathBuf {
-  TARGET_DIR.get().unwrap()
-}
-
-use axum::extract::FromRef;
-use leptos::LeptosOptions;
-
-/// This takes advantage of Axum's `SubStates` feature by deriving `FromRef`. This is the only way to have more than one
-/// item in Axum's State. Leptos requires you to have leptosOptions in your State struct for the leptos route handlers
-#[derive(FromRef, Debug, Clone)]
-pub struct AppState {
-  pub leptos_options: LeptosOptions,
-  pub target_dir: PathBuf,
 }

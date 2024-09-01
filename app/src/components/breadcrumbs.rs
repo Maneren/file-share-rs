@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use leptos::*;
 
-use crate::app::utils::os_to_string;
+use crate::utils::os_to_string;
 
 #[component]
 pub fn Breadcrumbs(path: Signal<PathBuf>) -> impl IntoView {

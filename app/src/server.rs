@@ -24,8 +24,6 @@ pub enum ServerEntry {
 
 #[server(ListDir, "/api", "Url", "list_dir")]
 pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
-  use crate::config::get_target_dir;
-
   if path.is_absolute() {
     return Err(ServerFnError::ServerError("Path must be relative".into()));
   }
@@ -36,7 +34,9 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
     ));
   }
 
-  let Ok(path) = get_target_dir().join(path).canonicalize() else {
+  let base_path = expect_context::<PathBuf>().clone();
+
+  let Ok(path) = base_path.join(path).canonicalize() else {
     return Err(ServerFnError::ServerError(
       "Path must be inside target_dir".into(),
     ));
@@ -70,9 +70,9 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
 
 #[server(NewFolder, "/api", "Url", "new_folder")]
 pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError> {
-  use crate::config::get_target_dir;
+  let base_path = expect_context::<PathBuf>().clone();
 
-  let path = get_target_dir().join(path).join(name);
+  let path = base_path.join(path).join(name);
 
   fs::create_dir(path).await?;
 

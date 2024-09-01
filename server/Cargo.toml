@@ -1,0 +1,36 @@
+[package]
+name = "file-share"
+version = "1.4.4"
+edition = "2021"
+
+[dependencies]
+file-share-app = { path = "../app", default-features = false, features = [
+  "ssr",
+] }
+
+leptos = { workspace = true, features = ["ssr"] }
+leptos_axum.workspace = true
+
+async-compression.workspace = true
+async-walkdir.workspace = true
+async_zip.workspace = true
+axum-server.workspace = true
+axum.workspace = true
+chrono.workspace = true
+cfg-if.workspace = true
+clap.workspace = true
+colored.workspace = true
+futures.workspace = true
+if-addrs.workspace = true
+log.workspace = true
+port_check.workspace = true
+qr_code.workspace = true
+rfd.workspace = true
+rust-embed.workspace = true
+simple_logger.workspace = true
+thiserror.workspace = true
+tokio-stream.workspace = true
+tokio-tar.workspace = true
+tokio-util.workspace = true
+tokio.workspace = true
+tower-http.workspace = true

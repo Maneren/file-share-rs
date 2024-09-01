@@ -1,6 +1,7 @@
 #![warn(clippy::pedantic)]
 #![feature(os_str_display)]
 
+pub mod config;
 pub mod fileserv;
 
 use std::{
@@ -17,19 +18,20 @@ use axum::{
   Router,
 };
 use colored::Colorize;
-use file_share::{
-  app::App,
-  config::{get_config, AppState, Cli},
-};
-use fileserv::{
-  file_and_error_handler, file_upload_with_path, file_upload_without_path,
-  handle_archive_with_path, handle_archive_without_path,
-};
+use file_share_app::{App, AppState};
 use futures::future::try_join_all;
 use if_addrs::Interface;
-use leptos::{get_configuration, logging::error};
+use leptos::{get_configuration, logging::error, provide_context};
 use leptos_axum::{generate_route_list, LeptosRoutes};
 use tower_http::services::ServeDir;
+
+use crate::{
+  config::{get_config, Config},
+  fileserv::{
+    file_and_error_handler, file_upload_with_path, file_upload_without_path,
+    handle_archive_with_path, handle_archive_without_path,
+  },
+};
 
 const API_HELP_TEXT: &str = r"
 File Share
@@ -54,35 +56,52 @@ async fn main() {
   let leptos_options = conf.leptos_options;
   let routes = generate_route_list(App);
 
-  let Cli {
+  let Config {
     target_dir,
     port,
     qr,
     interfaces,
-    ..
   } = get_config().await.unwrap_or_else(|e| {
     eprintln!("Failed to get config: {e}");
     process::exit(1);
   });
 
   let app_state = AppState {
-    leptos_options,
     target_dir: target_dir.clone(),
+    leptos_options,
   };
+
+  if let Err(e) = create_dir_all(&target_dir) {
+    error!("Failed to create target directory: {e}");
+    process::exit(1);
+  }
+
+  println!(
+    "Serving files from {}",
+    target_dir.to_string_lossy().yellow().bold()
+  );
 
   let app = Router::new()
     .route("/", get(|| async { Redirect::to("/index") }))
     .route("/help", get(|| async { API_HELP_TEXT }))
-    .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
     .route("/archive/*path", get(handle_archive_with_path))
     .route("/archive/", get(handle_archive_without_path))
     .route("/upload/*path", post(file_upload_with_path))
     .route("/upload/", post(file_upload_without_path))
     .nest_service("/files", ServeDir::new(&target_dir))
-    .leptos_routes(&app_state, routes, App)
+    .leptos_routes_with_context(
+      &app_state,
+      routes,
+      {
+        let target = target_dir.clone();
+        move || provide_context(target.clone())
+      },
+      App,
+    )
     .fallback(file_and_error_handler)
     .layer(DefaultBodyLimit::disable())
-    .with_state(app_state);
+    .with_state(app_state)
+    .with_state(target_dir);
 
   let socket_addresses = interfaces
     .iter()
@@ -125,15 +144,6 @@ async fn main() {
     .collect::<Vec<_>>()
     .join(", ");
 
-  if let Err(e) = create_dir_all(&target_dir) {
-    error!("Failed to create target directory: {e}");
-    process::exit(1);
-  }
-
-  println!(
-    "Serving files from {}",
-    target_dir.to_string_lossy().yellow().bold()
-  );
   println!("Listening on {display_sockets}");
   println!(
     "Available on:\n{}",

@@ -1,55 +1,46 @@
-[package]
-name = "file-share"
-version = "1.4.4"
+[workspace.package]
 edition = "2021"
 authors = ["Maneren <maneren731@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/Maneren/file-share-rs"
 description = "Fast HTTP file sharing server with leptos GUI"
+rust-version = "1.82.0"
 
 [workspace]
+resolver = "2"
+members = ["app", "frontend", "server"]
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
-[dependencies]
+[workspace.dependencies]
 leptos = { version = "0.6", features = ["nightly"] }
-leptos_axum = { version = "0.6", optional = true }
+leptos_axum = "0.6"
 leptos_meta = { version = "0.6", features = ["nightly"] }
 leptos_router = { version = "0.6", features = ["nightly"] }
 leptos-use = "0.12"
 server_fn = { version = "0.6", features = ["multipart"] }
 
-async-broadcast = { version = "0.7", optional = true }
-async-compression = { version = "0.4", optional = true, features = [
-  "tokio",
-  "gzip",
-  "zstd",
-] }
-async-walkdir = { version = "2.0", optional = true }
-async_zip = { version = "0.0.17", optional = true, features = [
-  "deflate",
-  "tokio",
-] }
-axum = { version = "0.7", optional = true, features = ["macros", "multipart"] }
-axum-server = { version = "0.7", optional = true }
+async-broadcast = "0.7"
+async-compression = { version = "0.4", features = ["tokio", "gzip", "zstd"] }
+async-walkdir = "2.0"
+async_zip = { version = "0.0.17", features = ["deflate", "tokio"] }
+axum = { version = "0.7", features = ["macros", "multipart"] }
+axum-server = "0.7"
 cfg-if = "1"
 chrono = "0.4"
 chrono-humanize = "0.2"
-clap = { version = "4.5", features = ["derive"], optional = true }
-colored = { version = "2.1", optional = true }
+clap = { version = "4.5", features = ["derive"] }
+colored = "2.1"
 console_error_panic_hook = "0.1"
 console_log = "1"
-dashmap = { version = "6", optional = true }
+dashmap = "6"
 futures = "0.3"
 http = "1.1"
-if-addrs = { version = "0.13", optional = true }
+if-addrs = "0.13"
 include-flate = "0.3"
 log = "0.4"
-multer = { version = "3.1", optional = true }
-port_check = { version = "0.2", optional = true }
-qr_code = { version = "2.0", optional = true }
-rfd = { version = "0.14", optional = true, default-features = false, features = [
+multer = "3.1"
+port_check = "0.2"
+qr_code = "2.0"
+rfd = { version = "0.14", default-features = false, features = [
   "xdg-portal",
   "tokio",
 ] }
@@ -58,56 +49,22 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 simple_logger = "5"
 thiserror = "1"
-tokio = { version = "1.38", optional = true, features = ["rt-multi-thread"] }
-tokio-stream = { version = "0.1", optional = true }
-tokio-tar = { version = "0.3", optional = true }
-tokio-util = { version = "0.7", optional = true }
-tower-http = { version = "0.5", features = ["fs"], optional = true }
+tokio = { version = "1.38", features = ["rt-multi-thread"] }
+tokio-stream = "0.1"
+tokio-tar = "0.3"
+tokio-util = "0.7"
+tower-http = { version = "0.5", features = ["fs"] }
 urlencoding = "2"
 wasm-bindgen = "=0.2.93"
 web-sys = { version = "0.3.70", features = ["File", "FileList"] }
-wee_alloc = { version = "0.4", optional = true }
+wee_alloc = "0.4"
 
 [profile.dev.package.leptos_macro]
 opt-level = 3
 
-[package.metadata.binstall]
+[workspace.metadata.binstall]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }_{ target }{ archive-suffix }"
 bin-dir = "{ bin }{ binary-ext }"
-
-[features]
-wee_alloc = ["dep:wee_alloc"]
-hydrate = [
-  "leptos/hydrate",
-  "leptos_meta/hydrate",
-  "leptos_router/hydrate",
-  "wee_alloc",
-]
-ssr = [
-  "leptos/ssr",
-  "leptos_meta/ssr",
-  "leptos_router/ssr",
-  "dep:async-broadcast",
-  "dep:async-compression",
-  "dep:async-walkdir",
-  "dep:async_zip",
-  "dep:axum",
-  "dep:axum-server",
-  "dep:clap",
-  "dep:colored",
-  "dep:dashmap",
-  "dep:if-addrs",
-  "dep:leptos_axum",
-  "dep:multer",
-  "dep:port_check",
-  "dep:qr_code",
-  "dep:rfd",
-  "dep:tokio",
-  "dep:tokio-stream",
-  "dep:tokio-tar",
-  "dep:tokio-util",
-  "dep:tower-http",
-]
 
 # Defines a size-optimized profile for the WASM bundle in release mode
 [profile.wasm-release]
@@ -120,12 +77,12 @@ panic = "abort"
 [profile.release]
 strip = true
 
-[package.metadata.leptos]
-output-name = "file-share"
-style-file = "style/main.scss"
-assets-dir = "public"
+[[workspace.metadata.leptos]]
+name = "file-share"
+style-file = "app/styles/main.scss"
+assets-dir = "app/public"
 lib-profile-release = "wasm-release"
-tailwind-input-file = "style/tailwind.css"
+tailwind-input-file = "app/styles/tailwind.css"
 
-bin-features = ["ssr"]
-lib-features = ["hydrate"]
+bin-package = "file-share"
+lib-package = "file-share-frontend"
