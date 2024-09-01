@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: {
-    files: ["./src/**/*.rs"],
+    files: ["./app/**/*.rs"],
   },
   plugins: [require("daisyui")],
   daisyui: {
@@ -17,8 +17,8 @@ export default {
   theme: {
     extend: {
       gridTemplateColumns: {
-        'entry': '2.5rem 1fr 5rem 10rem 7rem',
-        'entry-mobile': '2.5rem 1fr 5rem',
+        'entry': '2.5rem 1fr 6rem 8rem',
+        'entry-mobile': '2.5rem 1fr 6rem',
       }
     }
   }

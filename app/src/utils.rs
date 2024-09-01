@@ -59,7 +59,7 @@ pub fn os_to_string(str: impl AsRef<OsStr>) -> String {
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_precision_loss)]
 pub fn format_bytes(bytes: u64) -> String {
-  let prefixes = ["", "K", "M", "G", "T", "P", "E", "Z", "Y"];
+  let prefixes = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi"];
 
   if bytes == 0 {
     return "0 B".into();

@@ -6,10 +6,7 @@ use icon::Icon;
 use leptos::*;
 use leptos_router::A;
 
-use crate::{
-  server::Entries,
-  utils::{format_bytes, SystemTime},
-};
+use crate::{server::Entries, utils::format_bytes};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub enum EntryType {
@@ -23,7 +20,6 @@ pub struct Entry {
   href: String,
   name: String,
   size: Option<String>,
-  last_modified: SystemTime,
   relative_time: String,
 }
 
@@ -33,7 +29,6 @@ pub fn EntryComponent(data: Entry) -> impl IntoView {
     href,
     name,
     size,
-    last_modified,
     relative_time,
   } = data;
 
@@ -42,7 +37,6 @@ pub fn EntryComponent(data: Entry) -> impl IntoView {
       <Icon type_=type_ name=name.clone() />
       <span class="flex items-center overflow-x-hidden">{name}</span>
       <span class="flex items-center justify-end">{size}</span>
-      <span class="hidden md:flex items-center justify-center">{last_modified}</span>
       <span class="hidden md:flex items-center">{relative_time}</span>
     </div>
   };
@@ -80,7 +74,6 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
         href: format!("/files/{}", path.join(&name).display()),
         name: name.clone(),
         size: Some(format_bytes(size)),
-        last_modified,
         relative_time: last_modified.humanize(),
       },
       ServerEntry::Folder {
@@ -91,7 +84,6 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
         href: format!("/index/{}", path.join(&name).display()),
         name: name.clone(),
         size: None,
-        last_modified,
         relative_time: last_modified.humanize(),
       },
     })
