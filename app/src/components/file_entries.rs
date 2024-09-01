@@ -65,7 +65,8 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
   if entries.is_empty() {
     return view! { <div class="file-view">"The folder is empty"</div> };
   }
-  let path = path.with_untracked(|path| path.to_string_lossy().to_string());
+
+  let path = path.get_untracked();
 
   let mut entries = entries
     .into_iter()
@@ -76,7 +77,7 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
         last_modified,
       } => Entry {
         type_: EntryType::File,
-        href: format!("/files/{path}/{name}"),
+        href: format!("/files/{}", path.join(&name).display()),
         name: name.clone(),
         size: Some(format_bytes(size)),
         last_modified,
@@ -87,7 +88,7 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
         last_modified,
       } => Entry {
         type_: EntryType::Folder,
-        href: format!("/index/{path}/{name}"),
+        href: format!("/index/{}", path.join(&name).display()),
         name: name.clone(),
         size: None,
         last_modified,
