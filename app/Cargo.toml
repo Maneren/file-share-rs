@@ -29,6 +29,7 @@ tokio-stream = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 urlencoding.workspace = true
 web-sys.workspace = true
+web-time.workspace = true
 
 [features]
 default = []

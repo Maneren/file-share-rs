@@ -1,5 +1,4 @@
 use std::{
-  collections::HashMap,
   hash::{DefaultHasher, Hash, Hasher},
   path::PathBuf,
 };
@@ -10,6 +9,9 @@ use leptos::{
   *,
 };
 use server_fn::codec::{MultipartData, MultipartFormData, StreamingText, TextStream};
+use web_time::Instant;
+
+use crate::utils::format_bytes;
 
 #[cfg(feature = "ssr")]
 mod progress;
@@ -94,13 +96,14 @@ pub async fn file_progress(id: String) -> Result<TextStream, ServerFnError> {
   Ok(TextStream::new(progress::progress_stream(id.clone())))
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 struct Progress {
   pub size: u64,
+  pub start_time: Instant,
   pub uploaded: RwSignal<u64>,
 }
 
-async fn update_progress(id: String, uploading_files: RwSignal<HashMap<String, Progress>>) {
+async fn update_progress(id: String, upload: RwSignal<Option<(String, Progress)>>) {
   use futures::StreamExt;
 
   let mut progress = file_progress(id.clone())
@@ -114,12 +117,18 @@ async fn update_progress(id: String, uploading_files: RwSignal<HashMap<String, P
       .filter_map(|line| line.split_once('\0'))
       .filter_map(|(id, size)| size.parse::<u64>().ok().map(|size| (id, size)));
 
-    uploading_files.with_untracked(|uploading_files| {
+    upload.with_untracked(|upload| {
+      let Some((stored_id, Progress { uploaded, .. })) = upload.as_ref() else {
+        return;
+      };
+
+      let uploaded = *uploaded;
+
       for (id, size) in messages {
-        let Some(&Progress { uploaded, .. }) = uploading_files.get(id) else {
+        if id != stored_id {
           logging::warn!("Got progress for unknown id '{id}'");
           continue;
-        };
+        }
 
         update!(|uploaded| *uploaded = size);
       }
@@ -128,14 +137,14 @@ async fn update_progress(id: String, uploading_files: RwSignal<HashMap<String, P
 
   logging::log!("[{id}]\tfinished (stream)");
 
-  update!(|uploading_files| {
-    _ = uploading_files.remove(&id);
+  update!(|upload| {
+    _ = upload.take();
   });
 }
 
 #[component]
 pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) -> impl IntoView {
-  let uploading_files = create_rw_signal(HashMap::<String, Progress>::new());
+  let current_upload = create_rw_signal(None::<(String, Progress)>);
 
   let file_ref: NodeRef<Input> = create_node_ref();
   let form_ref: NodeRef<Form> = create_node_ref();
@@ -173,24 +182,25 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
       hasher.finish().to_string()
     };
 
-    if with!(|uploading_files| uploading_files.contains_key(&id)) {
+    if with!(|current_upload| current_upload.is_some()) {
       logging::warn!("Upload already in progress. Aborting.");
       return;
     }
 
     _ = form_data.set_with_str("id", &id);
 
-    update!(|uploading_files| {
-      _ = uploading_files.insert(
+    update!(|current_upload| {
+      _ = current_upload.insert((
         id.clone(),
         Progress {
           size: total,
+          start_time: Instant::now(),
           uploaded: create_rw_signal(0),
         },
-      );
+      ));
     });
 
-    spawn_local(update_progress(id.clone(), uploading_files));
+    spawn_local(update_progress(id.clone(), current_upload));
 
     spawn_local(async move {
       upload_file(form_data.into())
@@ -203,17 +213,25 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
     });
   };
 
-  let ProgressBar = |Progress { size, uploaded }| {
+  let ProgressBar = |Progress {
+                       size,
+                       start_time,
+                       uploaded,
+                     }| {
     let percent = move || with!(|uploaded| *uploaded * 100 / size);
+    let speed = move || {
+      format_bytes(((uploaded() * 1000) as f64 / start_time.elapsed().as_millis_f64()) as u64)
+    };
     view! {
-      <div class="m-2 flex flex-row items-baseline gap-3">
-        <span>{move || format!("Uploading {: >3}%", percent())}</span>
+      <div class="m-2 flex flex-row items-baseline justify-between gap-5 w-full">
+        <span>Uploading {move || format!("{: >3}", percent())}%</span>
         <div class="bg-neutral rounded-full flex-grow h-3">
           <div
-            class="bg-info h-full transition-all ease-linear duration-500 rounded-full"
-            style:width=move || format!("{}%", percent())
-          ></div>
+            class="bg-info h-full transition-all ease-linear duration-50 rounded-full"
+            style:width=move || format!("{: >3}%", percent())
+          />
         </div>
+        <span class="w-28 text-right">{speed}/s</span>
       </div>
     }
   };
@@ -247,10 +265,10 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
       </form>
 
       {move || {
-          uploading_files
-              .with(|map| map.values().map(|progress| ProgressBar(*progress)).collect::<Vec<_>>())
+          with!(
+              |current_upload| current_upload.as_ref().map(|(_, progress)| ProgressBar(*progress))
+          )
       }}
-
     </div>
   }
 }

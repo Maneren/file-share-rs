@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+#![feature(duration_millis_float)]
 
 use std::path::PathBuf;
 

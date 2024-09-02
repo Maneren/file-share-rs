@@ -57,6 +57,7 @@ tower-http = { version = "0.5", features = ["fs"] }
 urlencoding = "2"
 wasm-bindgen = "=0.2.93"
 web-sys = { version = "0.3.70", features = ["File", "FileList"] }
+web-time = "1.1"
 wee_alloc = "0.4"
 
 [profile.dev.package.leptos_macro]
