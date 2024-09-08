@@ -1,6 +1,6 @@
 # File Share
 
-Simple utility to share selected folder over HTTP
+Simple utility to share a folder over HTTP
 
 ## Features
 
@@ -10,6 +10,7 @@ Simple utility to share selected folder over HTTP
 - Creating new folders
 - Uploading files
 - Material Design Icons
+- Blazingly fast thanks to Rust and the [Leptos framework](https://leptos.dev/)
 
 ## Preview
 
@@ -18,7 +19,7 @@ Simple utility to share selected folder over HTTP
 ## Usage
 
 ```txt
-Fast HTTP file sharing server with leptos GUI
+Fast HTTP file-sharing server with Leptos GUI
 
 Usage: file-share [OPTIONS] [TARGET_DIR]
 
@@ -61,7 +62,7 @@ Download the binary from GitHub Releases and put it in `$PATH`.
 ## Compilation
 
 You'll need [`cargo-leptos`](https://github.com/leptos-rs/cargo-leptos). You can
-get it either by compiling it from source or downloading a binary using
+get it either by compiling it from the source or downloading a binary using
 [`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall).
 
 ```sh
