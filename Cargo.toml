@@ -15,7 +15,7 @@ leptos = { version = "0.6", features = ["nightly"] }
 leptos_axum = "0.6"
 leptos_meta = { version = "0.6", features = ["nightly"] }
 leptos_router = { version = "0.6", features = ["nightly"] }
-leptos-use = "0.12"
+leptos-use = "0.13"
 server_fn = { version = "0.6", features = ["multipart"] }
 
 async-broadcast = "0.7"
@@ -40,7 +40,7 @@ log = "0.4"
 multer = "3.1"
 port_check = "0.2"
 qr_code = "2.0"
-rfd = { version = "0.14", default-features = false, features = [
+rfd = { version = "0.15", default-features = false, features = [
   "xdg-portal",
   "tokio",
 ] }
@@ -53,7 +53,7 @@ tokio = { version = "1.38", features = ["rt-multi-thread"] }
 tokio-stream = "0.1"
 tokio-tar = "0.3"
 tokio-util = "0.7"
-tower-http = { version = "0.5", features = ["fs"] }
+tower-http = { version = "0.6", features = ["fs"] }
 urlencoding = "2"
 wasm-bindgen = "=0.2.93"
 web-sys = { version = "0.3.70", features = ["File", "FileList"] }
