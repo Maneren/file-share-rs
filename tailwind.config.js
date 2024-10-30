@@ -1,13 +1,18 @@
-/** @type {import('tailwindcss').Config} */
+import daisyui from 'daisyui'
+import tailwindcss from 'tailwindcss'
+
+import themes from 'daisyui/src/theming/themes'
+
+/** @type {tailwindcss.Config} */
 export default {
   content: {
     files: ["./app/**/*.rs"],
   },
-  plugins: [require("daisyui")],
+  plugins: [daisyui],
   daisyui: {
     themes: [{
       light: {
-        ...require("daisyui/src/theming/themes")["[data-theme=corporate]"],
+        ...themes["[data-theme=corporate]"],
         "--rounded-box": "1rem",
         "--rounded-btn": ".5rem",
         "--rounded-badge": "1.9rem",
