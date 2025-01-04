@@ -18,10 +18,13 @@ use axum::{
   Router,
 };
 use colored::Colorize;
-use file_share_app::{App, AppState};
+use file_share_app::{shell, App, AppState};
 use futures::future::try_join_all;
 use if_addrs::Interface;
-use leptos::{get_configuration, logging::error, provide_context};
+use leptos::{
+  logging::*,
+  prelude::{get_configuration, provide_context},
+};
 use leptos_axum::{generate_route_list, LeptosRoutes};
 use tower_http::services::ServeDir;
 
@@ -52,7 +55,7 @@ Available methods are tar, tar.gz, tar.zst, zip.
 async fn main() {
   simple_logger::init_with_level(log::Level::Warn).expect("couldn't initialize logging");
 
-  let conf = get_configuration(None).await.unwrap();
+  let conf = get_configuration(None).unwrap();
   let leptos_options = conf.leptos_options;
   let routes = generate_route_list(App);
 
@@ -68,7 +71,7 @@ async fn main() {
 
   let app_state = AppState {
     target_dir: target_dir.clone(),
-    leptos_options,
+    leptos_options: leptos_options.clone(),
   };
 
   if let Err(e) = create_dir_all(&target_dir) {
@@ -96,7 +99,7 @@ async fn main() {
         let target = target_dir.clone();
         move || provide_context(target.clone())
       },
-      App,
+      move || shell(leptos_options.clone()),
     )
     .fallback(file_and_error_handler)
     .layer(DefaultBodyLimit::disable())
@@ -168,10 +171,10 @@ async fn main() {
             url.green().bold(),
             qr.to_string(false, 1)
           );
-        }
+        },
         Err(e) => {
           error!("Failed to render QR to terminal: {e}");
-        }
+        },
       };
     }
   }

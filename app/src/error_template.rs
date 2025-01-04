@@ -1,6 +1,6 @@
 use cfg_if::cfg_if;
 use http::status::StatusCode;
-use leptos::*;
+use leptos::prelude::*;
 #[cfg(feature = "ssr")]
 use leptos_axum::ResponseOptions;
 use thiserror::Error;
@@ -25,7 +25,7 @@ pub fn ErrorTemplate(
   #[prop(optional)] errors: Option<RwSignal<Errors>>,
 ) -> impl IntoView {
   let errors = match outside_errors {
-    Some(e) => create_rw_signal(e),
+    Some(e) => RwSignal::new(e),
     None => match errors {
       Some(e) => e,
       None => panic!("No Errors found and we expected errors!"),

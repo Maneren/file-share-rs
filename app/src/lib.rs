@@ -10,9 +10,10 @@ mod server;
 mod state;
 pub mod utils;
 
-use leptos::*;
+use leptos::{either::Either, prelude::*};
 use leptos_meta::*;
-use leptos_router::*;
+use leptos_router::{components::*, hooks::use_params, params::*};
+use leptos_router_macro::path;
 use leptos_use::use_preferred_dark;
 use urlencoding::decode;
 
@@ -29,47 +30,38 @@ struct PathQuery {
   path: String,
 }
 
+#[component]
 pub fn FilesPage() -> impl IntoView {
   let path_query = use_params::<PathQuery>();
 
-  let path = create_memo(move |_| {
-    path_query.with(
-      |query| match query.as_ref().map(|query| decode(&query.path)) {
+  let path =
+    Memo::new(
+      move |_| match path_query.read().as_ref().map(|query| decode(&query.path)) {
         Ok(Ok(path)) => PathBuf::from(path.as_ref()),
         _ => PathBuf::new(),
       },
-    )
-  });
+    );
 
-  let create_folder_action = create_server_action::<NewFolder>();
+  let create_folder_action = ServerAction::<NewFolder>::new();
 
-  let entries_resource = create_resource(
+  let listing = Resource::new(
     move || (path.get(), create_folder_action.version().get()),
     |(path, ..)| list_dir(path),
   );
 
-  let path = Signal::from(path);
-
-  let entries = move || {
-    entries_resource.with(|entries| {
-      entries.as_ref().map(|entries| match entries {
-        Ok(entries) => view! { <FileEntries path=path entries=entries.clone() /> }.into_view(),
-        Err(e) => view! { <p class="text-lg">{format!("{e}")}</p> }.into_view(),
-      })
-    })
-  };
+  let path_signal = Signal::from(path);
 
   view! {
     <div class="App p-3">
       <div class="w-full pt-2 flex flex-wrap items-start justify-center gap-2">
-        <FileUpload path=path on_upload=move |()| entries_resource.refetch() />
+        <FileUpload path=path_signal on_upload=move || listing.refetch() />
         <div class="flex flex-grow gap-2">
-          <NewFolderButton path=path action=create_folder_action />
-          <FolderDownloads path=path />
+          <NewFolderButton path=path_signal action=create_folder_action />
+          <FolderDownloads path=path_signal />
         </div>
       </div>
 
-      <Breadcrumbs path=path />
+      <Breadcrumbs path=path_signal />
 
       <div class="grid grid-cols-entry-mobile md:grid-cols-entry gap-2 border-b border-base-content mb-1">
         <span></span>
@@ -78,15 +70,23 @@ pub fn FilesPage() -> impl IntoView {
         <span class="hidden md:inline">Last Modified</span>
       </div>
 
-      <Transition fallback=move || view! { <p>"Loading..."</p> }>{entries}</Transition>
+      <Transition fallback=move || {
+        view! { <p>"Loading..."</p> }
+      }>
+        {move || Suspend::new(async move {
+          match listing.await {
+            Ok(entries) => {
+              Either::Left(view! { <FileEntries path=path_signal entries=entries.clone() /> })
+            }
+            Err(e) => Either::Right(view! { <p class="text-lg">{format!("{e}")}</p> }),
+          }
+        })}
+      </Transition>
     </div>
   }
 }
 
-#[allow(non_snake_case)]
-pub fn App() -> impl IntoView {
-  provide_meta_context();
-
+pub fn shell(options: LeptosOptions) -> impl IntoView {
   let is_dark_preferred = use_preferred_dark();
 
   let theme = move || {
@@ -97,21 +97,38 @@ pub fn App() -> impl IntoView {
     }
   };
 
-  let theme_attribute = vec![("data-theme", theme.into_attribute())];
+  view! {
+    <!DOCTYPE html>
+    <html lang="en" attr:data-theme=theme.into_attribute_value()>
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
+        <AutoReload options=options.clone() />
+        <HydrationScripts options />
+        <MetaTags />
+      </head>
+      <body>
+        <App />
+      </body>
+    </html>
+  }
+}
+
+#[allow(non_snake_case)]
+pub fn App() -> impl IntoView {
+  provide_meta_context();
 
   view! {
-    <Html lang="en" attributes=theme_attribute />
-    <Stylesheet id="leptos" href="/pkg/file-share.css" />
-
-    <Title text="File Sharing" />
-
-    <Router fallback=|| {
+    <Router>
+      <Stylesheet id="leptos" href="/pkg/file-share.css" />
+      <Title text="File Share" />
+      <Routes fallback=|| {
         let mut outside_errors = Errors::default();
         outside_errors.insert_with_default_key(AppError::NotFound);
         view! { <ErrorTemplate outside_errors /> }.into_view()
-    }>
-      <Routes>
-        <Route path="/index/*path" view=FilesPage />
+      }>
+        <Route path=path!("/index/*path") view=FilesPage />
       </Routes>
     </Router>
   }

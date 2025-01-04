@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use axum::extract::FromRef;
-use leptos::LeptosOptions;
+use leptos::prelude::LeptosOptions;
 
 #[derive(FromRef, Clone, Debug)]
 pub struct AppState {

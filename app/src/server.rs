@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use leptos::*;
+use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "ssr")]
 use tokio::fs;

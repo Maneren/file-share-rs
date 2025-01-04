@@ -6,7 +6,9 @@ use std::{
 use leptos::{
   ev::SubmitEvent,
   html::{Form, Input},
-  *,
+  logging,
+  prelude::*,
+  task::spawn_local,
 };
 use server_fn::codec::{MultipartData, MultipartFormData, StreamingText, TextStream};
 use web_time::Instant;
@@ -130,34 +132,32 @@ async fn update_progress(id: String, upload: RwSignal<Option<(String, Progress)>
           continue;
         }
 
-        update!(|uploaded| *uploaded = size);
+        *uploaded.write() = size;
       }
     });
   }
 
   logging::log!("[{id}]\tfinished (stream)");
 
-  update!(|upload| {
-    _ = upload.take();
-  });
+  upload.write().take();
 }
 
 #[component]
 pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) -> impl IntoView {
-  let current_upload = create_rw_signal(None::<(String, Progress)>);
+  let current_upload = RwSignal::new(None::<(String, Progress)>);
 
-  let file_ref: NodeRef<Input> = create_node_ref();
-  let form_ref: NodeRef<Form> = create_node_ref();
+  let file_ref: NodeRef<Input> = NodeRef::new();
+  let form_ref: NodeRef<Form> = NodeRef::new();
 
   // TODO: convert progress to local resource
 
   let on_submit = move |ev: SubmitEvent| {
     ev.prevent_default();
 
-    let form = form_ref().unwrap();
+    let form = form_ref.get().unwrap();
     let form_data = web_sys::FormData::new_with_form(&form).unwrap();
 
-    let file_list = file_ref().unwrap().files().unwrap();
+    let file_list = file_ref.get().unwrap().files().unwrap();
 
     let files = (0..file_list.length())
       .map(|i| file_list.get(i).unwrap())
@@ -182,23 +182,21 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
       hasher.finish().to_string()
     };
 
-    if with!(|current_upload| current_upload.is_some()) {
+    if current_upload.read().is_some() {
       logging::warn!("Upload already in progress. Aborting.");
       return;
     }
 
     _ = form_data.set_with_str("id", &id);
 
-    update!(|current_upload| {
-      _ = current_upload.insert((
-        id.clone(),
-        Progress {
-          size: total,
-          start_time: Instant::now(),
-          uploaded: create_rw_signal(0),
-        },
-      ));
-    });
+    let _ = current_upload.write().insert((
+      id.clone(),
+      Progress {
+        size: total,
+        start_time: Instant::now(),
+        uploaded: RwSignal::new(0),
+      },
+    ));
 
     spawn_local(update_progress(id.clone(), current_upload));
 
@@ -209,7 +207,7 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
 
       logging::log!("[{id}]\tfinished (upload)");
 
-      on_upload(());
+      on_upload.run(());
     });
   };
 
@@ -218,7 +216,7 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
                        start_time,
                        uploaded,
                      }| {
-    let percent = move || with!(|uploaded| *uploaded * 100 / size);
+    let percent = move || *uploaded.read() * 100 / size;
     let speed = move || {
       format_bytes(((uploaded() * 1000) as f64 / start_time.elapsed().as_millis_f64()) as u64)
     };
@@ -257,18 +255,15 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
           name="uploads"
           class="file-input file-input-bordered grow-[3]"
           multiple
-          ref=file_ref
+          node_ref=file_ref
         />
+        // ref_=file_ref
         <button type="submit" class="btn btn-primary grow-[1]">
           Upload
         </button>
       </form>
 
-      {move || {
-          with!(
-              |current_upload| current_upload.as_ref().map(|(_, progress)| ProgressBar(*progress))
-          )
-      }}
+      {move || { current_upload.read().as_ref().map(|(_, progress)| ProgressBar(*progress)) }}
     </div>
   }
 }

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn FolderDownloads(path: Signal<PathBuf>) -> impl IntoView {
