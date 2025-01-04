@@ -9,8 +9,8 @@ use axum::{
   http::{header, HeaderValue, Request, StatusCode, Uri},
   response::IntoResponse,
 };
-use file_share_app::{utils::format_bytes, App, AppState};
-use leptos::{logging, provide_context};
+use file_share_app::{shell, utils::format_bytes, AppState};
+use leptos::{logging, prelude::provide_context};
 use rust_embed::RustEmbed;
 use tokio::io::AsyncWriteExt;
 use tokio_util::io::ReaderStream;
@@ -23,7 +23,8 @@ struct StaticFiles;
 ///
 /// # Panics
 ///
-/// This function will panic if the mimetype from `RustEmbed` is not recognized by `http` crate
+/// This function will panic if the mimetype from `RustEmbed` is not recognized
+/// by `http` crate
 pub async fn file_and_error_handler(
   State(app_state): State<AppState>,
   uri: Uri,
@@ -40,9 +41,9 @@ pub async fn file_and_error_handler(
   }
 
   let handler = leptos_axum::render_app_to_stream_with_context(
-    app_state.leptos_options.clone(),
+    // app_state.leptos_options.clone(),
     move || provide_context(app_state.target_dir.clone()),
-    App,
+    move || shell(app_state.leptos_options.clone()),
   );
   handler(request).await.into_response()
 }
@@ -163,7 +164,7 @@ pub async fn file_upload(
           format!("Failed to create file: {err}"),
         )
           .into_response();
-      }
+      },
     };
 
     let bytes = match field.bytes().await {
@@ -174,7 +175,7 @@ pub async fn file_upload(
           format!("Invalid file content: {e}"),
         )
           .into_response();
-      }
+      },
     };
 
     logging::log!(

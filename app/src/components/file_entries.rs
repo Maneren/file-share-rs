@@ -3,8 +3,8 @@ mod icon;
 use std::path::PathBuf;
 
 use icon::Icon;
-use leptos::*;
-use leptos_router::A;
+use leptos::{either::Either, prelude::*};
+use leptos_router::components::A;
 
 use crate::{server::Entries, utils::format_bytes};
 
@@ -42,14 +42,17 @@ pub fn EntryComponent(data: Entry) -> impl IntoView {
   };
 
   if type_ == EntryType::Folder {
-    view! { <A href=href>{inner}</A> }.into_view()
-  } else {
-    view! {
-      <a href=href download>
+    Either::Left(view! {
+      <A href=href exact=true>
         {inner}
-      </a>
-    }
-    .into_view()
+      </A>
+    })
+  } else {
+    Either::Right(view! {
+      <A href=href attr:download>
+        {inner}
+      </A>
+    })
   }
 }
 
@@ -57,7 +60,7 @@ pub fn EntryComponent(data: Entry) -> impl IntoView {
 pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
   use crate::server::ServerEntry;
   if entries.is_empty() {
-    return view! { <div class="file-view">"The folder is empty"</div> };
+    return Either::Left(view! { <div class="file-view">"The folder is empty"</div> });
   }
 
   let path = path.get_untracked();
@@ -91,5 +94,7 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
 
   entries.sort_unstable();
 
-  view! { <div class="file-view">{entries.into_iter().map(EntryComponent).collect_view()}</div> }
+  Either::Right(
+    view! { <div class="file-view">{entries.into_iter().map(EntryComponent).collect_view()}</div> },
+  )
 }

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use leptos::*;
+use leptos::prelude::*;
 
 use crate::utils::os_to_string;
 
