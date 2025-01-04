@@ -41,11 +41,13 @@ pub struct Config {
 ///
 /// # Errors
 ///
-/// Returns error if `CWD`/`target_dir` is unreadable or when there's no free port.
+/// Returns error if `CWD`/`target_dir` is unreadable or when there's no free
+/// port.
 ///
 /// # Panics
 ///
-/// Panics if the current working directory is invalid or unreadable for current process.
+/// Panics if the current working directory is invalid or unreadable for current
+/// process.
 #[allow(clippy::unused_async)] // it's used only in release build
 pub async fn get_config() -> Result<Config, String> {
   cfg_if! {

@@ -23,7 +23,8 @@ pub enum Error {
   #[error("{0}\ncaused by: {1}")]
   Io(String, std::io::Error),
 
-  /// Any error related to an invalid path (failed to retrieve entry name, unexpected entry type, etc)
+  /// Any error related to an invalid path (failed to retrieve entry name,
+  /// unexpected entry type, etc)
   #[error("Invalid path\ncaused by: {0}")]
   InvalidPath(String),
 
@@ -62,8 +63,8 @@ impl Method {
   ///
   /// # Errors
   ///
-  /// This function will return an error if there is any error during the archive creation, usually
-  /// due to IO or invalid input dir.
+  /// This function will return an error if there is any error during the
+  /// archive creation, usually due to IO or invalid input dir.
   pub async fn create_archive<P, W>(self, dir: P, out: W) -> Result<(), Error>
   where
     P: AsRef<Path>,
