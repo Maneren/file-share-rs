@@ -15,6 +15,8 @@ jobs:
     env:
       CARGO_TARGET_DIR: target
       LEPTOS_BIN_TARGET_TRIPLE: ${{ inputs.target }}
+      LEPTOS_TAILWIND_VERSION: v3.4.17
+      LEPTOS_SASS_VERSION: 1.71.0
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
