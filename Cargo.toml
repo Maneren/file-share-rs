@@ -4,7 +4,7 @@ authors = ["Maneren <maneren731@gmail.com>"]
 version = "1.4.6"
 license = "MIT"
 repository = "https://github.com/Maneren/file-share-rs"
-description = "Fast HTTP file-sharing server with Leptos GUI"
+description = "Fast Rust-powered HTTP file server with beautiful web-based GUI"
 rust-version = "1.82.0"
 
 [workspace]

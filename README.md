@@ -1,6 +1,6 @@
 # File Share
 
-Simple utility to share a folder over HTTP
+Fast Rust-powered HTTP file server with beautiful web-based GUI
 
 ## Features
 
@@ -10,7 +10,9 @@ Simple utility to share a folder over HTTP
 - Creating new folders
 - Uploading files
 - Material Design Icons
-- Blazingly fast thanks to Rust and the [Leptos framework](https://leptos.dev/)
+- Blazingly fast thanks to async Rust and the [Leptos framework](https://leptos.dev/)
+- Multiple instances can be run at the same time
+- Allows picking the directory to share with a native GUI picker
 
 ## Preview
 
@@ -19,34 +21,36 @@ Simple utility to share a folder over HTTP
 ## Usage
 
 ```txt
-Fast HTTP file-sharing server with Leptos GUI
+Fast Rust-powered HTTP file server with beautiful web-based GUI
 
 Usage: file-share [OPTIONS] [TARGET_DIR]
 
 Arguments:
   [TARGET_DIR]
-          Target directory to share
-
+          Path to the directory to share
+          
           [default: .]
 
 Options:
   -p, --port <PORT>
           Port to listen on
-
+          
           [default: 3000]
 
   -q, --qr
           Show QR codes that link to the site
 
   -i, --interfaces <INTERFACES>...
-          IP address(es) on which file-share will be available
-
+          IP address(es) of interfaces on which file-share will be available
+          
           Accepts comma separated list of both IPv4 and IPv6 addresses
-
+          
           [default: 0.0.0.0,::]
 
   -P, --picker
-          Use a file picker to choose a target directory
+          Open a GUI file picker to choose the target directory
+          
+          Overrides `TARGET_DIR`
 
   -h, --help
           Print help (see a summary with '-h')
