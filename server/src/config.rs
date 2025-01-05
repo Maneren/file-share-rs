@@ -6,7 +6,7 @@ use clap::Parser;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-  /// Target directory to share
+  /// Path to the directory to share
   #[arg(default_value = ".")]
   pub target_dir: PathBuf,
 
@@ -18,13 +18,15 @@ pub struct Cli {
   #[arg(short, long)]
   pub qr: bool,
 
-  /// IP address(es) on which file-share will be available
+  /// IP address(es) of interfaces on which file-share will be available
   ///
   /// Accepts comma separated list of both IPv4 and IPv6 addresses
   #[arg(short, long, num_args = 1.., value_delimiter = ',', default_value = "0.0.0.0,::")]
   pub interfaces: Vec<IpAddr>,
 
-  /// Use a file picker to choose a target directory
+  /// Open a GUI file picker to choose the target directory
+  ///
+  /// Overrides `TARGET_DIR`
   #[arg(short = 'P', long, default_value = "false")]
   pub picker: bool,
 }
