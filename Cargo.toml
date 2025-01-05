@@ -16,7 +16,6 @@ leptos_axum = "0.7"
 leptos_meta = { version = "0.7" }
 leptos_router = { version = "0.7", features = ["nightly"] }
 leptos_router_macro = { version = "0.7" }
-leptos-use = "0.15"
 server_fn = { version = "0.7", features = ["multipart"] }
 
 async-broadcast = "0.7"
