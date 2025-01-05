@@ -32,7 +32,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
       return Err(ServerError("No field.".into()));
     };
 
-    if !field.name().is_some_and(|n| n == name) {
+    if field.name().is_none_or(|n| n != name) {
       return Err(ServerError(format!("Missing field '{name}'.")));
     }
 
