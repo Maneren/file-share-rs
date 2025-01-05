@@ -10,14 +10,18 @@ export default {
   },
   plugins: [daisyui],
   daisyui: {
-    themes: [{
-      light: {
-        ...themes["[data-theme=corporate]"],
-        "--rounded-box": "1rem",
-        "--rounded-btn": ".5rem",
-        "--rounded-badge": "1.9rem",
+    themes: [
+      {
+        light: {
+          ...themes["corporate"],
+          "--rounded-box": "1rem",
+          "--rounded-btn": ".5rem",
+          "--rounded-badge": "1.9rem",
+        },
       },
-    }, "night"],
+      "night"
+    ],
+    darkTheme: "night",
   },
   theme: {
     extend: {

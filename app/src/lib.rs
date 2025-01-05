@@ -14,7 +14,6 @@ use leptos::{either::Either, prelude::*};
 use leptos_meta::*;
 use leptos_router::{components::*, hooks::use_params, params::*};
 use leptos_router_macro::path;
-use leptos_use::use_preferred_dark;
 use urlencoding::decode;
 
 #[cfg(feature = "ssr")]
@@ -87,19 +86,9 @@ pub fn FilesPage() -> impl IntoView {
 }
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
-  let is_dark_preferred = use_preferred_dark();
-
-  let theme = move || {
-    if is_dark_preferred() {
-      "night"
-    } else {
-      "corporate"
-    }
-  };
-
   view! {
     <!DOCTYPE html>
-    <html lang="en" attr:data-theme=theme.into_attribute_value()>
+    <html lang="en">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
