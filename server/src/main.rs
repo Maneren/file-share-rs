@@ -22,7 +22,7 @@ use file_share_app::{shell, App, AppState};
 use futures::future::try_join_all;
 use if_addrs::Interface;
 use leptos::{
-  logging::*,
+  logging::{error, warn},
   prelude::{get_configuration, provide_context},
 };
 use leptos_axum::{generate_route_list, LeptosRoutes};
