@@ -7,50 +7,50 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error)]
 pub enum AppError {
-  #[error("Not Found")]
-  NotFound,
+    #[error("Not Found")]
+    NotFound,
 }
 
 impl AppError {
-  pub fn status_code(&self) -> StatusCode {
-    match self {
-      AppError::NotFound => StatusCode::NOT_FOUND,
+    pub fn status_code(&self) -> StatusCode {
+        match self {
+            AppError::NotFound => StatusCode::NOT_FOUND,
+        }
     }
-  }
 }
 
 #[component]
 pub fn ErrorTemplate(
-  #[prop(optional)] outside_errors: Option<Errors>,
-  #[prop(optional)] errors: Option<RwSignal<Errors>>,
+    #[prop(optional)] outside_errors: Option<Errors>,
+    #[prop(optional)] errors: Option<RwSignal<Errors>>,
 ) -> impl IntoView {
-  let errors = match outside_errors {
-    Some(e) => RwSignal::new(e),
-    None => match errors {
-      Some(e) => e,
-      None => panic!("No Errors found and we expected errors!"),
-    },
-  };
+    let errors = match outside_errors {
+        Some(e) => RwSignal::new(e),
+        None => match errors {
+            Some(e) => e,
+            None => panic!("No Errors found and we expected errors!"),
+        },
+    };
 
-  let errors = errors()
-    .into_iter()
-    .filter_map(|(_k, v)| v.downcast_ref().cloned())
-    .collect::<Vec<AppError>>();
+    let errors = errors()
+        .into_iter()
+        .filter_map(|(_k, v)| v.downcast_ref().cloned())
+        .collect::<Vec<AppError>>();
 
-  cfg_if! { if #[cfg(feature="ssr")] {
-      let response = use_context::<ResponseOptions>();
-      if let Some(response) = response {
-          response.set_status(errors[0].status_code());
-      }
-  }}
+    cfg_if! { if #[cfg(feature="ssr")] {
+        let response = use_context::<ResponseOptions>();
+        if let Some(response) = response {
+            response.set_status(errors[0].status_code());
+        }
+    }}
 
-  let errors_len = errors.len();
+    let errors_len = errors.len();
 
-  view! {
-    <h1>{if errors_len > 1 { "Errors" } else { "Error" }}</h1>
-    <For each=move || errors.clone().into_iter().enumerate() key=|(index, _)| *index let:error>
-      <h2>{error.1.status_code().to_string()}</h2>
-      <p>"Error: " {error.1.to_string()}</p>
-    </For>
-  }
+    view! {
+      <h1>{if errors_len > 1 { "Errors" } else { "Error" }}</h1>
+      <For each=move || errors.clone().into_iter().enumerate() key=|(index, _)| *index let:error>
+        <h2>{error.1.status_code().to_string()}</h2>
+        <p>"Error: " {error.1.to_string()}</p>
+      </For>
+    }
 }

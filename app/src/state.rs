@@ -5,6 +5,6 @@ use leptos::prelude::LeptosOptions;
 
 #[derive(FromRef, Clone, Debug)]
 pub struct AppState {
-  pub target_dir: PathBuf,
-  pub leptos_options: LeptosOptions,
+    pub target_dir: PathBuf,
+    pub leptos_options: LeptosOptions,
 }
