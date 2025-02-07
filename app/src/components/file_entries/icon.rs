@@ -1,5 +1,5 @@
 use include_flate::flate;
-use leptos::{logging, prelude::*, IntoView};
+use leptos::{prelude::*, IntoView};
 
 flate!(static LANGUAGES_MAP_JSON: str from "assets/associations/language.json");
 flate!(static EXTENSIONS_MAP_JSON: str from "assets/associations/extension.json");
