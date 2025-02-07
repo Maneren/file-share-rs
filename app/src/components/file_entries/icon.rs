@@ -1,5 +1,5 @@
 use include_flate::flate;
-use leptos::{prelude::*, IntoView};
+use leptos::{logging, prelude::*, IntoView};
 
 flate!(static LANGUAGES_MAP_JSON: str from "assets/associations/language.json");
 flate!(static EXTENSIONS_MAP_JSON: str from "assets/associations/extension.json");
@@ -24,9 +24,6 @@ fn get_icon(name: &str) -> Option<String> {
     Icons::get(&name).map(|icon| String::from_utf8_lossy(icon.data.as_ref()).into_owned())
 }
 
-static LANGUAGES_MAP: LazyLock<HashMap<String, String>> =
-    LazyLock::new(|| serde_json::from_str(&LANGUAGES_MAP_JSON).expect("The language map is valid"));
-
 static FILENAMES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     let file_map = serde_json::from_str::<HashMap<String, String>>(&FILENAMES_MAP_JSON)
         .expect("The filename map is valid");
@@ -34,7 +31,18 @@ static FILENAMES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     let extensions_name = serde_json::from_str::<HashMap<String, String>>(&EXTENSIONS_MAP_JSON)
         .expect("The extension map is valid");
 
-    file_map.into_iter().chain(extensions_name).collect()
+    let languages_map = serde_json::from_str::<HashMap<String, String>>(&LANGUAGES_MAP_JSON)
+        .expect("The language map is valid");
+
+    file_map
+        .into_iter()
+        .chain(
+            extensions_name
+                .into_iter()
+                .map(|(k, v)| (format!(".{k}"), v)),
+        )
+        .chain(languages_map)
+        .collect()
 });
 
 static FOLDER_MAP: LazyLock<HashMap<String, String>> =
@@ -52,20 +60,20 @@ fn longest_matching_suffix<'a, 'b>(
 }
 
 fn get_folder_icon(folder_name: &str) -> String {
+    let lowercase = folder_name.to_ascii_lowercase();
+    let trimmed = lowercase.trim_matches(['_', ' ', '.']);
+
     FOLDER_MAP
-        .get(folder_name)
-        .or_else(|| longest_matching_suffix(folder_name, FOLDER_MAP.iter()))
+        .get(trimmed)
+        .or_else(|| longest_matching_suffix(trimmed, FOLDER_MAP.iter()))
         .map(String::as_str)
         .and_then(get_icon)
         .unwrap_or_else(|| FOLDER_ICON.clone())
 }
 
 fn get_file_icon(file_name: &str) -> String {
-    let file_type =
-        longest_matching_suffix(file_name, FILENAMES_MAP.iter()).map_or("file", String::as_str);
-
-    get_icon(file_type)
-        .or_else(|| LANGUAGES_MAP.get(file_type).and_then(|lang| get_icon(lang)))
+    longest_matching_suffix(&file_name.to_ascii_lowercase(), FILENAMES_MAP.iter())
+        .and_then(|name| get_icon(name))
         .unwrap_or_else(|| FILE_ICON.clone())
 }
 
