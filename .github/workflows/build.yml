@@ -61,11 +61,8 @@ jobs:
         with:
           node-version: lts/*
           check-latest: true
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm and Tailwind
-        with:
-          version: 9
-          run_install: true
+      - name: Install npm dependencies
+        run: npm install --no-audit --lockfile-only
       - name: Install rust tooling
         uses: moonrepo/setup-rust@v1
         with:
