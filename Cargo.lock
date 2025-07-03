@@ -986,7 +986,7 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "file-share"
-version = "1.5.2"
+version = "1.5.3"
 dependencies = [
  "async-compression",
  "async-walkdir",
@@ -1018,7 +1018,7 @@ dependencies = [
 
 [[package]]
 name = "file-share-app"
-version = "1.5.2"
+version = "1.5.3"
 dependencies = [
  "async-broadcast",
  "axum",
@@ -1049,7 +1049,7 @@ dependencies = [
 
 [[package]]
 name = "file-share-frontend"
-version = "1.5.2"
+version = "1.5.3"
 dependencies = [
  "console_error_panic_hook",
  "console_log",
