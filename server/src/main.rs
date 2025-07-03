@@ -1,5 +1,4 @@
 #![warn(clippy::pedantic)]
-#![feature(os_str_display)]
 
 pub mod config;
 pub mod fileserv;
@@ -87,9 +86,9 @@ async fn main() {
     let app = Router::new()
         .route("/", get(|| async { Redirect::to("/index") }))
         .route("/help", get(|| async { API_HELP_TEXT }))
-        .route("/archive/*path", get(handle_archive_with_path))
+        .route("/archive/{*path}", get(handle_archive_with_path))
         .route("/archive/", get(handle_archive_without_path))
-        .route("/upload/*path", post(file_upload_with_path))
+        .route("/upload/{*path}", post(file_upload_with_path))
         .route("/upload/", post(file_upload_without_path))
         .nest_service("/files", ServeDir::new(&target_dir))
         .leptos_routes_with_context(
@@ -106,40 +105,12 @@ async fn main() {
         .with_state(app_state)
         .with_state(target_dir);
 
+    let display_urls = get_display_urls(&interfaces, port);
+
     let socket_addresses = interfaces
         .iter()
         .map(|&interface| SocketAddr::new(interface, port))
         .collect::<Vec<_>>();
-
-    let display_urls = {
-        let (wildcard, mut ifaces): (Vec<IpAddr>, Vec<IpAddr>) =
-            interfaces.into_iter().partition(IpAddr::is_unspecified);
-
-        // Replace wildcard addresses with local interface addresses
-        if !wildcard.is_empty() {
-            let all_ipv4 = wildcard.iter().any(IpAddr::is_ipv4);
-            let all_ipv6 = wildcard.iter().any(IpAddr::is_ipv6);
-
-            ifaces = if_addrs::get_if_addrs()
-                .map_err(|e| error!("Failed to get local interface addresses: {e}"))
-                .unwrap_or_default()
-                .iter()
-                .map(Interface::ip)
-                .filter(|ip| (all_ipv4 && ip.is_ipv4()) || (all_ipv6 && ip.is_ipv6()))
-                .collect();
-
-            ifaces.sort_unstable();
-        }
-
-        ifaces
-            .into_iter()
-            .map(|addr| match addr {
-                IpAddr::V4(_) => format!("{addr}"),
-                IpAddr::V6(_) => format!("[{addr}]"),
-            })
-            .map(|url| format!("http://{url}:{port}"))
-            .collect::<Vec<_>>()
-    };
 
     let display_sockets = socket_addresses
         .iter()
@@ -160,23 +131,7 @@ async fn main() {
     let is_terminal = io::IsTerminal::is_terminal(&io::stdout());
 
     if qr && is_terminal {
-        for url in display_urls
-            .iter()
-            .filter(|url| !url.contains("127.0.0.1") && !url.contains("[::1]"))
-        {
-            match qr_code::QrCode::new(url) {
-                Ok(qr) => {
-                    println!(
-                        "QR code for {}:\n{}",
-                        url.green().bold(),
-                        qr.to_string(false, 1)
-                    );
-                },
-                Err(e) => {
-                    error!("Failed to render QR to terminal: {e}");
-                },
-            };
-        }
+        print_qr_codes(&display_urls);
     }
 
     if is_terminal {
@@ -198,4 +153,54 @@ async fn main() {
     if let Err(e) = try_join_all(servers).await {
         error!("{e}");
     }
+}
+
+fn print_qr_codes(display_urls: &[String]) {
+    for url in display_urls
+        .iter()
+        .filter(|url| !url.contains("127.0.0.1") && !url.contains("[::1]"))
+    {
+        match qr_code::QrCode::new(url) {
+            Ok(qr) => {
+                println!(
+                    "QR code for {}:\n{}",
+                    url.green().bold(),
+                    qr.to_string(false, 1)
+                );
+            },
+            Err(e) => {
+                error!("Failed to render QR to terminal: {e}");
+            },
+        }
+    }
+}
+
+fn get_display_urls(interfaces: &[IpAddr], port: u16) -> Vec<String> {
+    let (wildcard, mut ifaces): (Vec<IpAddr>, Vec<IpAddr>) =
+        interfaces.iter().copied().partition(IpAddr::is_unspecified);
+
+    // Replace wildcard addresses with local interface addresses
+    if !wildcard.is_empty() {
+        let all_ipv4 = wildcard.iter().any(IpAddr::is_ipv4);
+        let all_ipv6 = wildcard.iter().any(IpAddr::is_ipv6);
+
+        ifaces = if_addrs::get_if_addrs()
+            .map_err(|e| error!("Failed to get local interface addresses: {e}"))
+            .unwrap_or_default()
+            .iter()
+            .map(Interface::ip)
+            .filter(|ip| (all_ipv4 && ip.is_ipv4()) || (all_ipv6 && ip.is_ipv6()))
+            .collect();
+
+        ifaces.sort_unstable();
+    }
+
+    ifaces
+        .into_iter()
+        .map(|addr| match addr {
+            IpAddr::V4(_) => format!("{addr}"),
+            IpAddr::V6(_) => format!("[{addr}]"),
+        })
+        .map(|url| format!("http://{url}:{port}"))
+        .collect::<Vec<_>>()
 }

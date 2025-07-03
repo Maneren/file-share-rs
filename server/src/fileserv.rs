@@ -90,7 +90,7 @@ async fn handle_archive(
     let Some(name) = path.file_name() else {
         return (
             StatusCode::BAD_REQUEST,
-            format!("Invalid path (missing folder name): {path:?}"),
+            format!("Invalid path (missing folder name): '{}'", path.display()),
         )
             .into_response();
     };

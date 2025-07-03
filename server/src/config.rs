@@ -61,8 +61,8 @@ pub async fn get_config() -> Result<Config, String> {
         let qr = false;
 
         let interfaces = vec![
-          IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)),
-          IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
+          IpAddr::V6(Ipv6Addr::UNSPECIFIED),
+          IpAddr::V4(Ipv4Addr::UNSPECIFIED),
         ];
       } else {
         let Cli { target_dir, port, qr, interfaces, picker } = Cli::parse();
