@@ -63,6 +63,10 @@ fn get_folder_icon(folder_name: &str) -> String {
     let lowercase = folder_name.to_ascii_lowercase();
     let trimmed = lowercase.trim_matches(['_', ' ', '.']);
 
+    if trimmed.is_empty() {
+        return FOLDER_ICON.clone();
+    }
+
     FOLDER_MAP
         .get(trimmed)
         .or_else(|| longest_matching_suffix(trimmed, FOLDER_MAP.iter()))
