@@ -22,7 +22,7 @@ pub enum ServerEntry {
     },
 }
 
-#[server(ListDir, "/api", "Url", "list_dir")]
+#[server(name = ListDir, prefix = "/api", endpoint = "list_dir")]
 pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
     if path.is_absolute() {
         return Err(ServerFnError::ServerError("Path must be relative".into()));
@@ -68,7 +68,7 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
     Ok(entries)
 }
 
-#[server(NewFolder, "/api", "Url", "new_folder")]
+#[server(name = NewFolder, prefix = "/api", endpoint = "new_folder")]
 pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError> {
     let base_path = expect_context::<PathBuf>().clone();
 

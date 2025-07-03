@@ -5,25 +5,25 @@ version = "1.5.2"
 license = "MIT"
 repository = "https://github.com/Maneren/file-share-rs"
 description = "Fast Rust-powered HTTP file server with beautiful web-based GUI"
-rust-version = "1.82.0"
+rust-version = "1.87.0"
 
 [workspace]
 resolver = "2"
 members = ["app", "frontend", "server"]
 
 [workspace.dependencies]
-leptos = { version = "0.7", features = ["nightly"] }
-leptos_axum = "0.7"
-leptos_meta = { version = "0.7" }
-leptos_router = { version = "0.7", features = ["nightly"] }
-leptos_router_macro = { version = "0.7" }
-server_fn = { version = "0.7", features = ["multipart"] }
+leptos = { version = "0.8", features = ["nightly"] }
+leptos_axum = "0.8"
+leptos_meta = { version = "0.8" }
+leptos_router = { version = "0.8", features = ["nightly"] }
+leptos_router_macro = { version = "0.8" }
+server_fn = { version = "0.8", features = ["multipart"] }
 
 async-broadcast = "0.7"
 async-compression = { version = "0.4", features = ["tokio", "gzip", "zstd"] }
 async-walkdir = "2.0"
 async_zip = { version = "0.0.17", features = ["deflate", "tokio"] }
-axum = { version = "0.7", features = ["macros", "multipart"] }
+axum = { version = "0.8", features = ["macros", "multipart"] }
 axum-server = "0.7"
 cfg-if = "1"
 chrono = "0.4"
@@ -76,6 +76,7 @@ opt-level = 'z'
 lto = true
 codegen-units = 1
 panic = "abort"
+strip = false
 
 [profile.release]
 strip = true
