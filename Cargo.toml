@@ -83,7 +83,6 @@ strip = true
 
 [[workspace.metadata.leptos]]
 name = "file-share"
-style-file = "app/styles/main.scss"
 assets-dir = "app/public"
 lib-profile-release = "wasm-release"
 tailwind-input-file = "app/styles/tailwind.css"

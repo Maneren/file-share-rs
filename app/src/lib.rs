@@ -54,7 +54,7 @@ pub fn FilesPage() -> impl IntoView {
       <div class="App p-3">
         <div class="w-full pt-2 flex flex-wrap items-start justify-center gap-2">
           <FileUpload path=path_signal on_upload=move || listing.refetch() />
-          <div class="flex flex-grow gap-2">
+          <div class="flex grow gap-2">
             <NewFolderButton path=path_signal action=create_folder_action />
             <FolderDownloads path=path_signal />
           </div>
@@ -62,7 +62,7 @@ pub fn FilesPage() -> impl IntoView {
 
         <Breadcrumbs path=path_signal />
 
-        <div class="grid grid-cols-entry-mobile md:grid-cols-entry gap-2 border-b border-base-content mb-1">
+        <div class="grid grid-cols-(--entry-cols-mobile) md:grid-cols-(--entry-cols) gap-2 border-b border-base-content mb-1">
           <span></span>
           <span>Name</span>
           <span>Size</span>

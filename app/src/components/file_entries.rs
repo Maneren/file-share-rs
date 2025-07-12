@@ -33,7 +33,7 @@ pub fn EntryComponent(data: Entry) -> impl IntoView {
     } = data;
 
     let inner = view! {
-      <div class="entry w-full grid grid-cols-entry-mobile md:grid-cols-entry gap-2">
+      <div class="entry w-full grid grid-cols-(--entry-cols-mobile) md:grid-cols-(--entry-cols) gap-2">
         <Icon type_=type_ name=name.clone() />
         <span class="flex items-center overflow-x-hidden">{name}</span>
         <span class="flex items-center justify-end">{size}</span>

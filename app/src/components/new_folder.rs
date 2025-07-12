@@ -16,7 +16,7 @@ pub fn NewFolderButton(path: Signal<PathBuf>, action: ServerAction<NewFolder>) -
     };
 
     view! {
-      <div class="flex-grow">
+      <div class="grow">
         <button class="btn btn-primary w-full" onclick="new_folder_modal.showModal()">
           Create New Folder
         </button>
@@ -25,7 +25,7 @@ pub fn NewFolderButton(path: Signal<PathBuf>, action: ServerAction<NewFolder>) -
             <div class="modal-box">
               <h3 class="font-bold text-lg">New Folder</h3>
               <input
-                class="input input-bordered w-full max-w-xs py-2 my-2"
+                class="input py-2 my-2"
                 type="text"
                 value="New Folder"
                 on:focus=on_new_folder_focus

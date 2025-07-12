@@ -18,7 +18,7 @@ pub fn FolderDownloads(path: Signal<PathBuf>) -> impl IntoView {
     };
 
     view! {
-      <div class="dropdown dropdown-hover flex-grow">
+      <div class="dropdown dropdown-hover grow">
         <label tabindex="0" class="btn btn-primary w-full">
           Download Folder
         </label>

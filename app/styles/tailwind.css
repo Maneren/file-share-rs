@@ -1,3 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source("../src");
+@plugin "daisyui" {
+  themes:
+    corporate --default,
+    night --prefersdark;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
+    "Helvetica Neue", sans-serif;
+
+  --entry-cols: 2.5rem 1fr 6rem 8rem;
+  --entry-cols-mobile: 2.5rem 1fr 6rem;
+}

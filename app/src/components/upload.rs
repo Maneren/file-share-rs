@@ -223,7 +223,7 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
         view! {
           <div class="m-2 flex flex-row items-baseline justify-between gap-5 w-full">
             <span>Uploading {move || format!("{: >3}", percent())}%</span>
-            <div class="bg-neutral rounded-full flex-grow h-3">
+            <div class="bg-neutral rounded-full grow h-3">
               <div
                 class="bg-info h-full transition-all ease-linear duration-50 rounded-full"
                 style:width=move || format!("{: >3}%", percent())
@@ -235,9 +235,9 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
     };
 
     view! {
-      <div class="flex flex-grow flex-col gap-2">
+      <div class="flex grow flex-col gap-2">
         <form
-          class="flex flex-wrap grow-[2] gap-2"
+          class="flex flex-wrap grow-2 gap-2"
           method="POST"
           enctype="multipart/form-data"
           node_ref=form_ref
@@ -253,12 +253,12 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
           <input
             type="file"
             name="uploads"
-            class="file-input file-input-bordered grow-[3]"
+            class="file-input grow-3"
             multiple
             node_ref=file_ref
           />
           // ref_=file_ref
-          <button type="submit" class="btn btn-primary grow-[1]">
+          <button type="submit" class="btn btn-primary grow-1">
             Upload
           </button>
         </form>
