@@ -35,11 +35,11 @@ console_log = "1"
 dashmap = "6"
 futures = "0.3"
 http = "1.1"
-if-addrs = "0.13"
+if-addrs = "0.14"
 include-flate = "0.3"
 log = "0.4"
 multer = "3.1"
-port_check = "0.2"
+port_check = "0.3"
 qr_code = "2.0"
 # newer versions requires wayland libraries, which are hard to cross-compile
 rfd = { version = "0.14", default-features = false, features = [
@@ -76,7 +76,7 @@ opt-level = 'z'
 lto = true
 codegen-units = 1
 panic = "abort"
-strip = false
+strip = true
 
 [profile.release]
 strip = true
