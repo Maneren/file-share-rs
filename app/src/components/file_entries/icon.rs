@@ -34,14 +34,11 @@ static FILENAMES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     let languages_map = serde_json::from_str::<HashMap<String, String>>(&LANGUAGES_MAP_JSON)
         .expect("The language map is valid");
 
-    file_map
+    extensions_name
         .into_iter()
-        .chain(
-            extensions_name
-                .into_iter()
-                .map(|(k, v)| (format!(".{k}"), v)),
-        )
-        .chain(languages_map)
+        .chain(languages_map.into_iter())
+        .map(|(k, v)| (format!(".{k}"), v))
+        .chain(file_map.into_iter())
         .collect()
 });
 
@@ -69,14 +66,14 @@ fn get_folder_icon(folder_name: &str) -> String {
 
     FOLDER_MAP
         .get(trimmed)
-        .or_else(|| longest_matching_suffix(trimmed, FOLDER_MAP.iter()))
+        .or_else(|| longest_matching_suffix(trimmed, &*FOLDER_MAP))
         .map(String::as_str)
         .and_then(get_icon)
         .unwrap_or_else(|| FOLDER_ICON.clone())
 }
 
 fn get_file_icon(file_name: &str) -> String {
-    longest_matching_suffix(&file_name.to_ascii_lowercase(), FILENAMES_MAP.iter())
+    longest_matching_suffix(&file_name.to_ascii_lowercase(), &*FILENAMES_MAP)
         .and_then(|name| get_icon(name))
         .unwrap_or_else(|| FILE_ICON.clone())
 }
