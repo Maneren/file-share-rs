@@ -1,5 +1,5 @@
 [workspace.package]
-edition = "2021"
+edition = "2024"
 authors = ["Maneren <maneren731@gmail.com>"]
 version = "1.5.4"
 license = "MIT"
@@ -22,7 +22,7 @@ server_fn = { version = "0.8", features = ["multipart"] }
 async-broadcast = "0.7"
 async-compression = { version = "0.4", features = ["tokio", "gzip", "zstd"] }
 async-walkdir = "2.0"
-async_zip = { version = "0.0.17", features = ["deflate", "tokio"] }
+async_zip = { version = "0.0.18", features = ["deflate", "tokio"] }
 axum = { version = "0.8", features = ["macros", "multipart"] }
 axum-server = "0.7"
 cfg-if = "1"

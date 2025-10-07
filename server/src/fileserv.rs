@@ -51,11 +51,11 @@ pub async fn file_and_error_handler(
 
 /// Handles archive requests.
 #[allow(clippy::implicit_hasher)]
-pub async fn handle_archive_with_path(
+pub async fn handle_archive_with_path<'a>(
     State(base_dir): State<PathBuf>,
     Path(path): Path<String>,
     Query(params): Query<HashMap<String, String>>,
-) -> impl IntoResponse {
+) -> impl IntoResponse + use<'a> {
     logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
     handle_archive(base_dir, params.get("method"), path).await
 }
@@ -65,7 +65,7 @@ pub async fn handle_archive_with_path(
 pub async fn handle_archive_without_path(
     State(base_dir): State<PathBuf>,
     Query(params): Query<HashMap<String, String>>,
-) -> impl IntoResponse {
+) -> impl IntoResponse + use<> {
     logging::log!("Handling archive without path and with params '{params:?}'");
     handle_archive(base_dir, params.get("method"), String::new()).await
 }
@@ -75,7 +75,7 @@ async fn handle_archive(
     base_dir: PathBuf,
     method: Option<&String>,
     path: String,
-) -> impl IntoResponse {
+) -> impl IntoResponse + use<> {
     let method = method.map_or_else(Default::default, String::as_str);
 
     let Ok(archive_method) = Method::try_from(method) else {
