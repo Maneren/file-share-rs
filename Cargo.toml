@@ -1,5 +1,5 @@
 [workspace.package]
-edition = "2021"
+edition = "2024"
 authors = ["Maneren <maneren731@gmail.com>"]
 version = "1.5.4"
 license = "MIT"
@@ -22,9 +22,9 @@ server_fn = { version = "0.8", features = ["multipart"] }
 async-broadcast = "0.7"
 async-compression = { version = "0.4", features = ["tokio", "gzip", "zstd"] }
 async-walkdir = "2.0"
-async_zip = { version = "0.0.17", features = ["deflate", "tokio"] }
+async_zip = { version = "0.0.18", features = ["deflate", "tokio"] }
 axum = { version = "0.8", features = ["macros", "multipart"] }
-axum-server = "0.7"
+axum-server = "0.8"
 cfg-if = "1"
 chrono = "0.4"
 chrono-humanize = "0.2"
@@ -35,17 +35,14 @@ console_log = "1"
 dashmap = "6"
 futures = "0.3"
 http = "1.1"
-if-addrs = "0.14"
+if-addrs = "0.15"
 include-flate = "0.3"
 log = "0.4"
 multer = "3.1"
 port_check = "0.3"
 qr_code = "2.0"
 # newer versions requires wayland libraries, which are hard to cross-compile
-rfd = { version = "0.14", default-features = false, features = [
-  "xdg-portal",
-  "tokio",
-] }
+rfd = { version = "0.17", default-features = false, features = ["xdg-portal"] }
 rust-embed = { version = "8.4", features = ["mime-guess", "compression"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -57,7 +54,7 @@ tokio-tar = "0.3"
 tokio-util = "0.7"
 tower-http = { version = "0.6", features = ["fs"] }
 urlencoding = "2"
-wasm-bindgen = "=0.2.100"
+wasm-bindgen = "=0.2.108"
 web-sys = { version = "0.3.70", features = ["File", "FileList"] }
 web-time = "1.1"
 wee_alloc = "0.4"
