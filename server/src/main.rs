@@ -11,24 +11,24 @@ use std::{
 };
 
 use axum::{
+    Router,
     extract::DefaultBodyLimit,
     response::Redirect,
     routing::{get, post},
-    Router,
 };
 use colored::Colorize;
-use file_share_app::{shell, App, AppState};
+use file_share_app::{App, AppConfig, AppState, shell};
 use futures::future::try_join_all;
 use if_addrs::Interface;
 use leptos::{
     logging::{error, warn},
     prelude::{get_configuration, provide_context},
 };
-use leptos_axum::{generate_route_list, LeptosRoutes};
+use leptos_axum::{LeptosRoutes, generate_route_list};
 use tower_http::services::ServeDir;
 
 use crate::{
-    config::{get_config, Config},
+    config::{Config, get_config},
     fileserv::{
         file_and_error_handler, file_upload_with_path, file_upload_without_path,
         handle_archive_with_path, handle_archive_without_path,
@@ -58,18 +58,26 @@ async fn main() {
     let leptos_options = conf.leptos_options;
     let routes = generate_route_list(App);
 
+    let cli_config = get_config().await.unwrap_or_else(|e| {
+        eprintln!("Failed to get CLI config: {e}");
+        process::exit(1);
+    });
+
     let Config {
         target_dir,
         port,
         qr,
         interfaces,
-    } = get_config().await.unwrap_or_else(|e| {
-        eprintln!("Failed to get config: {e}");
-        process::exit(1);
-    });
+        allow_upload,
+    } = cli_config;
+
+    let app_config = AppConfig {
+        target_dir: target_dir.clone(),
+        allow_upload,
+    };
 
     let app_state = AppState {
-        target_dir: target_dir.clone(),
+        app_config: app_config.clone(),
         leptos_options: leptos_options.clone(),
     };
 
@@ -94,16 +102,12 @@ async fn main() {
         .leptos_routes_with_context(
             &app_state,
             routes,
-            {
-                let target = target_dir.clone();
-                move || provide_context(target.clone())
-            },
+            move || provide_context(app_config.clone()),
             move || shell(leptos_options.clone()),
         )
         .fallback(file_and_error_handler)
         .layer(DefaultBodyLimit::disable())
-        .with_state(app_state)
-        .with_state(target_dir);
+        .with_state(app_state);
 
     let display_urls = get_display_urls(&interfaces, port);
 

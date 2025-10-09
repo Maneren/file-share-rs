@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 
 mod components;
+mod config;
 mod error_template;
 mod server;
 #[cfg(feature = "ssr")]
@@ -16,6 +17,7 @@ use leptos_router::{components::*, hooks::use_params, params::*};
 use leptos_router_macro::path;
 use urlencoding::decode;
 
+pub use crate::config::AppConfig;
 #[cfg(feature = "ssr")]
 pub use crate::state::AppState;
 use crate::{
@@ -50,15 +52,25 @@ pub fn FilesPage() -> impl IntoView {
 
     let path_signal = Signal::from(path);
 
+    let upload_bar = move |allow_upload: bool| {
+        allow_upload.then(|| {
+            view! {
+              <div class="flex flex-wrap gap-2 justify-center items-start pt-2 w-full">
+                <FileUpload path=path_signal on_upload=move || listing.refetch() />
+                <div class="flex gap-2 grow">
+                  <NewFolderButton path=path_signal action=create_folder_action />
+                  <FolderDownloads path=path_signal />
+                </div>
+              </div>
+            }
+        })
+    };
+
     view! {
-      <div class="App p-3">
-        <div class="w-full pt-2 flex flex-wrap items-start justify-center gap-2">
-          <FileUpload path=path_signal on_upload=move || listing.refetch() />
-          <div class="flex grow gap-2">
-            <NewFolderButton path=path_signal action=create_folder_action />
-            <FolderDownloads path=path_signal />
-          </div>
-        </div>
+      <div class="p-3 App">
+        <Transition fallback=Loading>
+          {move || Suspend::new(async move { upload_allowed().await.ok().and_then(upload_bar) })}
+        </Transition>
 
         <Breadcrumbs path=path_signal />
 
@@ -69,9 +81,7 @@ pub fn FilesPage() -> impl IntoView {
           <span class="hidden md:inline">Last Modified</span>
         </div>
 
-        <Transition fallback=move || {
-          view! { <p>"Loading..."</p> }
-        }>
+        <Transition fallback=Loading>
           {move || Suspend::new(async move {
             match listing.await {
               Ok(entries) => {
@@ -104,7 +114,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     }
 }
 
-#[allow(non_snake_case)]
+#[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
 

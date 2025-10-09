@@ -1,15 +1,19 @@
 mod archive;
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    os,
+    path::{self, PathBuf},
+};
 
 pub use archive::Method;
 use axum::{
     body::Body,
     extract::{Multipart, Path, Query, State},
-    http::{header, HeaderValue, Request, StatusCode, Uri},
+    http::{HeaderValue, Request, StatusCode, Uri, header},
     response::IntoResponse,
 };
-use file_share_app::{shell, utils::format_bytes, AppState};
+use file_share_app::{AppConfig, AppState, shell, utils::format_bytes};
 use leptos::{logging, prelude::provide_context};
 use rust_embed::RustEmbed;
 use tokio::io::AsyncWriteExt;
@@ -42,8 +46,7 @@ pub async fn file_and_error_handler(
     }
 
     let handler = leptos_axum::render_app_to_stream_with_context(
-        // app_state.leptos_options.clone(),
-        move || provide_context(app_state.target_dir.clone()),
+        move || provide_context(app_state.app_config.clone()),
         move || shell(app_state.leptos_options.clone()),
     );
     handler(request).await.into_response()
@@ -52,22 +55,22 @@ pub async fn file_and_error_handler(
 /// Handles archive requests.
 #[allow(clippy::implicit_hasher)]
 pub async fn handle_archive_with_path<'a>(
-    State(base_dir): State<PathBuf>,
+    State(AppConfig { target_dir, .. }): State<AppConfig>,
     Path(path): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse + use<'a> {
     logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
-    handle_archive(base_dir, params.get("method"), path).await
+    handle_archive(target_dir, params.get("method"), path).await
 }
 
 /// Handles archive requests.
 #[allow(clippy::implicit_hasher)]
 pub async fn handle_archive_without_path(
-    State(base_dir): State<PathBuf>,
+    State(AppConfig { target_dir, .. }): State<AppConfig>,
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse + use<> {
     logging::log!("Handling archive without path and with params '{params:?}'");
-    handle_archive(base_dir, params.get("method"), String::new()).await
+    handle_archive(target_dir, params.get("method"), String::new()).await
 }
 
 #[allow(clippy::unused_async)] // has to be in an async context, but doesn't await directly
@@ -124,19 +127,32 @@ async fn handle_archive(
     (headers, Body::from_stream(stream)).into_response()
 }
 
+const UPLOAD_DISABLED: (StatusCode, &'static str) =
+    (StatusCode::FORBIDDEN, "Upload is not enabled");
+
 pub async fn file_upload_with_path(
-    State(base_dir): State<PathBuf>,
+    State(AppState { app_config, .. }): State<AppState>,
     Path(path): Path<String>,
     multipart: Multipart,
 ) -> impl IntoResponse {
-    file_upload(base_dir, path, multipart).await
+    if !app_config.allow_upload {
+        return UPLOAD_DISABLED.into_response();
+    }
+    file_upload(app_config.target_dir, path, multipart)
+        .await
+        .into_response()
 }
 
 pub async fn file_upload_without_path(
-    State(base_dir): State<PathBuf>,
+    State(AppState { app_config, .. }): State<AppState>,
     multipart: Multipart,
 ) -> impl IntoResponse {
-    file_upload(base_dir, String::new(), multipart).await
+    if !app_config.allow_upload {
+        return UPLOAD_DISABLED.into_response();
+    }
+    file_upload(app_config.target_dir, String::new(), multipart)
+        .await
+        .into_response()
 }
 
 pub async fn file_upload(
