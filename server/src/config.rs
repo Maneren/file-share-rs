@@ -29,11 +29,16 @@ pub struct Cli {
     /// Overrides `TARGET_DIR`
     #[arg(short = 'P', long, default_value = "false")]
     pub picker: bool,
+
+    /// Allow client to upload files
+    #[arg(short, long, default_value = "false")]
+    pub upload: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct Config {
     pub target_dir: PathBuf,
+    pub allow_upload: bool,
     pub port: u16,
     pub qr: bool,
     pub interfaces: Vec<IpAddr>,
@@ -64,8 +69,10 @@ pub async fn get_config() -> Result<Config, String> {
           IpAddr::V6(Ipv6Addr::UNSPECIFIED),
           IpAddr::V4(Ipv4Addr::UNSPECIFIED),
         ];
+
+        let upload = true;
       } else {
-        let Cli { target_dir, port, qr, interfaces, picker } = Cli::parse();
+        let Cli { target_dir, port, qr, interfaces, picker, upload } = Cli::parse();
         let target_dir = if picker {
           rfd::AsyncFileDialog::new()
             .set_title("Select directory to share")
@@ -87,6 +94,7 @@ pub async fn get_config() -> Result<Config, String> {
 
     Ok(Config {
         target_dir,
+        allow_upload: upload,
         port,
         qr,
         interfaces,

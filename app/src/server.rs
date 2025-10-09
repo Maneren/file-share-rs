@@ -1,11 +1,22 @@
 use std::path::PathBuf;
 
+cfg_if! { if #[cfg(feature = "ssr")] {
+    use leptos::logging::warn;
+    use tokio::fs;
+
+    use crate::config::AppConfig;
+}}
+
+use cfg_if::cfg_if;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "ssr")]
-use tokio::fs;
 
 use crate::utils::SystemTime;
+
+#[server(name = UploadAllowed, prefix = "/api", endpoint = "upload_allowed")]
+pub async fn upload_allowed() -> Result<bool, ServerFnError> {
+    Ok(expect_context::<AppConfig>().allow_upload)
+}
 
 pub type Entries = Vec<ServerEntry>;
 
@@ -34,11 +45,12 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
         ));
     }
 
-    let base_path = expect_context::<PathBuf>().clone();
+    let base_path = expect_context::<AppConfig>().target_dir;
 
-    let Ok(path) = base_path.join(path).canonicalize() else {
+    let Ok(path) = base_path.join(&path).canonicalize() else {
+        warn!("Attempt to access invalid path: {path:?}");
         return Err(ServerFnError::ServerError(
-            "Path must be inside target_dir".into(),
+            "Requested path not found".into(),
         ));
     };
 
@@ -70,9 +82,13 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
 
 #[server(name = NewFolder, prefix = "/api", endpoint = "new_folder")]
 pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError> {
-    let base_path = expect_context::<PathBuf>().clone();
+    let app_config = expect_context::<AppConfig>();
 
-    let path = base_path.join(path).join(name);
+    if !app_config.allow_upload {
+        return Err(ServerFnError::ServerError("Uploads are disabled".into()));
+    }
+
+    let path = app_config.target_dir.join(path).join(name);
 
     fs::create_dir(path).await?;
 
