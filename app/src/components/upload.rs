@@ -23,6 +23,8 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     use server_fn::ServerFnError::ServerError;
     use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
+    use crate::AppConfig;
+
     async fn collect_field_with_name(
         data: &mut multer::Multipart<'static>,
         name: &str,
@@ -44,14 +46,19 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
         Ok(buffer)
     }
 
+    let app_config = expect_context::<AppConfig>();
+
+    if !app_config.allow_upload {
+        return Err(ServerError("Uploads are disabled".into()));
+    }
+
     let Some(mut data) = data.into_inner() else {
         unreachable!("should always return Some on the server side");
     };
 
     let base_req_path = {
-        let base_path = expect_context::<PathBuf>().clone();
         let req_path = collect_field_with_name(&mut data, "path").await?;
-        base_path.join(req_path.trim())
+        app_config.target_dir.join(req_path.trim())
     };
 
     let id = collect_field_with_name(&mut data, "id").await?;

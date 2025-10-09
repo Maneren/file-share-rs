@@ -28,13 +28,13 @@ Usage: file-share [OPTIONS] [TARGET_DIR]
 Arguments:
   [TARGET_DIR]
           Path to the directory to share
-          
+
           [default: .]
 
 Options:
   -p, --port <PORT>
           Port to listen on
-          
+
           [default: 3000]
 
   -q, --qr
@@ -42,15 +42,18 @@ Options:
 
   -i, --interfaces <INTERFACES>...
           IP address(es) of interfaces on which file-share will be available
-          
+
           Accepts comma separated list of both IPv4 and IPv6 addresses
-          
+
           [default: 0.0.0.0,::]
 
   -P, --picker
           Open a GUI file picker to choose the target directory
-          
+
           Overrides `TARGET_DIR`
+
+  -u, --upload
+          Allow client to upload files
 
   -h, --help
           Print help (see a summary with '-h')
