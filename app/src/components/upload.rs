@@ -218,33 +218,35 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
         });
     };
 
-    let ProgressBar = |Progress {
-                           size,
-                           start_time,
-                           uploaded,
-                       }| {
+    fn ProgressBar(
+        Progress {
+            size,
+            start_time,
+            uploaded,
+        }: Progress,
+    ) -> impl IntoView {
         let percent = move || *uploaded.read() * 100 / size;
         let speed = move || {
             format_bytes(((uploaded() * 1000) as f64 / start_time.elapsed().as_millis_f64()) as u64)
         };
         view! {
-          <div class="m-2 flex flex-row items-baseline justify-between gap-5 w-full">
+          <div class="flex flex-row gap-5 justify-between items-baseline m-2 w-full">
             <span>Uploading {move || format!("{: >3}", percent())}%</span>
-            <div class="bg-neutral rounded-full grow h-3">
+            <div class="h-3 rounded-full bg-neutral grow">
               <div
-                class="bg-info h-full transition-all ease-linear duration-50 rounded-full"
+                class="h-full rounded-full transition-all ease-linear bg-info duration-50"
                 style:width=move || format!("{: >3}%", percent())
               />
             </div>
             <span class="w-28 text-right">{speed}/s</span>
           </div>
         }
-    };
+    }
 
     view! {
-      <div class="flex grow flex-col gap-2">
+      <div class="flex flex-col gap-2 grow">
         <form
-          class="flex flex-wrap grow-2 gap-2"
+          class="flex flex-wrap gap-2 grow-2"
           method="POST"
           enctype="multipart/form-data"
           node_ref=form_ref
@@ -257,14 +259,7 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
           />
           // placeholder that is filled on submission
           <input type="hidden" name="id" value="" />
-          <input
-            type="file"
-            name="uploads"
-            class="file-input grow-3"
-            multiple
-            node_ref=file_ref
-          />
-          // ref_=file_ref
+          <input type="file" name="uploads" class="file-input grow-3" multiple node_ref=file_ref />
           <button type="submit" class="btn btn-primary grow-1">
             Upload
           </button>
