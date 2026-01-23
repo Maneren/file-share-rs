@@ -48,6 +48,5 @@ ssr = [
   "dep:dashmap",
   "dep:multer",
   "dep:tokio",
-  "dep:tokio",
   "dep:tokio-stream",
 ]
