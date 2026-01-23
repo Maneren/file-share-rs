@@ -17,15 +17,15 @@ pub fn NewFolderButton(path: Signal<PathBuf>, action: ServerAction<NewFolder>) -
 
     view! {
       <div class="grow">
-        <button class="btn btn-primary w-full" onclick="new_folder_modal.showModal()">
+        <button class="w-full btn btn-primary" onclick="new_folder_modal.showModal()">
           Create New Folder
         </button>
         <dialog id="new_folder_modal" class="modal">
           <ActionForm action=action>
             <div class="modal-box">
-              <h3 class="font-bold text-lg">New Folder</h3>
+              <h3 class="text-lg font-bold">New Folder</h3>
               <input
-                class="input py-2 my-2"
+                class="py-2 my-2 input"
                 type="text"
                 value="New Folder"
                 on:focus=on_new_folder_focus
@@ -33,7 +33,11 @@ pub fn NewFolderButton(path: Signal<PathBuf>, action: ServerAction<NewFolder>) -
                 name="name"
                 autofocus
               />
-              <input type="hidden" name="path" value=move || os_to_string(path.read().as_os_str()) />
+              <input
+                type="hidden"
+                name="path"
+                value=move || os_to_string(path.read().as_os_str())
+              />
               <div class="modal-action">
                 <button class="btn" type="reset" onclick="new_folder_modal.close()">
                   Cancel

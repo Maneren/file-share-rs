@@ -74,7 +74,7 @@ pub fn FilesPage() -> impl IntoView {
 
         <Breadcrumbs path=path_signal />
 
-        <div class="grid grid-cols-(--entry-cols-mobile) md:grid-cols-(--entry-cols) gap-2 border-b border-base-content mb-1">
+        <div class="grid gap-2 mb-1 border-b grid-cols-(--entry-cols-mobile) border-base-content md:grid-cols-(--entry-cols)">
           <span></span>
           <span>Name</span>
           <span>Size</span>

@@ -25,14 +25,14 @@ pub fn Breadcrumbs(path: Signal<PathBuf>) -> impl IntoView {
 
     let home_icon = view! {
       <a href="/index">
-        <svg class="h-6 w-6 fill-current" viewBox="0 0 24 24">
+        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
           <path d="M12,3L20,9V21H15V14H9V21H4V9L12,3Z" />
         </svg>
       </a>
     };
 
     view! {
-      <div class="text-lg breadcrumbs max-w-full">
+      <div class="max-w-full text-lg breadcrumbs">
         <ul class="h-8">
           <li>{home_icon}</li>
           {breadcrumbs}
