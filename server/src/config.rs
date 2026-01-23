@@ -1,6 +1,5 @@
 use std::{net::IpAddr, path::PathBuf};
 
-use cfg_if::cfg_if;
 use clap::Parser;
 
 #[derive(Parser)]
@@ -57,35 +56,25 @@ pub struct Config {
 /// process.
 #[allow(clippy::unused_async)] // it's used only in release build
 pub async fn get_config() -> Result<Config, String> {
-    cfg_if! {
-      if #[cfg(debug_assertions)] {
-        use std::net::{Ipv4Addr, Ipv6Addr};
-
-        let target_dir = std::env::current_dir().expect("CWD is a valid path").join("files");
-        let port = 3000;
-        let qr = false;
-
-        let interfaces = vec![
-          IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-          IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-        ];
-
-        let upload = true;
-      } else {
-        let Cli { target_dir, port, qr, interfaces, picker, upload } = Cli::parse();
-        let target_dir = if picker {
-          rfd::AsyncFileDialog::new()
+    let Cli {
+        target_dir,
+        port,
+        qr,
+        interfaces,
+        picker,
+        upload,
+    } = Cli::parse();
+    let target_dir = if picker {
+        rfd::AsyncFileDialog::new()
             .set_title("Select directory to share")
             .pick_folder()
             .await
             .ok_or("No directory selected")?
             .path()
             .to_path_buf()
-        } else {
-          target_dir.canonicalize().map_err(|e| e.to_string())?
-        };
-      }
-    }
+    } else {
+        target_dir.canonicalize().map_err(|e| e.to_string())?
+    };
 
     let port = (port != 0 && port_check::is_local_port_free(port))
         .then_some(port)
