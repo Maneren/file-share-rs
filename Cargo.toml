@@ -69,10 +69,8 @@ bin-dir = "{ bin }{ binary-ext }"
 [profile.wasm-release]
 inherits = "release"
 opt-level = 'z'
-lto = true
-codegen-units = 1
+lto = "thin"
 panic = "abort"
-strip = true
 
 [profile.release]
 strip = true
