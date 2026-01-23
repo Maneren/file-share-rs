@@ -1,6 +1,11 @@
 mod archive;
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    ops::Not,
+    os,
+    path::{self, PathBuf},
+};
 
 pub use archive::Method;
 use axum::{
@@ -59,12 +64,14 @@ pub async fn handle_archive_with_path<'a>(
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse + use<'a> {
     logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
-    handle_archive(
-        target_dir,
-        params.get("method"),
-        try_decode_path(&path).as_ref(),
-    )
-    .await
+
+    let Some(path) = safe_join_path(&target_dir, try_decode_path(&path).as_ref()) else {
+        return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
+    };
+
+    handle_archive(path, params.get("method"))
+        .await
+        .into_response()
 }
 
 /// Handles archive requests.
@@ -74,15 +81,11 @@ pub async fn handle_archive_without_path(
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse + use<> {
     logging::log!("Handling archive without path and with params '{params:?}'");
-    handle_archive(target_dir, params.get("method"), "").await
+    handle_archive(target_dir, params.get("method")).await
 }
 
 #[allow(clippy::unused_async)] // has to be in an async context, but doesn't await directly
-async fn handle_archive(
-    base_dir: PathBuf,
-    method: Option<&String>,
-    path: &str,
-) -> impl IntoResponse + use<> {
+async fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResponse + use<> {
     let method = method.map_or_else(Default::default, String::as_str);
 
     let Ok(archive_method) = Method::try_from(method) else {
@@ -93,7 +96,6 @@ async fn handle_archive(
             .into_response();
     };
 
-    let path = base_dir.join(path);
     let Some(name) = path.file_name() else {
         return (
             StatusCode::BAD_REQUEST,
@@ -134,6 +136,10 @@ async fn handle_archive(
 const UPLOAD_DISABLED: (StatusCode, &'static str) =
     (StatusCode::FORBIDDEN, "Upload is not enabled");
 
+fn safe_join_path(base_dir: &path::Path, path: &str) -> Option<PathBuf> {
+    path.contains("..").not().then(|| base_dir.join(path))
+}
+
 pub async fn file_upload_with_path(
     State(AppState { app_config, .. }): State<AppState>,
     Path(path): Path<String>,
@@ -142,9 +148,12 @@ pub async fn file_upload_with_path(
     if !app_config.allow_upload {
         return UPLOAD_DISABLED.into_response();
     }
-    file_upload(app_config.target_dir, path, multipart)
-        .await
-        .into_response()
+
+    let Some(base_path) = safe_join_path(&app_config.target_dir, &path) else {
+        return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
+    };
+
+    file_upload(base_path, multipart).await.into_response()
 }
 
 pub async fn file_upload_without_path(
@@ -154,26 +163,29 @@ pub async fn file_upload_without_path(
     if !app_config.allow_upload {
         return UPLOAD_DISABLED.into_response();
     }
-    file_upload(app_config.target_dir, String::new(), multipart)
+
+    file_upload(app_config.target_dir, multipart)
         .await
         .into_response()
 }
 
-pub async fn file_upload(
-    base_dir: PathBuf,
-    path: String,
-    mut multipart: Multipart,
-) -> impl IntoResponse {
-    let base_req_path = base_dir.join(&path);
+pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl IntoResponse {
     while let Ok(Some(field)) = multipart.next_field().await {
         let Some(file_name) = field.file_name() else {
             continue;
         };
-        let path = base_req_path.join(file_name);
+
+        let Some(path) = safe_join_path(&base_dir, file_name) else {
+            return (
+                StatusCode::BAD_REQUEST,
+                format!("Invalid file name: {file_name}"),
+            )
+                .into_response();
+        };
 
         logging::log!("Uploading to {path:?}");
 
-        let mut file = match tokio::fs::File::create(&path).await {
+        let mut file = match tokio::fs::File::create_new(&path).await {
             Ok(file) => file,
             Err(err) => {
                 return (
