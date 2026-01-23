@@ -35,16 +35,6 @@ pub enum ServerEntry {
 
 #[server(name = ListDir, prefix = "/api", endpoint = "list_dir")]
 pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
-    if path.is_absolute() {
-        return Err(ServerFnError::ServerError("Path must be relative".into()));
-    }
-
-    if path.to_string_lossy().contains("..") {
-        return Err(ServerFnError::ServerError(
-            "Path must not contain ..".into(),
-        ));
-    }
-
     let base_path = expect_context::<AppConfig>().target_dir;
 
     let Ok(path) = base_path.join(&path).canonicalize() else {
@@ -53,6 +43,13 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
             "Requested path not found".into(),
         ));
     };
+
+    if !path.starts_with(&base_path) {
+        warn!("Attempt to access forbidden path: {path:?}");
+        return Err(ServerFnError::ServerError(
+            "Requested path not found".into(),
+        ));
+    }
 
     let mut entries = Vec::new();
 

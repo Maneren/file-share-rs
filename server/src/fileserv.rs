@@ -2,7 +2,7 @@ mod archive;
 
 use std::{
     collections::HashMap,
-    os,
+    ops::Not,
     path::{self, PathBuf},
 };
 
@@ -130,6 +130,10 @@ async fn handle_archive(
 const UPLOAD_DISABLED: (StatusCode, &'static str) =
     (StatusCode::FORBIDDEN, "Upload is not enabled");
 
+fn safe_join_path(base_dir: &path::Path, path: &str) -> Option<PathBuf> {
+    path.contains("..").not().then(|| base_dir.join(path))
+}
+
 pub async fn file_upload_with_path(
     State(AppState { app_config, .. }): State<AppState>,
     Path(path): Path<String>,
@@ -138,9 +142,12 @@ pub async fn file_upload_with_path(
     if !app_config.allow_upload {
         return UPLOAD_DISABLED.into_response();
     }
-    file_upload(app_config.target_dir, path, multipart)
-        .await
-        .into_response()
+
+    let Some(base_path) = safe_join_path(&app_config.target_dir, &path) else {
+        return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
+    };
+
+    file_upload(base_path, multipart).await.into_response()
 }
 
 pub async fn file_upload_without_path(
@@ -150,26 +157,29 @@ pub async fn file_upload_without_path(
     if !app_config.allow_upload {
         return UPLOAD_DISABLED.into_response();
     }
-    file_upload(app_config.target_dir, String::new(), multipart)
+
+    file_upload(app_config.target_dir, multipart)
         .await
         .into_response()
 }
 
-pub async fn file_upload(
-    base_dir: PathBuf,
-    path: String,
-    mut multipart: Multipart,
-) -> impl IntoResponse {
-    let base_req_path = base_dir.join(&path);
+pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl IntoResponse {
     while let Ok(Some(field)) = multipart.next_field().await {
         let Some(file_name) = field.file_name() else {
             continue;
         };
-        let path = base_req_path.join(file_name);
+
+        let Some(path) = safe_join_path(&base_dir, file_name) else {
+            return (
+                StatusCode::BAD_REQUEST,
+                format!("Invalid file name: {file_name}"),
+            )
+                .into_response();
+        };
 
         logging::log!("Uploading to {path:?}");
 
-        let mut file = match tokio::fs::File::create(&path).await {
+        let mut file = match tokio::fs::File::create_new(&path).await {
             Ok(file) => file,
             Err(err) => {
                 return (
