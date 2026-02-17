@@ -1,17 +1,13 @@
 use include_flate::flate;
-use leptos::{IntoView, prelude::*};
-
-flate!(static LANGUAGES_MAP_JSON: str from "assets/associations/language.json");
-flate!(static EXTENSIONS_MAP_JSON: str from "assets/associations/extension.json");
-flate!(static FOLDER_MAP_JSON: str from "assets/associations/folder.json");
-flate!(static FILENAMES_MAP_JSON: str from "assets/associations/file.json");
+use leptos::{prelude::*, IntoView};
+use rust_embed::RustEmbed;
+use serde::Deserialize;
 
 use std::{collections::HashMap, sync::LazyLock};
 
-use rust_embed::RustEmbed;
-
 use crate::components::file_entries::EntryType;
 
+flate!(static ICONS_JSON: str from "assets/icons.json");
 flate!(static FILE_ICON: str from "assets/icons/file.svg");
 flate!(static FOLDER_ICON: str from "assets/icons/folder.svg");
 
@@ -19,31 +15,31 @@ flate!(static FOLDER_ICON: str from "assets/icons/folder.svg");
 #[folder = "assets/icons"]
 struct Icons;
 
+#[derive(Deserialize)]
+struct IconMaps {
+    extensions: HashMap<String, String>,
+    languages: HashMap<String, String>,
+    filenames: HashMap<String, String>,
+    folders: HashMap<String, String>,
+}
+
 fn get_icon(name: &str) -> Option<String> {
     let name = format!("{name}.svg");
     Icons::get(&name).map(|icon| String::from_utf8_lossy(icon.data.as_ref()).into_owned())
 }
 
+static ICON_MAPS: LazyLock<IconMaps> =
+    LazyLock::new(|| serde_json::from_str(&ICONS_JSON).expect("Icon maps are valid"));
+
 static FILENAMES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
-    let file_map = serde_json::from_str::<HashMap<String, String>>(&FILENAMES_MAP_JSON)
-        .expect("The filename map is valid");
-
-    let extensions_name = serde_json::from_str::<HashMap<String, String>>(&EXTENSIONS_MAP_JSON)
-        .expect("The extension map is valid");
-
-    let languages_map = serde_json::from_str::<HashMap<String, String>>(&LANGUAGES_MAP_JSON)
-        .expect("The language map is valid");
-
-    extensions_name
-        .into_iter()
-        .chain(languages_map)
-        .map(|(k, v)| (format!(".{k}"), v))
-        .chain(file_map)
+    ICON_MAPS
+        .extensions
+        .iter()
+        .chain(ICON_MAPS.languages.iter())
+        .map(|(k, v)| (format!(".{k}"), v.clone()))
+        .chain(ICON_MAPS.filenames.iter().map(|(k, v)| (k.clone(), v.clone())))
         .collect()
 });
-
-static FOLDER_MAP: LazyLock<HashMap<String, String>> =
-    LazyLock::new(|| serde_json::from_str(&FOLDER_MAP_JSON).expect("The folder map is valid"));
 
 fn longest_matching_suffix<'a, 'b>(
     target: &str,
@@ -64,11 +60,11 @@ fn get_folder_icon(folder_name: &str) -> String {
         return FOLDER_ICON.clone();
     }
 
-    FOLDER_MAP
+    ICON_MAPS
+        .folders
         .get(trimmed)
-        .or_else(|| longest_matching_suffix(trimmed, &*FOLDER_MAP))
-        .map(String::as_str)
-        .and_then(get_icon)
+        .or_else(|| longest_matching_suffix(trimmed, &ICON_MAPS.folders))
+        .and_then(|name| get_icon(name))
         .unwrap_or_else(|| FOLDER_ICON.clone())
 }
 
