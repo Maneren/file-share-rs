@@ -56,7 +56,7 @@ pub fn FilesPage() -> impl IntoView {
 
     let upload_bar = app_config.allow_upload.then(|| {
         view! {
-          <div class="flex flex-wrap gap-2 justify-center items-start pt-2 w-full">
+          <div class="flex flex-wrap gap-2 justify-center items-start py-2 w-full">
             <FileUpload path=path_signal() />
             <div class="flex gap-2 grow">
               <NewFolderButton path=path_signal action=create_folder_action />
