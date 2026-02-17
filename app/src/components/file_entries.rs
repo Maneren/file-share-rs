@@ -7,8 +7,8 @@ use leptos::{either::Either, prelude::*};
 use leptos_router::components::A;
 
 use crate::{
-    server::Entries,
-    utils::{encode_path, format_bytes},
+    server::{Entries, ServerEntry},
+    utils::{format_bytes, format_file_href, format_folder_href},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
@@ -17,25 +17,14 @@ pub enum EntryType {
     File,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Entry {
+#[component]
+fn EntryComponent(
     type_: EntryType,
     href: String,
     name: String,
     size: Option<String>,
     relative_time: String,
-}
-
-#[component]
-pub fn EntryComponent(entry: Entry) -> impl IntoView {
-    let Entry {
-        type_,
-        href,
-        name,
-        size,
-        relative_time,
-    } = entry;
-
+) -> impl IntoView {
     let inner = view! {
       <div class="grid gap-2 w-full entry grid-cols-(--entry-cols-mobile) md:grid-cols-(--entry-cols)">
         <Icon type_=type_ name=name.clone() />
@@ -61,48 +50,43 @@ pub fn EntryComponent(entry: Entry) -> impl IntoView {
 }
 
 #[component]
-pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
-    use crate::server::ServerEntry;
+pub fn FileEntries(path: Signal<PathBuf>, mut entries: Entries) -> impl IntoView {
     if entries.is_empty() {
         return Either::Left(view! { <div class="file-view">"The folder is empty"</div> });
     }
+    entries.sort_unstable();
 
     let path = path.get_untracked();
 
-    let mut entries = entries
-        .into_iter()
-        .map(|entry| match entry {
-            ServerEntry::File {
-                name,
-                size,
-                last_modified,
-            } => Entry {
-                type_: EntryType::File,
-                href: format!("/files/{}", encode_path(path.join(&name))),
-                name: name.clone(),
-                size: Some(format_bytes(size)),
-                relative_time: last_modified.humanize(),
-            },
-            ServerEntry::Folder {
-                name,
-                last_modified,
-            } => Entry {
-                type_: EntryType::Folder,
-                href: format!("/index/{}", encode_path(path.join(&name))),
-                name: name.clone(),
-                size: None,
-                relative_time: last_modified.humanize(),
-            },
-        })
-        .collect::<Vec<_>>();
-
-    entries.sort_unstable();
-
     Either::Right(view! {
       <div class="file-view">
-        <For each=move || entries.clone() key=|entry| entry.href.clone() let:entry>
-          <EntryComponent entry=entry />
-        </For>
+        {entries
+          .into_iter()
+          .map(|entry| match entry {
+            ServerEntry::File { name, size, last_modified } => {
+              view! {
+                <EntryComponent
+                  type_=EntryType::File
+                  href=format_file_href(&path, &name)
+                  name=name
+                  size=Some(format_bytes(size))
+                  relative_time=last_modified.humanize()
+                />
+              }
+            }
+            ServerEntry::Folder { name, last_modified } => {
+              view! {
+                <EntryComponent
+                  type_=EntryType::Folder
+                  href=format_folder_href(&path, &name)
+                  name=name
+                  size=None
+                  relative_time=last_modified.humanize()
+                />
+              }
+            }
+          })
+          .collect_view()}
       </div>
     })
 }

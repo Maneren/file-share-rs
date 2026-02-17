@@ -50,7 +50,7 @@ impl SystemTime {
     }
 }
 
-use std::ffi::OsStr;
+use std::{ffi::OsStr, path::Path};
 
 pub fn display_os_string(str: impl AsRef<OsStr>) -> String {
     str.as_ref().to_string_lossy().to_string()
@@ -62,6 +62,13 @@ pub fn encode_path(path: impl AsRef<OsStr>) -> String {
 
 pub fn try_decode_path(path: &str) -> Cow<'_, str> {
     urlencoding::decode(path).unwrap_or(Cow::Borrowed(path))
+}
+pub fn format_folder_href(base_path: &Path, name: &str) -> String {
+    format!("/index/{}", encode_path(base_path.join(name)))
+}
+
+pub fn format_file_href(base_path: &Path, name: &str) -> String {
+    format!("/files/{}", encode_path(base_path.join(name)))
 }
 
 #[allow(clippy::cast_possible_truncation)]
