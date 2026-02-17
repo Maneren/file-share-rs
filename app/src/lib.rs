@@ -52,25 +52,13 @@ pub fn FilesPage() -> impl IntoView {
 
     let path_signal = Signal::from(path);
 
-    let upload_bar = move |allow_upload: bool| {
-        allow_upload.then(|| {
-            view! {
-              <div class="flex flex-wrap gap-2 justify-center items-start py-2 w-full">
-                <FileUpload path=path_signal on_upload=move || listing.refetch() />
-                <div class="flex gap-2 grow">
-                  <NewFolderButton path=path_signal action=create_folder_action />
-                  <FolderDownloads path=path_signal />
-                </div>
-              </div>
-            }
-        })
-    };
-
     view! {
       <div class="p-3 App">
-        <Transition fallback=Loading>
-          {move || Suspend::new(async move { upload_allowed().await.ok().and_then(upload_bar) })}
-        </Transition>
+        <UploadBar
+          path=path_signal
+          create_folder_action=create_folder_action
+          on_upload=move || listing.refetch()
+        />
 
         <Breadcrumbs path=path_signal />
 
