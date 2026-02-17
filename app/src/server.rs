@@ -22,13 +22,13 @@ pub type Entries = Vec<ServerEntry>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq)]
 pub enum ServerEntry {
+    Folder {
+        name: String,
+        last_modified: SystemTime,
+    },
     File {
         name: String,
         size: u64,
-        last_modified: SystemTime,
-    },
-    Folder {
-        name: String,
         last_modified: SystemTime,
     },
 }
