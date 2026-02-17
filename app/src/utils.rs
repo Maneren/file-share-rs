@@ -47,10 +47,18 @@ impl SystemTime {
     }
 }
 
-use std::ffi::OsStr;
+use std::{ffi::OsStr, path::Path};
 
 pub fn os_to_string(str: impl AsRef<OsStr>) -> String {
     str.as_ref().to_string_lossy().to_string()
+}
+
+pub fn format_url_path(base_path: &Path, name: &str) -> String {
+    format!("/index/{}", base_path.join(name).display())
+}
+
+pub fn format_download_link(base_path: &Path, name: &str) -> String {
+    format!("/files/{}", base_path.join(name).display())
 }
 
 #[allow(clippy::cast_possible_truncation)]
