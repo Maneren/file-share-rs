@@ -12,8 +12,11 @@ mod state;
 pub mod utils;
 
 use leptos::{either::Either, prelude::*};
-use leptos_meta::*;
-use leptos_router::{components::*, hooks::use_params, params::*};
+use leptos_meta::{Link, Meta, MetaTags, Stylesheet, Title, provide_meta_context};
+use leptos_router::{
+    components::{Route, Router, Routes},
+    hooks::use_params_map,
+};
 use leptos_router_macro::path;
 use urlencoding::decode;
 
@@ -26,22 +29,16 @@ use crate::{
     server::*,
 };
 
-#[derive(PartialEq, Eq, Params, Debug)]
-struct PathQuery {
-    path: String,
-}
-
 #[component]
 pub fn FilesPage() -> impl IntoView {
-    let path_query = use_params::<PathQuery>();
+    let path_query = use_params_map();
 
-    let path =
-        Memo::new(
-            move |_| match path_query.read().as_ref().map(|query| decode(&query.path)) {
-                Ok(Ok(path)) => PathBuf::from(path.as_ref()),
-                _ => PathBuf::new(),
-            },
-        );
+    let path = Memo::new(
+        move |_| match path_query.read().get_str("path").map(decode) {
+            Some(Ok(path)) => PathBuf::from(path.as_ref()),
+            _ => PathBuf::new(),
+        },
+    );
 
     let create_folder_action = ServerAction::<NewFolder>::new();
 
@@ -88,9 +85,6 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
       <!DOCTYPE html>
       <html lang="en">
         <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
           <AutoReload options=options.clone() />
           <HydrationScripts options />
           <MetaTags />
@@ -107,9 +101,13 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     view! {
+      <Stylesheet id="leptos" href="/pkg/file-share.css" />
+      <Link rel="shortcut icon" type_="image/ico" href="/favicon.ico" />
+      <Meta charset="utf-8" />
+      <Meta name="viewport" content="width=device-width, initial-scale=1" />
+      <Title text="File Share" />
+
       <Router>
-        <Stylesheet id="leptos" href="/pkg/file-share.css" />
-        <Title text="File Share" />
         <Routes fallback=|| {
           let mut outside_errors = Errors::default();
           outside_errors.insert_with_default_key(AppError::NotFound);
