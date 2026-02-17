@@ -13,10 +13,15 @@ use leptos::{
 use server_fn::codec::{MultipartData, MultipartFormData, StreamingText, TextStream};
 use web_time::Instant;
 
-use crate::utils::format_bytes;
-
+mod form;
+pub mod progress_bar;
 #[cfg(feature = "ssr")]
-mod progress;
+pub mod progress;
+pub mod use_upload_progress;
+
+use form::UploadForm;
+use progress_bar::{Progress, ProgressBar};
+use use_upload_progress::update_progress;
 
 #[server(input = MultipartFormData)]
 pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
@@ -105,58 +110,12 @@ pub async fn file_progress(id: String) -> Result<TextStream, ServerFnError> {
     Ok(TextStream::new(progress::progress_stream(id.clone())))
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Progress {
-    pub size: u64,
-    pub start_time: Instant,
-    pub uploaded: RwSignal<u64>,
-}
-
-async fn update_progress(id: String, upload: RwSignal<Option<(String, Progress)>>) {
-    use futures::StreamExt;
-
-    let mut progress = file_progress(id.clone())
-        .await
-        .expect("couldn't initialize stream")
-        .into_inner();
-
-    while let Some(Ok(chunk)) = progress.next().await {
-        let messages = chunk
-            .split('\n')
-            .filter_map(|line| line.split_once('\0'))
-            .filter_map(|(id, size)| size.parse::<u64>().ok().map(|size| (id, size)));
-
-        upload.with_untracked(|upload| {
-            let Some((stored_id, Progress { uploaded, .. })) = upload.as_ref() else {
-                return;
-            };
-
-            let uploaded = *uploaded;
-
-            for (id, size) in messages {
-                if id != stored_id {
-                    logging::warn!("Got progress for unknown id '{id}'");
-                    continue;
-                }
-
-                *uploaded.write() = size;
-            }
-        });
-    }
-
-    logging::log!("[{id}]\tfinished (stream)");
-
-    upload.write().take();
-}
-
 #[component]
 pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) -> impl IntoView {
     let current_upload = RwSignal::new(None::<(String, Progress)>);
 
     let file_ref: NodeRef<Input> = NodeRef::new();
     let form_ref: NodeRef<Form> = NodeRef::new();
-
-    // TODO: convert progress to local resource
 
     let on_submit = move |ev: SubmitEvent| {
         ev.prevent_default();
@@ -218,54 +177,24 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
         });
     };
 
-    fn ProgressBar(
-        Progress {
-            size,
-            start_time,
-            uploaded,
-        }: Progress,
-    ) -> impl IntoView {
-        let percent = move || *uploaded.read() * 100 / size;
-        let speed = move || {
-            format_bytes(((uploaded() * 1000) as f64 / start_time.elapsed().as_millis_f64()) as u64)
-        };
-        view! {
-          <div class="flex flex-row gap-5 justify-between items-baseline m-2 w-full">
-            <span>Uploading {move || format!("{: >3}", percent())}%</span>
-            <div class="h-3 rounded-full bg-neutral grow">
-              <div
-                class="h-full rounded-full transition-all ease-linear bg-info duration-50"
-                style:width=move || format!("{: >3}%", percent())
-              />
-            </div>
-            <span class="w-28 text-right">{speed}/s</span>
-          </div>
-        }
-    }
-
     view! {
       <div class="flex flex-col gap-2 grow">
-        <form
-          class="flex flex-wrap gap-2 grow-2"
-          method="POST"
-          enctype="multipart/form-data"
-          node_ref=form_ref
-          on:submit=on_submit
-        >
-          <input
-            type="hidden"
-            name="path"
-            value=move || path.with(|path| path.to_string_lossy().into_owned())
-          />
-          // placeholder that is filled on submission
-          <input type="hidden" name="id" value="" />
-          <input type="file" name="uploads" class="file-input grow-3" multiple node_ref=file_ref />
-          <button type="submit" class="btn btn-primary grow-1">
-            Upload
-          </button>
-        </form>
+        <UploadForm path=path file_ref=file_ref form_ref=form_ref on_submit=on_submit />
 
-        {move || { current_upload.read().as_ref().map(|(_, progress)| ProgressBar(*progress)) }}
+        {move || {
+          current_upload
+            .read()
+            .as_ref()
+            .map(|(_, progress)| {
+              view! {
+                <ProgressBar
+                  size=progress.size
+                  start_time=progress.start_time
+                  uploaded=progress.uploaded.read_only()
+                />
+              }
+            })
+        }}
       </div>
     }
 }
