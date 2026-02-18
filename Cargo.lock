@@ -1496,38 +1496,30 @@ dependencies = [
 [[package]]
 name = "include-flate"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e01b7cb6ca682a621e7cda1c358c9724b53a7b4409be9be1dd443b7f3a26f998"
+source = "git+https://github.com/cyqsimon/include-flate.git?rev=5904963114f36531386a43cf54ee3162525e11d5#5904963114f36531386a43cf54ee3162525e11d5"
 dependencies = [
  "include-flate-codegen",
  "include-flate-compress",
- "libflate",
- "zstd",
 ]
 
 [[package]]
 name = "include-flate-codegen"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f49bf5274aebe468d6e6eba14a977eaf1efa481dc173f361020de70c1c48050"
+source = "git+https://github.com/cyqsimon/include-flate.git?rev=5904963114f36531386a43cf54ee3162525e11d5#5904963114f36531386a43cf54ee3162525e11d5"
 dependencies = [
  "include-flate-compress",
- "libflate",
  "proc-macro-error",
  "proc-macro2",
  "quote",
  "syn 2.0.116",
- "zstd",
 ]
 
 [[package]]
 name = "include-flate-compress"
 version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eae6a40e716bcd5931f5dbb79cd921512a4f647e2e9413fded3171fca3824dbc"
+source = "git+https://github.com/cyqsimon/include-flate.git?rev=5904963114f36531386a43cf54ee3162525e11d5#5904963114f36531386a43cf54ee3162525e11d5"
 dependencies = [
  "libflate",
- "zstd",
 ]
 
 [[package]]
@@ -2563,7 +2555,6 @@ version = "8.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04113cb9355a377d83f06ef1f0a45b8ab8cd7d8b1288160717d66df5c7988d27"
 dependencies = [
- "include-flate",
  "rust-embed-impl",
  "rust-embed-utils",
  "walkdir",
