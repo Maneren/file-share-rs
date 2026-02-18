@@ -14,9 +14,9 @@ use server_fn::codec::{MultipartData, MultipartFormData, StreamingText, TextStre
 use web_time::Instant;
 
 mod form;
-pub mod progress_bar;
 #[cfg(feature = "ssr")]
 pub mod progress;
+pub mod progress_bar;
 pub mod use_upload_progress;
 
 use form::UploadForm;
@@ -148,7 +148,7 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
             hasher.finish().to_string()
         };
 
-        if current_upload.read().is_some() {
+        if current_upload.with(|upload| upload.is_some()) {
             logging::warn!("Upload already in progress. Aborting.");
             return;
         }
@@ -160,7 +160,7 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
             Progress {
                 size: total,
                 start_time: Instant::now(),
-                uploaded: RwSignal::new(0),
+                uploaded: Default::default(),
             },
         ));
 

@@ -21,15 +21,19 @@ pub async fn update_progress(id: String, upload: RwSignal<Option<(String, Progre
                 return;
             };
 
-            let uploaded = *uploaded;
-
             for (id, size) in messages {
                 if id != stored_id {
                     logging::warn!("Got progress for unknown id '{id}'");
                     continue;
                 }
 
-                *uploaded.write() = size;
+                uploaded.update(|uploaded| {
+                    if uploaded.len() >= 10 {
+                        uploaded.pop_front();
+                    }
+
+                    uploaded.push_back((size, web_time::Instant::now()));
+                });
             }
         });
     }
