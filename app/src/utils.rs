@@ -1,4 +1,7 @@
-use std::time::{self, UNIX_EPOCH};
+use std::{
+    borrow::Cow,
+    time::{self, UNIX_EPOCH},
+};
 
 use chrono::{DateTime, TimeZone, Utc};
 use chrono_humanize::Humanize;
@@ -49,8 +52,16 @@ impl SystemTime {
 
 use std::ffi::OsStr;
 
-pub fn os_to_string(str: impl AsRef<OsStr>) -> String {
+pub fn display_os_string(str: impl AsRef<OsStr>) -> String {
     str.as_ref().to_string_lossy().to_string()
+}
+
+pub fn encode_path(path: impl AsRef<OsStr>) -> String {
+    urlencoding::encode(path.as_ref().to_string_lossy().as_ref()).into_owned()
+}
+
+pub fn try_decode_path(path: &str) -> Cow<'_, str> {
+    urlencoding::decode(path).unwrap_or(Cow::Borrowed(path))
 }
 
 #[allow(clippy::cast_possible_truncation)]

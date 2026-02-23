@@ -9,7 +9,10 @@ use axum::{
     http::{HeaderValue, Request, StatusCode, Uri, header},
     response::IntoResponse,
 };
-use file_share_app::{AppConfig, AppState, shell, utils::format_bytes};
+use file_share_app::{
+    AppConfig, AppState, shell,
+    utils::{format_bytes, try_decode_path},
+};
 use leptos::{logging, prelude::provide_context};
 use rust_embed::RustEmbed;
 use tokio::io::AsyncWriteExt;
@@ -56,7 +59,12 @@ pub async fn handle_archive_with_path<'a>(
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse + use<'a> {
     logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
-    handle_archive(target_dir, params.get("method"), path).await
+    handle_archive(
+        target_dir,
+        params.get("method"),
+        try_decode_path(&path).as_ref(),
+    )
+    .await
 }
 
 /// Handles archive requests.
@@ -66,14 +74,14 @@ pub async fn handle_archive_without_path(
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse + use<> {
     logging::log!("Handling archive without path and with params '{params:?}'");
-    handle_archive(target_dir, params.get("method"), String::new()).await
+    handle_archive(target_dir, params.get("method"), "").await
 }
 
 #[allow(clippy::unused_async)] // has to be in an async context, but doesn't await directly
 async fn handle_archive(
     base_dir: PathBuf,
     method: Option<&String>,
-    path: String,
+    path: &str,
 ) -> impl IntoResponse + use<> {
     let method = method.map_or_else(Default::default, String::as_str);
 

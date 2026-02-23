@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use leptos::{html::Input, prelude::*};
 
-use crate::{server::NewFolder, utils::os_to_string};
+use crate::{server::NewFolder, utils::display_os_string};
 
 #[component]
 pub fn NewFolderButton(path: Signal<PathBuf>, action: ServerAction<NewFolder>) -> impl IntoView {
@@ -33,11 +33,7 @@ pub fn NewFolderButton(path: Signal<PathBuf>, action: ServerAction<NewFolder>) -
                 name="name"
                 autofocus
               />
-              <input
-                type="hidden"
-                name="path"
-                value=move || os_to_string(path.read().as_os_str())
-              />
+              <input type="hidden" name="path" value=move || path.with(|path| display_os_string(path)) />
               <div class="modal-action">
                 <button class="btn" type="reset" onclick="new_folder_modal.close()">
                   Cancel

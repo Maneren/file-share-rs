@@ -54,7 +54,10 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
     let mut directory = fs::read_dir(path).await?;
 
     while let Some(entry) = directory.next_entry().await? {
-        let name = entry.file_name().to_string_lossy().into_owned();
+        let name = entry
+            .file_name()
+            .into_string()
+            .expect("Filename is valid UTF-8");
         let metadata = entry.metadata().await?;
         let last_modified = metadata.modified()?.into();
 

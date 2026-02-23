@@ -6,7 +6,10 @@ use icon::Icon;
 use leptos::{either::Either, prelude::*};
 use leptos_router::components::A;
 
-use crate::{server::Entries, utils::format_bytes};
+use crate::{
+    server::Entries,
+    utils::{encode_path, format_bytes},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub enum EntryType {
@@ -23,14 +26,15 @@ pub struct Entry {
     relative_time: String,
 }
 
-pub fn EntryComponent(data: Entry) -> impl IntoView {
+#[component]
+pub fn EntryComponent(entry: Entry) -> impl IntoView {
     let Entry {
         type_,
         href,
         name,
         size,
         relative_time,
-    } = data;
+    } = entry;
 
     let inner = view! {
       <div class="grid gap-2 w-full entry grid-cols-(--entry-cols-mobile) md:grid-cols-(--entry-cols)">
@@ -74,7 +78,7 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
                 last_modified,
             } => Entry {
                 type_: EntryType::File,
-                href: format!("/files/{}", path.join(&name).display()),
+                href: format!("/files/{}", encode_path(path.join(&name))),
                 name: name.clone(),
                 size: Some(format_bytes(size)),
                 relative_time: last_modified.humanize(),
@@ -84,7 +88,7 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
                 last_modified,
             } => Entry {
                 type_: EntryType::Folder,
-                href: format!("/index/{}", path.join(&name).display()),
+                href: format!("/index/{}", encode_path(path.join(&name))),
                 name: name.clone(),
                 size: None,
                 relative_time: last_modified.humanize(),
@@ -94,7 +98,11 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
 
     entries.sort_unstable();
 
-    Either::Right(
-        view! { <div class="file-view">{entries.into_iter().map(EntryComponent).collect_view()}</div> },
-    )
+    Either::Right(view! {
+      <div class="file-view">
+        <For each=move || entries.clone() key=|entry| entry.href.clone() let:entry>
+          <EntryComponent entry=entry />
+        </For>
+      </div>
+    })
 }
