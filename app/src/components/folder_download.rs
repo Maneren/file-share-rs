@@ -2,19 +2,21 @@ use std::path::PathBuf;
 
 use leptos::prelude::*;
 
+use crate::utils::display_os_string;
+
 #[component]
 pub fn FolderDownloads(path: Signal<PathBuf>) -> impl IntoView {
     let method_list = move || {
-        let display_path = path.with(|path| path.display().to_string());
+        let path = path.with(|path| display_os_string(path));
         ["zip", "tar", "tar.gz", "tar.zst"].map(|method| {
-      view! {
-        <li>
-          <a href=format!("/archive/{display_path}?method={method}") class="px-3 min-w-20" download>
-            {method}
-          </a>
-        </li>
-      }
-    })
+            view! {
+              <li>
+                <a href=format!("/archive/{path}?method={method}") class="px-3 min-w-20" download>
+                  {method}
+                </a>
+              </li>
+            }
+        })
     };
 
     view! {

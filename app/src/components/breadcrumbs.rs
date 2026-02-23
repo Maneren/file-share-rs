@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use leptos::prelude::*;
 
-use crate::utils::os_to_string;
+use crate::utils::{display_os_string, encode_path};
 
 #[component]
 pub fn Breadcrumbs(path: Signal<PathBuf>) -> impl IntoView {
@@ -11,11 +11,11 @@ pub fn Breadcrumbs(path: Signal<PathBuf>) -> impl IntoView {
             path.iter()
                 .scan(PathBuf::new(), |path, part| {
                     path.push(part);
-                    let path = format!("/index/{}", path.display());
+                    let path = format!("/index/{}", encode_path(&path));
 
                     Some(view! {
                       <li>
-                        <a href=path>{os_to_string(part)}</a>
+                        <a href=path>{display_os_string(part)}</a>
                       </li>
                     })
                 })
