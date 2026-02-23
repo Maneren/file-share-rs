@@ -12,7 +12,7 @@ resolver = "2"
 members = ["app", "frontend", "server"]
 
 [workspace.dependencies]
-leptos = { version = "0.8", features = ["nightly"] }
+leptos = { version = "0.8", features = ["nightly", "islands"] }
 leptos_axum = "0.8"
 leptos_meta = { version = "0.8" }
 leptos_router = { version = "0.8", features = ["nightly"] }

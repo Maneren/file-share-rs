@@ -13,11 +13,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::SystemTime;
 
-#[server(name = UploadAllowed, prefix = "/api", endpoint = "upload_allowed")]
-pub async fn upload_allowed() -> Result<bool, ServerFnError> {
-    Ok(expect_context::<AppConfig>().allow_upload)
-}
-
 pub type Entries = Vec<ServerEntry>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq)]
