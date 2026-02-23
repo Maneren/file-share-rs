@@ -111,7 +111,7 @@ async fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResp
 
     tokio::spawn(async move {
         if let Err(err) = archive_method.create_archive(path, &mut writer).await {
-            log::error!("Error during archive creation: {err:?}");
+            logging::error!("Error during archive creation: {err:?}");
             writer.shutdown().await.expect("Failed to shutdown writer");
         }
     });

@@ -19,7 +19,6 @@ axum = { workspace = true, optional = true }
 chrono.workspace = true
 chrono-humanize.workspace = true
 cfg-if.workspace = true
-dashmap = { workspace = true, optional = true }
 futures.workspace = true
 http.workspace = true
 include-flate.workspace = true
@@ -45,7 +44,6 @@ ssr = [
   "dep:leptos_axum",
   "dep:async-broadcast",
   "dep:axum",
-  "dep:dashmap",
   "dep:multer",
   "dep:tokio",
   "dep:tokio",

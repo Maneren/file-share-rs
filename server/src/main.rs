@@ -52,8 +52,6 @@ Available methods are tar, tar.gz, tar.zst, zip.
 
 #[tokio::main]
 async fn main() {
-    simple_logger::init_with_level(log::Level::Warn).expect("couldn't initialize logging");
-
     let conf = get_configuration(None).unwrap();
     let leptos_options = conf.leptos_options;
     let routes = generate_route_list(App);
