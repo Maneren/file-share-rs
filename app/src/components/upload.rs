@@ -149,8 +149,8 @@ async fn update_progress(id: String, upload: RwSignal<Option<(String, Progress)>
     upload.write().take();
 }
 
-#[component]
-pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) -> impl IntoView {
+#[island]
+pub fn FileUpload(path: PathBuf) -> impl IntoView {
     let current_upload = RwSignal::new(None::<(String, Progress)>);
 
     let file_ref: NodeRef<Input> = NodeRef::new();
@@ -213,8 +213,6 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
                 .expect("couldn't upload file");
 
             logging::log!("[{id}]\tfinished (upload)");
-
-            on_upload.run(());
         });
     };
 
@@ -235,7 +233,7 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
             <div class="h-3 rounded-full bg-neutral grow">
               <div
                 class="h-full rounded-full transition-all ease-linear bg-info duration-50"
-                style:width=move || format!("{: >3}%", percent())
+                style:width=move || format!("{}%", percent())
               />
             </div>
             <span class="w-28 text-right">{speed}/s</span>
@@ -246,17 +244,13 @@ pub fn FileUpload(path: Signal<PathBuf>, #[prop(into)] on_upload: Callback<()>) 
     view! {
       <div class="flex flex-col gap-2 grow">
         <form
-          class="flex flex-wrap gap-2 grow-2"
+          class="flex flew-row gap-2 grow-2"
           method="POST"
           enctype="multipart/form-data"
           node_ref=form_ref
           on:submit=on_submit
         >
-          <input
-            type="hidden"
-            name="path"
-            value=move || path.with(|path| path.to_string_lossy().into_owned())
-          />
+          <input type="hidden" name="path" value=move || path.to_string_lossy().into_owned() />
           // placeholder that is filled on submission
           <input type="hidden" name="id" value="" />
           <input type="file" name="uploads" class="file-input grow-3" multiple node_ref=file_ref />

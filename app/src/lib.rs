@@ -52,40 +52,35 @@ pub fn FilesPage() -> impl IntoView {
 
     let path_signal = Signal::from(path);
 
-    let upload_bar = move |allow_upload: bool| {
-        allow_upload.then(|| {
-            view! {
-              <div class="flex flex-wrap gap-2 justify-center items-start pt-2 w-full">
-                <FileUpload path=path_signal on_upload=move || listing.refetch() />
-                <div class="flex gap-2 grow">
-                  <NewFolderButton path=path_signal action=create_folder_action />
-                  <FolderDownloads path=path_signal />
-                </div>
-              </div>
-            }
-        })
-    };
+    let app_config = expect_context::<AppConfig>();
+
+    let upload_bar = app_config.allow_upload.then(|| {
+        view! {
+          <div class="flex flex-wrap gap-2 justify-center items-start pt-2 w-full">
+            <FileUpload path=path_signal() />
+            <div class="flex gap-2 grow">
+              <NewFolderButton path=path_signal action=create_folder_action />
+              <FolderDownloads path=path_signal />
+            </div>
+          </div>
+        }
+    });
 
     view! {
       <div class="p-3 App">
-        <Transition fallback=Loading>
-          {move || Suspend::new(async move { upload_allowed().await.ok().and_then(upload_bar) })}
-        </Transition>
-
+        {upload_bar}
         <Breadcrumbs path=path_signal />
-
         <div class="grid gap-2 mb-1 border-b grid-cols-(--entry-cols-mobile) border-base-content md:grid-cols-(--entry-cols)">
           <span></span>
           <span>Name</span>
           <span>Size</span>
           <span class="hidden md:inline">Last Modified</span>
         </div>
-
         <Transition fallback=Loading>
           {move || Suspend::new(async move {
             match listing.await {
               Ok(entries) => {
-                Either::Left(view! { <FileEntries path=path_signal entries=entries.clone() /> })
+                Either::Left(view! { <FileEntries path=path_signal entries=entries /> })
               }
               Err(e) => Either::Right(view! { <p class="text-lg">{format!("{e}")}</p> }),
             }
@@ -104,7 +99,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
           <AutoReload options=options.clone() />
-          <HydrationScripts options />
+          <HydrationScripts options islands=true />
           <MetaTags />
         </head>
         <body>
