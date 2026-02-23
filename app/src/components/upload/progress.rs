@@ -1,9 +1,9 @@
-use std::sync::LazyLock;
+use std::{collections::HashMap, sync::LazyLock};
 
-use async_broadcast::{broadcast, Receiver, Sender};
-use dashmap::DashMap;
+use async_broadcast::{Receiver, Sender, broadcast};
 use futures::StreamExt;
 use leptos::{logging, prelude::*};
+use tokio::sync::Mutex;
 use tokio_stream::Stream;
 
 struct FileHandle {
@@ -20,10 +20,11 @@ impl Default for FileHandle {
     }
 }
 
-static FILES: LazyLock<DashMap<String, FileHandle>> = LazyLock::new(DashMap::new);
+static FILES: LazyLock<Mutex<HashMap<String, FileHandle>>> = LazyLock::new(Default::default);
 
 pub async fn add_chunk(id: &str, len: usize) {
-    let mut entry = FILES.entry(id.to_owned()).or_insert_with(|| {
+    let mut lock = FILES.lock().await;
+    let entry = lock.entry(id.to_owned()).or_insert_with(|| {
         logging::log!("[{id}]\tinserting channel (chunk)");
         FileHandle::default()
     });
@@ -34,15 +35,16 @@ pub async fn add_chunk(id: &str, len: usize) {
     // we're about to do an async broadcast, so we don't want to hold a lock across
     // it
     let tx = entry.tx.clone();
-    drop(entry);
+    drop(lock);
 
     tx.broadcast(new_total)
         .await
         .expect("couldn't send a message over channel");
 }
 
-pub fn progress_stream(id: String) -> impl Stream<Item = Result<String, ServerFnError>> {
-    let entry = FILES.entry(id.clone()).or_insert_with(|| {
+pub async fn progress_stream(id: String) -> impl Stream<Item = Result<String, ServerFnError>> {
+    let mut lock = FILES.lock().await;
+    let entry = lock.entry(id.clone()).or_insert_with(|| {
         logging::log!("[{id}]\tinserting channel (progress)");
         FileHandle::default()
     });
@@ -54,12 +56,14 @@ pub fn progress_stream(id: String) -> impl Stream<Item = Result<String, ServerFn
         .map(Ok)
 }
 
-pub fn finish(filename: &str) {
-    if let Some(entry) = FILES.get_mut(filename) {
+pub async fn finish(filename: &str) {
+    let mut lock = FILES.lock().await;
+
+    if let Some(entry) = lock.get_mut(filename) {
         entry.tx.close();
         entry.rx.close();
         logging::log!("[{filename}]\tstream closed");
     }
 
-    FILES.remove(filename);
+    lock.remove(filename);
 }

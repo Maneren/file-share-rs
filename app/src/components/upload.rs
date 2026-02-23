@@ -99,7 +99,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     }
 
     logging::log!("[{id}]\tfinished");
-    progress::finish(&id);
+    progress::finish(&id).await;
 
     Ok(())
 }
@@ -107,7 +107,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
 #[allow(clippy::unused_async)]
 #[server(output = StreamingText)]
 pub async fn file_progress(id: String) -> Result<TextStream, ServerFnError> {
-    Ok(TextStream::new(progress::progress_stream(id.clone())))
+    Ok(TextStream::new(progress::progress_stream(id.clone()).await))
 }
 
 #[island]
