@@ -3,7 +3,6 @@ mod archive;
 use std::{
     collections::HashMap,
     ops::Not,
-    os,
     path::{self, PathBuf},
 };
 
@@ -133,8 +132,7 @@ async fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResp
     (headers, Body::from_stream(stream)).into_response()
 }
 
-const UPLOAD_DISABLED: (StatusCode, &'static str) =
-    (StatusCode::FORBIDDEN, "Upload is not enabled");
+const UPLOAD_DISABLED: (StatusCode, &str) = (StatusCode::FORBIDDEN, "Upload is not enabled");
 
 fn safe_join_path(base_dir: &path::Path, path: &str) -> Option<PathBuf> {
     path.contains("..").not().then(|| base_dir.join(path))

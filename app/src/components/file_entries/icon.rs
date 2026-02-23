@@ -1,5 +1,5 @@
 use include_flate::flate;
-use leptos::{prelude::*, IntoView};
+use leptos::{IntoView, prelude::*};
 
 flate!(static LANGUAGES_MAP_JSON: str from "assets/associations/language.json");
 flate!(static EXTENSIONS_MAP_JSON: str from "assets/associations/extension.json");
@@ -36,9 +36,9 @@ static FILENAMES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
 
     extensions_name
         .into_iter()
-        .chain(languages_map.into_iter())
+        .chain(languages_map)
         .map(|(k, v)| (format!(".{k}"), v))
-        .chain(file_map.into_iter())
+        .chain(file_map)
         .collect()
 });
 
