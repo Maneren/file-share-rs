@@ -1,4 +1,5 @@
 #![warn(clippy::pedantic)]
+#![recursion_limit = "256"]
 
 pub mod config;
 pub mod fileserv;
