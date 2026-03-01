@@ -1,7 +1,7 @@
 [workspace.package]
 edition = "2024"
 authors = ["Maneren <maneren731@gmail.com>"]
-version = "1.5.4"
+version = "1.6.0"
 license = "MIT"
 repository = "https://github.com/Maneren/file-share-rs"
 description = "Fast Rust-powered HTTP file server with beautiful web-based GUI"
