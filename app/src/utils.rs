@@ -45,6 +45,7 @@ impl IntoRender for SystemTime {
     }
 }
 impl SystemTime {
+    #[must_use]
     pub fn humanize(&self) -> String {
         DateTime::from(*self).humanize()
     }
@@ -60,13 +61,16 @@ pub fn encode_path(path: impl AsRef<OsStr>) -> String {
     urlencoding::encode(path.as_ref().to_string_lossy().as_ref()).into_owned()
 }
 
+#[must_use]
 pub fn try_decode_path(path: &str) -> Cow<'_, str> {
     urlencoding::decode(path).unwrap_or(Cow::Borrowed(path))
 }
+#[must_use]
 pub fn format_folder_href(base_path: &Path, name: &str) -> String {
     format!("/index/{}", encode_path(base_path.join(name)))
 }
 
+#[must_use]
 pub fn format_file_href(base_path: &Path, name: &str) -> String {
     format!("/files/{}", encode_path(base_path.join(name)))
 }
@@ -75,6 +79,7 @@ pub fn format_file_href(base_path: &Path, name: &str) -> String {
 #[allow(clippy::cast_possible_wrap)]
 #[allow(clippy::cast_sign_loss)]
 #[allow(clippy::cast_precision_loss)]
+#[must_use]
 pub fn format_bytes(bytes: u64) -> String {
     let prefixes = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi"];
 
