@@ -19,7 +19,7 @@ use file_share_app::{
 };
 use leptos::{logging, prelude::provide_context};
 use rust_embed::RustEmbed;
-use tokio::io::AsyncWriteExt;
+use tokio::{fs::File, io::AsyncWriteExt};
 use tokio_util::io::ReaderStream;
 
 #[derive(RustEmbed)]
@@ -168,7 +168,7 @@ pub async fn file_upload_without_path(
 }
 
 pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl IntoResponse {
-    while let Ok(Some(field)) = multipart.next_field().await {
+    while let Ok(Some(mut field)) = multipart.next_field().await {
         let Some(file_name) = field.file_name() else {
             continue;
         };
@@ -183,7 +183,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
 
         logging::log!("Uploading to {path:?}");
 
-        let mut file = match tokio::fs::File::create_new(&path).await {
+        let mut file = match File::create_new(&path).await {
             Ok(file) => file,
             Err(err) => {
                 return (
@@ -194,30 +194,35 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             },
         };
 
-        let bytes = match field.bytes().await {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    format!("Invalid file content: {e}"),
-                )
-                    .into_response();
-            },
-        };
+        let mut total_bytes: u64 = 0;
+        loop {
+            match field.chunk().await {
+                Ok(Some(chunk)) => {
+                    total_bytes += chunk.len() as u64;
+                    if let Err(err) = file.write_all(&chunk).await {
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            format!("Failed to write file: {err}"),
+                        )
+                            .into_response();
+                    }
+                },
+                Ok(None) => break,
+                Err(e) => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        format!("Invalid file content: {e}"),
+                    )
+                        .into_response();
+                },
+            }
+        }
 
         logging::log!(
             "Writing {} bytes to {}",
-            format_bytes(bytes.len() as u64),
+            format_bytes(total_bytes),
             path.display()
         );
-
-        if let Err(err) = file.write_all(&bytes).await {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to write file: {err}"),
-            )
-                .into_response();
-        }
     }
 
     StatusCode::OK.into_response()
