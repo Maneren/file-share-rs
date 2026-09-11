@@ -50,11 +50,10 @@ fn EntryComponent(
 }
 
 #[component]
-pub fn FileEntries(path: Signal<PathBuf>, mut entries: Entries) -> impl IntoView {
+pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
     if entries.is_empty() {
         return Either::Left(view! { <div class="file-view">"The folder is empty"</div> });
     }
-    entries.sort_unstable();
 
     let path = path.get_untracked();
 

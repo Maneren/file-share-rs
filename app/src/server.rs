@@ -72,6 +72,8 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
         }
     }
 
+    entries.sort_unstable();
+
     Ok(entries)
 }
 
