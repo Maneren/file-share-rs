@@ -21,18 +21,24 @@ pub fn ProgressBar(
     let start_time = *start_time.read();
 
     let percent = move || {
-        uploaded.with(|queue| queue.iter().last().map_or(0, |(size, _)| *size)) * 100
-            / size()
+        let total = size();
+        if total == 0 {
+            return 0;
+        }
+        uploaded.with(|queue| queue.back().map_or(0, |(uploaded, _)| *uploaded) * 100 / total)
     };
     let average_speed = move || {
         uploaded.with(|queue| {
+            let Some((last_size, last_time)) = queue.back() else {
+                return 0.0;
+            };
+            let elapsed = (*last_time - start_time).as_secs_f64();
+            if elapsed <= f64::EPSILON {
+                return 0.0;
+            }
             #[allow(clippy::cast_precision_loss)]
-            let avg = queue
-                .iter()
-                .map(move |(size, time)| (*size as f64) / (*time - start_time).as_secs_f64())
-                .sum::<f64>()
-                / queue.len() as f64;
-            avg
+            let size_f64 = *last_size as f64;
+            size_f64 / elapsed
         })
     };
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
