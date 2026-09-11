@@ -77,15 +77,26 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
 
 #[server(name = NewFolder, prefix = "/api", endpoint = "new_folder")]
 pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError> {
+    use crate::utils::{is_safe_file_name, is_safe_relative_path};
+
     let app_config = expect_context::<AppConfig>();
 
     if !app_config.allow_upload {
         return Err(ServerFnError::ServerError("Uploads are disabled".into()));
     }
 
-    let path = app_config.target_dir.join(path).join(name);
+    if !is_safe_relative_path(&path) || !is_safe_file_name(&name) {
+        return Err(ServerFnError::ServerError("Invalid path or name".into()));
+    }
 
-    fs::create_dir(path).await?;
+    let joined = app_config.target_dir.join(&path).join(&name);
+
+    // Ensure lexical containment (no traversal after join)
+    if !joined.starts_with(&app_config.target_dir) {
+        return Err(ServerFnError::ServerError("Invalid path".into()));
+    }
+
+    fs::create_dir(joined).await?;
 
     Ok(())
 }

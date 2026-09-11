@@ -2,8 +2,7 @@ mod archive;
 
 use std::{
     collections::HashMap,
-    ops::Not,
-    path::{self, PathBuf},
+    path::{Component as StdComponent, Path as StdPath, PathBuf},
 };
 
 pub use archive::Method;
@@ -15,7 +14,7 @@ use axum::{
 };
 use file_share_app::{
     AppConfig, AppState, shell,
-    utils::{format_bytes, try_decode_path},
+    utils::{format_bytes, is_safe_relative_path, try_decode_path},
 };
 use leptos::{logging, prelude::provide_context};
 use rust_embed::RustEmbed;
@@ -64,7 +63,7 @@ pub async fn handle_archive_with_path<'a>(
 ) -> impl IntoResponse + use<'a> {
     logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
 
-    let Some(path) = safe_join_path(&target_dir, try_decode_path(&path).as_ref()) else {
+    let Some(path) = safe_join_path(&target_dir, &try_decode_path(&path)) else {
         return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
     };
 
@@ -134,8 +133,25 @@ async fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResp
 
 const UPLOAD_DISABLED: (StatusCode, &str) = (StatusCode::FORBIDDEN, "Upload is not enabled");
 
-fn safe_join_path(base_dir: &path::Path, path: &str) -> Option<PathBuf> {
-    path.contains("..").not().then(|| base_dir.join(path))
+fn safe_join_path(base_dir: &StdPath, path: &StdPath) -> Option<PathBuf> {
+    if !is_safe_relative_path(path) {
+        return None;
+    }
+    Some(base_dir.join(path))
+}
+
+fn safe_join_file_name(base_dir: &StdPath, file_name: &str) -> Option<PathBuf> {
+    if file_name.is_empty() {
+        return None;
+    }
+    let p = StdPath::new(file_name);
+    if p.components().count() != 1 {
+        return None;
+    }
+    if !matches!(p.components().next(), Some(StdComponent::Normal(_))) {
+        return None;
+    }
+    safe_join_path(base_dir, p)
 }
 
 pub async fn file_upload_with_path(
@@ -147,7 +163,7 @@ pub async fn file_upload_with_path(
         return UPLOAD_DISABLED.into_response();
     }
 
-    let Some(base_path) = safe_join_path(&app_config.target_dir, &path) else {
+    let Some(base_path) = safe_join_path(&app_config.target_dir, StdPath::new(&path)) else {
         return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
     };
 
@@ -173,7 +189,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             continue;
         };
 
-        let Some(path) = safe_join_path(&base_dir, file_name) else {
+        let Some(path) = safe_join_file_name(&base_dir, file_name) else {
             return (
                 StatusCode::BAD_REQUEST,
                 format!("Invalid file name: {file_name}"),
