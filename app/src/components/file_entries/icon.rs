@@ -1,9 +1,9 @@
+use std::{collections::HashMap, sync::LazyLock};
+
 use include_flate::flate;
-use leptos::{prelude::*, IntoView};
+use leptos::{IntoView, prelude::*};
 use rust_embed::RustEmbed;
 use serde::Deserialize;
-
-use std::{collections::HashMap, sync::LazyLock};
 
 use crate::components::file_entries::EntryType;
 
@@ -23,9 +23,22 @@ struct IconMaps {
     folders: HashMap<String, String>,
 }
 
+static DECODED_ICONS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+    for key in Icons::iter() {
+        if let Some(file) = Icons::get(&key) {
+            map.insert(
+                key.into_owned(),
+                String::from_utf8_lossy(file.data.as_ref()).into_owned(),
+            );
+        }
+    }
+    map
+});
+
 fn get_icon(name: &str) -> Option<String> {
-    let name = format!("{name}.svg");
-    Icons::get(&name).map(|icon| String::from_utf8_lossy(icon.data.as_ref()).into_owned())
+    let key = format!("{name}.svg");
+    DECODED_ICONS.get(&key).cloned()
 }
 
 static ICON_MAPS: LazyLock<IconMaps> =
@@ -37,7 +50,12 @@ static FILENAMES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
         .iter()
         .chain(ICON_MAPS.languages.iter())
         .map(|(k, v)| (format!(".{k}"), v.clone()))
-        .chain(ICON_MAPS.filenames.iter().map(|(k, v)| (k.clone(), v.clone())))
+        .chain(
+            ICON_MAPS
+                .filenames
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone())),
+        )
         .collect()
 });
 
