@@ -7,9 +7,6 @@
 use file_share_app::*;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 #[wasm_bindgen]
 pub fn hydrate() {
     // initializes logging using the `log` crate

@@ -46,6 +46,5 @@ ssr = [
   "dep:axum",
   "dep:multer",
   "dep:tokio",
-  "dep:tokio",
   "dep:tokio-stream",
 ]
