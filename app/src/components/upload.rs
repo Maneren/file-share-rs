@@ -148,7 +148,7 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
             hasher.finish().to_string()
         };
 
-        if current_upload.with(|upload| upload.is_some()) {
+        if current_upload.with(Option::is_some) {
             logging::warn!("Upload already in progress. Aborting.");
             return;
         }
@@ -160,7 +160,7 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
             Progress {
                 size: total,
                 start_time: Instant::now(),
-                uploaded: Default::default(),
+                uploaded: RwSignal::default(),
             },
         ));
 

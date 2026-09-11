@@ -11,8 +11,8 @@ mod state;
 pub mod utils;
 
 use leptos::{either::Either, prelude::*};
-use leptos_meta::*;
-use leptos_router::{components::*, hooks::use_params, params::*};
+use leptos_meta::{MetaTags, provide_meta_context, Stylesheet, Title};
+use leptos_router::{components::{Router, Routes, Route}, hooks::use_params, params::Params};
 use leptos_router_macro::path;
 use urlencoding::decode;
 
@@ -20,9 +20,9 @@ pub use crate::config::AppConfig;
 #[cfg(feature = "ssr")]
 pub use crate::state::AppState;
 use crate::{
-    components::*,
+    components::{UploadBar, Breadcrumbs, Loading, FileEntries},
     error_template::{AppError, ErrorTemplate},
-    server::*,
+    server::{NewFolder, list_dir},
 };
 
 #[derive(PartialEq, Eq, Params, Debug)]
@@ -31,6 +31,7 @@ struct PathQuery {
 }
 
 #[component]
+#[allow(clippy::must_use_candidate)]
 pub fn FilesPage() -> impl IntoView {
     let path_query = use_params::<PathQuery>();
 
@@ -81,6 +82,7 @@ pub fn FilesPage() -> impl IntoView {
     }
 }
 
+#[must_use]
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
       <!DOCTYPE html>
@@ -101,6 +103,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
 }
 
 #[component]
+#[allow(clippy::must_use_candidate)]
 pub fn App() -> impl IntoView {
     provide_meta_context();
 
