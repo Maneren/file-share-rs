@@ -1,3 +1,5 @@
+cargo-features = ["codegen-backend"]
+
 [workspace.package]
 edition = "2024"
 authors = ["Maneren <maneren731@gmail.com>"]
@@ -63,6 +65,14 @@ urlencoding = "2"
 wasm-bindgen = "0.2"
 web-sys = { version = "0.3.70", features = ["File", "FileList"] }
 web-time = "1.1"
+
+[profile.dev]
+incremental = true
+codegen-units = 256
+split-debuginfo = "unpacked"
+
+[profile.dev.package.file-share]
+codegen-backend = "cranelift"
 
 [profile.dev.package.leptos_macro]
 opt-level = 3
