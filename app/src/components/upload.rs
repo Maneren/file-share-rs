@@ -28,7 +28,10 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     use server_fn::ServerFnError::ServerError;
     use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
-    use crate::AppConfig;
+    use crate::{
+        AppConfig,
+        utils::{is_safe_file_name, is_safe_relative_path},
+    };
 
     async fn collect_field_with_name(
         data: &mut multer::Multipart<'static>,
@@ -63,7 +66,12 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
 
     let base_req_path = {
         let req_path = collect_field_with_name(&mut data, "path").await?;
-        app_config.target_dir.join(req_path.trim())
+        let trimmed = req_path.trim();
+        let trimmed_path = PathBuf::from(trimmed);
+        if !is_safe_relative_path(&trimmed_path) {
+            return Err(ServerError(format!("Invalid path: {trimmed}")));
+        }
+        app_config.target_dir.join(trimmed)
     };
 
     let id = collect_field_with_name(&mut data, "id").await?;
@@ -75,6 +83,10 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
             logging::error!("no file name");
             return Err(ServerError("Missing file name in multipart".into()));
         };
+
+        if !is_safe_file_name(&name) {
+            return Err(ServerError(format!("Invalid file name: {name}")));
+        }
 
         let path = base_req_path.join(&name);
         logging::log!("[{name}]\tpath: {path:?}");

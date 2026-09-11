@@ -1,5 +1,6 @@
 use std::{
     borrow::Cow,
+    path::{Component, PathBuf},
     time::{self, UNIX_EPOCH},
 };
 
@@ -62,8 +63,12 @@ pub fn encode_path(path: impl AsRef<OsStr>) -> String {
 }
 
 #[must_use]
-pub fn try_decode_path(path: &str) -> Cow<'_, str> {
-    urlencoding::decode(path).unwrap_or(Cow::Borrowed(path))
+pub fn try_decode_path(path: &str) -> PathBuf {
+    PathBuf::from(
+        urlencoding::decode(path)
+            .unwrap_or(Cow::Borrowed(path))
+            .as_ref(),
+    )
 }
 #[must_use]
 pub fn format_folder_href(base_path: &Path, name: &str) -> String {
@@ -73,6 +78,32 @@ pub fn format_folder_href(base_path: &Path, name: &str) -> String {
 #[must_use]
 pub fn format_file_href(base_path: &Path, name: &str) -> String {
     format!("/files/{}", encode_path(base_path.join(name)))
+}
+
+pub fn is_safe_relative_path(path: &Path) -> bool {
+    if path.is_absolute() {
+        return false;
+    }
+    for comp in path.components() {
+        if matches!(
+            comp,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+        ) {
+            return false;
+        }
+    }
+    true
+}
+
+pub fn is_safe_file_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+    let p = Path::new(name);
+    if p.components().count() != 1 {
+        return false;
+    }
+    matches!(p.components().next(), Some(Component::Normal(_)))
 }
 
 #[allow(clippy::cast_possible_truncation)]
