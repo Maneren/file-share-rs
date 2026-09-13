@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+pub mod archive;
 mod components;
 mod config;
 mod error_template;

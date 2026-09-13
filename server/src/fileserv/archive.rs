@@ -8,7 +8,7 @@
 //! NOTE: Uses the fastest compression level to prevent compression from being a
 //! bottleneck.
 
-use std::{fmt, path::Path};
+use std::path::Path;
 
 use async_compression::{
     Level,
@@ -19,6 +19,7 @@ use async_zip::{
     Compression, StringEncoding, ZipEntryBuilder, ZipString, tokio::write::ZipFileWriter,
 };
 use cfg_if::cfg_if;
+use file_share_app::archive::Method;
 use thiserror::Error as ThisError;
 use tokio::{
     fs,
@@ -48,72 +49,25 @@ pub enum Error {
     ArchiveCreation(String, Box<Error>),
 }
 
-#[derive(Default, Debug, Clone, Copy)]
-pub enum Method {
-    #[default]
-    Tar,
-    TarGz,
-    TarZstd,
-    Zip,
-}
-
-impl Method {
-    #[must_use]
-    pub fn mimetype(&self) -> &'static str {
-        match self {
-            Method::Tar => "application/x-tar",
-            Method::TarGz => "application/gzip",
-            Method::TarZstd => "application/zstd",
-            Method::Zip => "application/zip",
-        }
-    }
-
-    /// Create an archive from given dir using current method.
-    ///
-    /// Writes an output stream into a passed [`AsyncWrite`] sink.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if there is any error during the
-    /// archive creation, usually due to IO or invalid input dir.
-    pub async fn create_archive<P, W>(self, dir: P, out: W) -> Result<(), Error>
-    where
-        P: AsRef<Path>,
-        W: AsyncWrite + Unpin + Send + Sync,
-    {
-        let dir = dir.as_ref();
-        match self {
-            Method::Tar => tar_dir(dir, out).await,
-            Method::TarGz => tar_gz(dir, out).await,
-            Method::TarZstd => tar_zstd(dir, out).await,
-            Method::Zip => zip_dir(dir, out).await,
-        }
-    }
-}
-
-impl TryFrom<&str> for Method {
-    type Error = ();
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "tar" => Ok(Method::Tar),
-            "tar.gz" => Ok(Method::TarGz),
-            "tar.zst" => Ok(Method::TarZstd),
-            "zip" => Ok(Method::Zip),
-            _ => Err(()),
-        }
-    }
-}
-
-impl fmt::Display for Method {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let extension = match self {
-            Method::Tar => "tar",
-            Method::TarGz => "tar.gz",
-            Method::TarZstd => "tar.zst",
-            Method::Zip => "zip",
-        };
-        write!(f, "{extension}")
+/// Create an archive from given dir using the given method.
+///
+/// Writes an output stream into a passed [`AsyncWrite`] sink.
+///
+/// # Errors
+///
+/// This function will return an error if there is any error during the
+/// archive creation, usually due to IO or invalid input dir.
+pub async fn create_archive<P, W>(method: Method, dir: P, out: W) -> Result<(), Error>
+where
+    P: AsRef<Path>,
+    W: AsyncWrite + Unpin + Send + Sync,
+{
+    let dir = dir.as_ref();
+    match method {
+        Method::Tar => tar_dir(dir, out).await,
+        Method::TarGz => tar_gz(dir, out).await,
+        Method::TarZstd => tar_zstd(dir, out).await,
+        Method::Zip => zip_dir(dir, out).await,
     }
 }
 
