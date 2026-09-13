@@ -26,7 +26,7 @@ use leptos::{
     prelude::{get_configuration, provide_context},
 };
 use leptos_axum::{LeptosRoutes, generate_route_list};
-use tower_http::services::ServeDir;
+use tower_http::{compression::CompressionLayer, services::ServeDir};
 
 use crate::{
     config::{Config, get_config},
@@ -106,6 +106,7 @@ async fn main() {
         )
         .fallback(file_and_error_handler)
         .layer(DefaultBodyLimit::disable())
+        .layer(CompressionLayer::new())
         .with_state(app_state);
 
     let display_urls = get_display_urls(&interfaces, port);
