@@ -65,9 +65,9 @@ impl Method {
     #[must_use]
     pub fn tar_extract_flags(&self) -> Option<&'static str> {
         match self {
-            Method::Tar => Some("-x"),
-            Method::TarGz => Some("-xz"),
-            Method::TarZstd => Some("--zstd -x"),
+            Method::Tar => Some(""),
+            Method::TarGz => Some("-z"),
+            Method::TarZstd => Some("--zstd"),
             Method::Zip => None,
         }
     }
