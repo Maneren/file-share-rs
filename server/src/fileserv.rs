@@ -31,12 +31,14 @@ use tokio_util::io::ReaderStream;
 #[folder = "../target/site"]
 struct StaticFiles;
 
+/// Size of the in-memory pipe between archive creation and the HTTP body.
+/// Large enough to keep a 1 Gbps link fed while the compressor runs ahead.
+const DUPLEX_BUF_SIZE: usize = 1024 * 1024;
+
+/// Chunk size used when polling the pipe into the HTTP body stream.
+const READER_STREAM_CAPACITY: usize = 64 * 1024;
+
 /// Handles static file requests by delegating to `StaticFiles`.
-///
-/// # Panics
-///
-/// This function will panic if the mimetype from `RustEmbed` is not recognized
-/// by `http` crate
 pub async fn file_and_error_handler(
     State(app_state): State<AppState>,
     uri: Uri,
@@ -123,7 +125,6 @@ pub async fn handle_archive_without_path(
     handle_archive(target_dir, params.get("method")).await
 }
 
-#[allow(clippy::unused_async)] // has to be in an async context, but doesn't await directly
 async fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResponse + use<> {
     let method = method.map_or_else(Default::default, String::as_str);
 
@@ -146,8 +147,8 @@ async fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResp
 
     logging::log!("Creating: {file_name}");
 
-    let (mut writer, reader) = tokio::io::duplex(256 * 1024);
-    let stream = ReaderStream::new(reader);
+    let (mut writer, reader) = tokio::io::duplex(DUPLEX_BUF_SIZE);
+    let stream = ReaderStream::with_capacity(reader, READER_STREAM_CAPACITY);
 
     tokio::spawn(async move {
         if let Err(err) = archive_method.create_archive(path, &mut writer).await {
