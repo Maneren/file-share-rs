@@ -238,13 +238,30 @@ async function extractTarStream(tarStream, rootHandle, onProgress) {
 }
 
 async function streamFolder(url, compression, button) {
+  const caps = window.FileShareCaps;
+  if (caps) caps.logEnv("stream-folder");
+
   const absUrl = new URL(url, window.location.origin).toString();
   const setLabel = (text) => {
     if (button) button.textContent = text;
   };
   const original = button ? button.textContent : "";
+  if (caps) {
+    console.info(
+      `[file-share:stream-folder] archive=${absUrl} compression=${compression || "?"} — ` +
+        "tar-based methods stream-extract entry-by-entry; zip is plain-download only (central directory lives at the end of the file)",
+    );
+  }
 
-  if (!("showDirectoryPicker" in window)) {
+  const save = caps
+    ? caps.pickSaveMethod("dir")
+    : {
+        method: "showDirectoryPicker" in window ? "picker" : "anchor",
+        reason: "capability helper missing, feature-detecting inline",
+      };
+  if (caps) caps.log("stream-folder:save", save);
+
+  if (save.method !== "picker") {
     // Fallback for old browsers: plain archive download, server compresses.
     const a = document.createElement("a");
     a.href = absUrl;
@@ -271,16 +288,16 @@ async function streamFolder(url, compression, button) {
     if (!res.ok || !res.body) throw new Error(`Download failed: ${res.status}`);
 
     let stream = res.body;
-    if (compression && compression !== "none") {
-      const format = compression === "gz" ? "gzip" : compression;
-      try {
-        stream = stream.pipeThrough(new DecompressionStream(format));
-      } catch (err) {
-        throw new Error(
-          `This browser cannot decode ${format} here — retry with tar.gz. (${err})`,
-        );
-      }
+    const decode = caps
+      ? caps.pickDecode(stream, compression || "none")
+      : { stream, format: compression, how: "native", reason: "capability helper missing" };
+    if (caps) caps.log("stream-folder:decode", { how: `decode-${decode.how}`, format: decode.format, reason: decode.reason });
+    if (decode.how === "raw-fallback") {
+      throw new Error(
+        `This browser cannot decode ${decode.format} here (${decode.reason}) — retry with tar.gz.`,
+      );
     }
+    stream = decode.stream;
 
     const result = await extractTarStream(stream, rootHandle, ({ files, bytes }) => {
       const mib = (bytes / (1024 * 1024)).toFixed(1);

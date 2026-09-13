@@ -9,6 +9,9 @@
 // `zstd` in `DecompressionStream` is still rolling out; if the browser throws
 // we download the raw bytes with the `.zst` suffix so nothing is lost.
 async function streamDownload(url, filename, compression) {
+  const caps = window.FileShareCaps;
+  if (caps) caps.logEnv("stream-download");
+
   const res = await fetch(url);
   if (!res.ok || !res.body) {
     throw new Error(`Download failed: ${res.status}`);
@@ -17,18 +20,34 @@ async function streamDownload(url, filename, compression) {
   let stream = res.body;
   let saveName = filename;
   const wire = res.headers.get("x-compression") || compression || "identity";
-
-  if (wire && wire !== "none" && wire !== "identity") {
-    const format = wire === "gz" ? "gzip" : wire;
-    try {
-      stream = stream.pipeThrough(new DecompressionStream(format));
-    } catch (err) {
-      console.warn(`DecompressionStream(${format}) unsupported, saving raw`, err);
-      saveName = `${filename}.${format === "gzip" ? "gz" : "zst"}`;
-    }
+  if (caps) {
+    console.info(
+      `[file-share:stream-download] requested=${compression || "?"} wire=${wire} — ` +
+        (res.headers.get("x-compression")
+          ? "server-advertised wire format wins over the button default"
+          : "no x-compression header, using the button default"),
+    );
   }
 
-  if ("showSaveFilePicker" in window) {
+  const decode = caps
+    ? caps.pickDecode(stream, wire)
+    : { stream, format: wire, how: "native", reason: "capability helper missing, trying native decode" };
+  stream = decode.stream;
+  if (caps) caps.log("stream-download:decode", { how: `decode-${decode.how}`, format: decode.format, reason: decode.reason });
+  if (decode.how === "raw-fallback") {
+    // zstd still rolling out: keep the bytes, just fix the suffix.
+    saveName = `${filename}.${decode.format === "gzip" ? "gz" : "zst"}`;
+  }
+
+  const save = caps
+    ? caps.pickSaveMethod("file")
+    : {
+        method: "showSaveFilePicker" in window ? "picker" : "blob",
+        reason: "capability helper missing, feature-detecting inline",
+      };
+  if (caps) caps.log("stream-download:save", save);
+
+  if (save.method === "picker") {
     const handle = await window.showSaveFilePicker({ suggestedName: saveName });
     const writable = await handle.createWritable();
     try {

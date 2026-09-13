@@ -95,6 +95,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
+          <script src="/js/method-capabilities.js" defer />
           <script src="/js/stream-download.js" defer />
           <script src="/js/stream-folder.js" defer />
           <AutoReload options=options.clone() />
