@@ -18,6 +18,7 @@ pub fn FolderDownloads(path: Signal<PathBuf>) -> impl IntoView {
         path.with(|path| display_os_string(path))
     ));
     let curl_list_path = Arc::clone(&base_path);
+    let stream_base_path = Arc::clone(&base_path);
 
     let method_list = move || {
         let base_path = &*base_path;
@@ -53,6 +54,30 @@ pub fn FolderDownloads(path: Signal<PathBuf>) -> impl IntoView {
         })
     };
 
+    // Streaming extraction prototype: fetch -> DecompressionStream -> USTAR
+    // parser -> showDirectoryPicker. Only tar-based methods can stream-extract
+    // (zip needs its central directory first); zip stays a plain download.
+    let stream_list = move || {
+        let base_path = &*stream_base_path;
+        [("tar.zst", "zstd"), ("tar.gz", "gzip"), ("tar", "none")].map(|(method, compression)| {
+            let url = format!("{base_path}?method={method}");
+            view! {
+              <li>
+                <button
+                  class="px-3 min-w-20 text-left"
+                  title="Stream-extract into a folder you pick (prototype, Chromium only)"
+                  data-url=url
+                  data-compression=compression
+                  onclick="window.streamFolder(this.getAttribute('data-url'), this.getAttribute('data-compression'), this)"
+                >
+                  Stream
+                  {method}
+                </button>
+              </li>
+            }
+        })
+    };
+
     view! {
       <div class="dropdown dropdown-hover grow">
         <label tabindex="0" class="w-full btn btn-primary">
@@ -62,6 +87,8 @@ pub fn FolderDownloads(path: Signal<PathBuf>) -> impl IntoView {
           {method_list}
           <li class="menu-title">Fast LAN</li>
           {fast_lan_list}
+          <li class="menu-title">Stream extract (prototype)</li>
+          {stream_list}
         </ul>
       </div>
     }
