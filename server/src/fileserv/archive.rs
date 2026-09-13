@@ -1,8 +1,19 @@
 #![allow(clippy::items_after_statements)]
+//! Utility functions for creating archive files
+//!
+//! The `create_archive` function is the main entrypoint for creating the
+//! archive. It takes a path and an output stream, and writes the archive to the
+//! output stream.
+//!
+//! NOTE: Uses the fastest compression level to prevent compression from being a
+//! bottleneck.
 
 use std::{fmt, path::Path};
 
-use async_compression::tokio::write::{GzipEncoder, ZstdEncoder};
+use async_compression::{
+    Level,
+    tokio::write::{GzipEncoder, ZstdEncoder},
+};
 use async_walkdir::WalkDir;
 use async_zip::{
     Compression, StringEncoding, ZipEntryBuilder, ZipString, tokio::write::ZipFileWriter,
@@ -111,7 +122,7 @@ async fn tar_gz<W>(dir: &Path, out: W) -> Result<(), Error>
 where
     W: AsyncWrite + Unpin + Send + Sync,
 {
-    let mut encoder = GzipEncoder::new(out);
+    let mut encoder = GzipEncoder::with_quality(out, Level::Fastest);
 
     tar_dir(dir, &mut encoder).await?;
 
@@ -133,7 +144,7 @@ async fn tar_zstd<W>(dir: &Path, out: W) -> Result<(), Error>
 where
     W: AsyncWrite + Unpin + Send + Sync,
 {
-    let mut encoder = ZstdEncoder::new(out);
+    let mut encoder = ZstdEncoder::with_quality(out, Level::Fastest);
 
     tar_dir(dir, &mut encoder).await?;
 
@@ -263,6 +274,8 @@ where
         )
     })?;
 
+    // NOTE: zip is a fallback for very old devices; `async_zip`'s entry sink
+    // is futures-based, so the tokio file needs the compat shim here.
     futures::io::copy(&mut file.compat(), &mut sink)
         .await
         .map_err(|e| {
