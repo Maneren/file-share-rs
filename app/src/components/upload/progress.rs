@@ -32,8 +32,8 @@ pub async fn add_chunk(id: &str, len: usize) {
     entry.total += len;
     let new_total = entry.total;
 
-    // we're about to do an async broadcast, so we don't want to hold a lock across
-    // it
+    // we're about to do an async broadcast, so we don't want to hold a lock
+    // across it
     let tx = entry.tx.clone();
     drop(lock);
 

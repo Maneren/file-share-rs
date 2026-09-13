@@ -5,7 +5,7 @@ use std::{fmt, path::Path};
 use async_compression::tokio::write::{GzipEncoder, ZstdEncoder};
 use async_walkdir::WalkDir;
 use async_zip::{
-    tokio::write::ZipFileWriter, Compression, StringEncoding, ZipEntryBuilder, ZipString,
+    Compression, StringEncoding, ZipEntryBuilder, ZipString, tokio::write::ZipFileWriter,
 };
 use cfg_if::cfg_if;
 use thiserror::Error as ThisError;
