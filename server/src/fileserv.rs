@@ -110,9 +110,7 @@ pub async fn handle_archive_with_path<'a>(
         return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
     };
 
-    handle_archive(path, params.get("method"))
-        .await
-        .into_response()
+    handle_archive(path, params.get("method")).into_response()
 }
 
 /// Handles archive requests.
@@ -122,10 +120,10 @@ pub async fn handle_archive_without_path(
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse + use<> {
     logging::log!("Handling archive without path and with params '{params:?}'");
-    handle_archive(target_dir, params.get("method")).await
+    handle_archive(target_dir, params.get("method"))
 }
 
-async fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResponse + use<> {
+fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResponse + use<> {
     let method = method.map_or_else(Default::default, String::as_str);
 
     let Ok(archive_method) = Method::try_from(method) else {
