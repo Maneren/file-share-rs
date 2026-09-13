@@ -173,6 +173,111 @@ async fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResp
     (headers, Body::from_stream(stream)).into_response()
 }
 
+/// Single-file streaming download with optional on-the-fly compression.
+/// The client decompresses via `DecompressionStream` and streams straight to
+/// disk (`showSaveFilePicker`), so a 100 GiB file never sits in RAM.
+/// `?compress=zstd` (default) is tuned for a 1 Gbps link; `gzip` is for very
+/// old clients, `none` skips compression entirely.
+#[allow(clippy::implicit_hasher)]
+pub async fn handle_file_download(
+    State(AppConfig { target_dir, .. }): State<AppConfig>,
+    Path(path): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+) -> impl IntoResponse {
+    let Some(path) = safe_join_path(&target_dir, &try_decode_path(&path)) else {
+        return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
+    };
+
+    let Ok(meta) = tokio::fs::metadata(&path).await else {
+        return (StatusCode::NOT_FOUND, "File not found".to_string()).into_response();
+    };
+    if !meta.is_file() {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Path is not a file (use /archive for folders)".to_string(),
+        )
+            .into_response();
+    }
+
+    let compression = params.get("compress").map_or("zstd", String::as_str);
+    let (algo, extension) = match compression {
+        "none" | "identity" => ("identity", ""),
+        "gzip" | "gz" => ("gzip", ".gz"),
+        "zstd" | "zst" => ("zstd", ".zst"),
+        other => {
+            return (
+                StatusCode::BAD_REQUEST,
+                format!("Invalid compress parameter: {other} (use zstd, gzip, none)"),
+            )
+                .into_response();
+        },
+    };
+
+    let file_name = format!(
+        "{}{extension}",
+        path.file_name().map_or_else(
+            || "download".to_string(),
+            |n| n.to_string_lossy().into_owned()
+        ),
+    );
+    logging::log!("Streaming file {file_name} with compression {algo}");
+
+    let (mut writer, reader) = tokio::io::duplex(DUPLEX_BUF_SIZE);
+    let stream = ReaderStream::with_capacity(reader, READER_STREAM_CAPACITY);
+
+    tokio::spawn(async move {
+        let result = match algo {
+            "gzip" => {
+                let mut enc = GzipEncoder::with_quality(&mut writer, Level::Fastest);
+                let r = copy_file_to_writer(&path, &mut enc).await;
+                let _ = enc.shutdown().await;
+                r
+            },
+            "zstd" => {
+                let mut enc = ZstdEncoder::with_quality(&mut writer, Level::Fastest);
+                let r = copy_file_to_writer(&path, &mut enc).await;
+                let _ = enc.shutdown().await;
+                r
+            },
+            _ => copy_file_to_writer(&path, &mut writer).await,
+        };
+        if let Err(err) = result {
+            logging::error!("Error during file streaming: {err:?}");
+        }
+        let _ = writer.shutdown().await;
+    });
+
+    let headers = [
+        (
+            header::CONTENT_DISPOSITION,
+            format!(r#"attachment; filename="{file_name}""#)
+                .parse()
+                .unwrap_or(HeaderValue::from_static("attachment")),
+        ),
+        (
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/octet-stream"),
+        ),
+        // Deliberately NOT `Content-Encoding`: the browser must not
+        // transparently decode, our JS pipes through `DecompressionStream`.
+        (
+            header::HeaderName::from_static("x-compression"),
+            HeaderValue::from_str(algo).unwrap_or(HeaderValue::from_static("identity")),
+        ),
+        (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
+    ];
+
+    (headers, Body::from_stream(stream)).into_response()
+}
+
+async fn copy_file_to_writer<W>(path: &StdPath, writer: &mut W) -> std::io::Result<u64>
+where
+    W: tokio::io::AsyncWrite + Unpin,
+{
+    let mut file = File::open(path).await?;
+    tokio::io::copy(&mut file, writer).await
+}
+
 const UPLOAD_DISABLED: (StatusCode, &str) = (StatusCode::FORBIDDEN, "Upload is not enabled");
 
 fn safe_join_path(base_dir: &StdPath, path: &StdPath) -> Option<PathBuf> {

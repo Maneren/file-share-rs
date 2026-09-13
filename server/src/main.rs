@@ -32,7 +32,7 @@ use crate::{
     config::{Config, get_config},
     fileserv::{
         file_and_error_handler, file_upload_with_path, file_upload_without_path,
-        handle_archive_with_path, handle_archive_without_path,
+        handle_archive_with_path, handle_archive_without_path, handle_file_download,
     },
 };
 
@@ -45,6 +45,7 @@ Endpoints:
 - /api/new_folder name=&target= -- create a new folder with name in path
 - /archive/*path?method=        -- create an archive from a path
 - /archive?method=              -- create an archive from root directory
+- /download/*path?compress=     -- stream a single file (zstd, gzip, none)
 - /upload/*path                 -- upload a file to a path
 - /upload                       -- upload a file to root directory
 
@@ -95,6 +96,7 @@ async fn main() {
         .route("/help", get(|| async { API_HELP_TEXT }))
         .route("/archive/{*path}", get(handle_archive_with_path))
         .route("/archive/", get(handle_archive_without_path))
+        .route("/download/{*path}", get(handle_file_download))
         .route("/upload/{*path}", post(file_upload_with_path))
         .route("/upload/", post(file_upload_without_path))
         .nest_service("/files", ServeDir::new(&target_dir))

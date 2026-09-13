@@ -80,6 +80,14 @@ pub fn format_file_href(base_path: &Path, name: &str) -> String {
     format!("/files/{}", encode_path(base_path.join(name)))
 }
 
+#[must_use]
+pub fn format_stream_href(base_path: &Path, name: &str) -> String {
+    format!(
+        "/download/{}?compress=zstd",
+        encode_path(base_path.join(name))
+    )
+}
+
 pub fn is_safe_relative_path(path: &Path) -> bool {
     if path.is_absolute() {
         return false;
