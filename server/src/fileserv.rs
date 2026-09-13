@@ -6,7 +6,6 @@ use std::{
     path::{Component as StdComponent, Path as StdPath, PathBuf},
 };
 
-pub use archive::Method;
 use async_compression::{
     Level,
     tokio::write::{GzipEncoder, ZstdEncoder},
@@ -149,7 +148,7 @@ fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResponse +
     let stream = ReaderStream::with_capacity(reader, READER_STREAM_CAPACITY);
 
     tokio::spawn(async move {
-        if let Err(err) = archive_method.create_archive(path, &mut writer).await {
+        if let Err(err) = archive::create_archive(archive_method, path, &mut writer).await {
             logging::error!("Error during archive creation: {err:?}");
             writer.shutdown().await.expect("Failed to shutdown writer");
         }

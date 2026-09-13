@@ -2,9 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use leptos::prelude::*;
 
-use crate::utils::display_os_string;
-
-const METHODS: [&str; 4] = ["zip", "tar", "tar.gz", "tar.zst"];
+use crate::{archive::Method, utils::display_os_string};
 
 fn method_url_query(path: &String, method: &str) -> String {
     format!("{path}?method={method}")
@@ -22,11 +20,12 @@ pub fn FolderDownloads(path: Signal<PathBuf>) -> impl IntoView {
 
     let method_list = move || {
         let base_path = &*base_path;
-        METHODS.map(|method| {
+        Method::ALL.map(|method| {
+            let label = method.as_str();
             view! {
               <li>
-                <a href=method_url_query(base_path, method) class="px-3 min-w-20" download>
-                  {method}
+                <a href=method_url_query(base_path, label) class="px-3 min-w-20" download>
+                  {label}
                 </a>
               </li>
             }
@@ -35,47 +34,60 @@ pub fn FolderDownloads(path: Signal<PathBuf>) -> impl IntoView {
 
     let fast_lan_list = move || {
         let curl_list_path = &*curl_list_path;
-        METHODS.map(|method| {
-            let curl_url = method_url_query(curl_list_path, method);
-            view! {
+        Method::ALL.iter().filter_map(|method| {
+            let label = method.as_str();
+            let curl_url = method_url_query(curl_list_path, label);
+            let flags = method.tar_extract_flags()?;
+            let view = view! {
               <li>
                 <button
                   class="px-3 min-w-20 text-left"
-                  title=format!("Copies: curl -L <this server>{curl_url} | tar --zstd -xvC ./{base_name}")
+                  title=format!(
+                    "Copies: curl -L \"<this server>{curl_url}\" | tar {flags} -vC ./{base_name}",
+                  )
                   data-url=curl_url.clone()
                   onclick=format!(
-                    "navigator.clipboard.writeText(`curl -L \"${{window.location.origin}}{curl_url}\" | tar --zstd -xvC ./{base_name}`)",
+                    "navigator.clipboard.writeText(`curl -L \"${{window.location.origin}}{curl_url}\" | tar {flags} -vC ./{base_name}`)",
                   )
                 >
-                  Copy curl | {method}
+                  Copy curl |
+                  {label}
                 </button>
               </li>
-            }
-        })
+            };
+            Some(view)
+        }).collect::<Vec<_>>()
     };
 
     // Streaming extraction prototype: fetch -> DecompressionStream -> USTAR
-    // parser -> showDirectoryPicker. Only tar-based methods can stream-extract
-    // (zip needs its central directory first); zip stays a plain download.
+    // parser -> showDirectoryPicker. Only methods with a wire compression can
+    // stream-extract; the rest stay plain downloads.
     let stream_list = move || {
         let base_path = &*stream_base_path;
-        [("tar.zst", "zstd"), ("tar.gz", "gzip"), ("tar", "none")].map(|(method, compression)| {
-            let url = format!("{base_path}?method={method}");
-            view! {
-              <li>
-                <button
-                  class="px-3 min-w-20 text-left"
-                  title="Stream-extract into a folder you pick (prototype, Chromium only)"
-                  data-url=url
-                  data-compression=compression
-                  onclick="window.streamFolder(this.getAttribute('data-url'), this.getAttribute('data-compression'), this)"
-                >
-                  Stream
-                  {method}
-                </button>
-              </li>
-            }
-        })
+        Method::ALL
+            .into_iter()
+            .filter(Method::is_streamable)
+            .map(|method| {
+                let label = method.as_str();
+                // `wire_compression` is `Some` here by the filter above.
+                let compression = method.wire_compression().unwrap_or("none");
+                let url = format!("{base_path}?method={label}");
+                view! {
+                  <li>
+                    <button
+                      class="px-3 min-w-20 text-left"
+                      title="Stream-extract into a folder you pick (prototype, Chromium only)"
+                      data-url=url
+                      data-compression=compression
+                      onclick="window.streamFolder(this.getAttribute('data-url'), this.getAttribute('data-compression'), this)"
+                    >
+                      Stream
+                      {label}
+                    </button>
+                  </li>
+                }
+            })
+            .collect::<Vec<_>>()
     };
 
     view! {
