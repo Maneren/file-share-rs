@@ -11,8 +11,12 @@ mod state;
 pub mod utils;
 
 use leptos::{either::Either, prelude::*};
-use leptos_meta::{MetaTags, provide_meta_context, Stylesheet, Title};
-use leptos_router::{components::{Router, Routes, Route}, hooks::use_params, params::Params};
+use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
+use leptos_router::{
+    components::{Route, Router, Routes},
+    hooks::use_params,
+    params::Params,
+};
 use leptos_router_macro::path;
 use urlencoding::decode;
 
@@ -20,7 +24,7 @@ pub use crate::config::AppConfig;
 #[cfg(feature = "ssr")]
 pub use crate::state::AppState;
 use crate::{
-    components::{UploadBar, Breadcrumbs, Loading, FileEntries},
+    components::{Breadcrumbs, FileEntries, Loading, UploadBar},
     error_template::{AppError, ErrorTemplate},
     server::{NewFolder, list_dir},
 };
