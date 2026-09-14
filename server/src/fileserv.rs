@@ -2,8 +2,8 @@ mod archive;
 
 use std::{
     collections::HashMap,
-    fmt::Write,
-    path::{Component as StdComponent, Path as StdPath, PathBuf},
+    fmt::Write as _,
+    path::{Path as StdPath, PathBuf},
 };
 
 use axum::{
@@ -15,8 +15,9 @@ use axum::{
 pub use file_share_app::archive::Method;
 use file_share_app::{
     AppConfig, AppState, shell,
-    utils::{format_bytes, is_safe_relative_path, try_decode_path},
+    utils::{format_bytes, is_safe_file_name, is_safe_relative_path, try_decode_path},
 };
+use futures::{Stream, stream::Chunks};
 use leptos::{logging, prelude::provide_context};
 use rust_embed::{EmbeddedFile, RustEmbed};
 use tokio::{fs::File, io::AsyncWriteExt};
@@ -119,7 +120,7 @@ pub async fn handle_archive_without_path(
 }
 
 fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResponse + use<> {
-    let method = method.map_or_else(Default::default, String::as_str);
+    let method = method.map_or_default(String::as_str);
 
     let Ok(archive_method) = Method::try_from(method) else {
         return (
@@ -166,24 +167,11 @@ fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResponse +
 const UPLOAD_DISABLED: (StatusCode, &str) = (StatusCode::FORBIDDEN, "Upload is not enabled");
 
 fn safe_join_path(base_dir: &StdPath, path: &StdPath) -> Option<PathBuf> {
-    if !is_safe_relative_path(path) {
-        return None;
-    }
-    Some(base_dir.join(path))
+    is_safe_relative_path(path).then(|| base_dir.join(path))
 }
 
 fn safe_join_file_name(base_dir: &StdPath, file_name: &str) -> Option<PathBuf> {
-    if file_name.is_empty() {
-        return None;
-    }
-    let p = StdPath::new(file_name);
-    if p.components().count() != 1 {
-        return None;
-    }
-    if !matches!(p.components().next(), Some(StdComponent::Normal(_))) {
-        return None;
-    }
-    safe_join_path(base_dir, p)
+    is_safe_file_name(file_name).then(|| base_dir.join(file_name))
 }
 
 pub async fn file_upload_with_path(
@@ -244,18 +232,8 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
 
         let mut total_bytes: u64 = 0;
         loop {
-            match field.chunk().await {
-                Ok(Some(chunk)) => {
-                    total_bytes += chunk.len() as u64;
-                    if let Err(err) = file.write_all(&chunk).await {
-                        return (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            format!("Failed to write file: {err}"),
-                        )
-                            .into_response();
-                    }
-                },
-                Ok(None) => break,
+            let chunk = match field.chunk().await {
+                Ok(chunk) => chunk,
                 Err(e) => {
                     return (
                         StatusCode::BAD_REQUEST,
@@ -263,6 +241,16 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
                     )
                         .into_response();
                 },
+            };
+            let Some(chunk) = chunk else { break };
+
+            total_bytes += chunk.len() as u64;
+            if let Err(err) = file.write_all(&chunk).await {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to write file: {err}"),
+                )
+                    .into_response();
             }
         }
 

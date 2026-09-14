@@ -55,7 +55,7 @@ impl SystemTime {
 use std::{ffi::OsStr, path::Path};
 
 pub fn display_os_string(str: impl AsRef<OsStr>) -> String {
-    str.as_ref().to_string_lossy().to_string()
+    str.as_ref().to_string_lossy().into_owned()
 }
 
 pub fn encode_path(path: impl AsRef<OsStr>) -> String {
@@ -64,11 +64,10 @@ pub fn encode_path(path: impl AsRef<OsStr>) -> String {
 
 #[must_use]
 pub fn try_decode_path(path: &str) -> PathBuf {
-    PathBuf::from(
-        urlencoding::decode(path)
-            .unwrap_or(Cow::Borrowed(path))
-            .as_ref(),
-    )
+    urlencoding::decode(path)
+        .map(Cow::into_owned)
+        .unwrap_or_else(|_| path.to_owned())
+        .into()
 }
 #[must_use]
 pub fn format_folder_href(base_path: &Path, name: &str) -> String {
@@ -81,29 +80,16 @@ pub fn format_file_href(base_path: &Path, name: &str) -> String {
 }
 
 pub fn is_safe_relative_path(path: &Path) -> bool {
-    if path.is_absolute() {
-        return false;
-    }
-    for comp in path.components() {
-        if matches!(
-            comp,
-            Component::ParentDir | Component::RootDir | Component::Prefix(_)
-        ) {
-            return false;
-        }
-    }
-    true
+    !path.is_absolute()
+        && path
+            .components()
+            .all(|comp| matches!(comp, Component::Normal(_) | Component::CurDir))
 }
 
-pub fn is_safe_file_name(name: &str) -> bool {
-    if name.is_empty() {
-        return false;
-    }
-    let p = Path::new(name);
-    if p.components().count() != 1 {
-        return false;
-    }
-    matches!(p.components().next(), Some(Component::Normal(_)))
+pub fn is_safe_file_name(name: impl AsRef<Path>) -> bool {
+    let mut components = name.as_ref().components();
+
+    matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none()
 }
 
 #[allow(clippy::cast_possible_truncation)]
