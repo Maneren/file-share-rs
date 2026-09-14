@@ -26,7 +26,13 @@ use leptos::{
     prelude::{get_configuration, provide_context},
 };
 use leptos_axum::{LeptosRoutes, generate_route_list};
-use tower_http::{compression::CompressionLayer, services::ServeDir};
+use tower_http::{
+    compression::{
+        CompressionLayer,
+        predicate::{DefaultPredicate, NotForContentType, Predicate as _},
+    },
+    services::ServeDir,
+};
 
 use crate::{
     config::{Config, get_config},
@@ -90,14 +96,25 @@ async fn main() {
         target_dir.to_string_lossy().yellow().bold()
     );
 
+    // Compress only responses that actually benefit from it.
+    let compression_predicate = DefaultPredicate::new()
+        // skip upload progress
+        .and(NotForContentType::new("application/octet-stream"))
+        // skip already-compressed payloads
+        .and(NotForContentType::new("application/zip"))
+        .and(NotForContentType::new("application/gzip"))
+        .and(NotForContentType::new("application/zstd"))
+        .and(NotForContentType::new("application/x-tar"))
+        // skip generally incompressible payloads
+        .and(NotForContentType::new("video/"))
+        .and(NotForContentType::new("audio/"));
+    let compression = CompressionLayer::new().compress_when(compression_predicate);
+
+    // NOTE: `Router::layer` only wraps routes registered *before* it, so
+    // compression applies solely to the UI/API routes above it.
     let app = Router::new()
         .route("/", get(|| async { Redirect::to("/index") }))
         .route("/help", get(|| async { API_HELP_TEXT }))
-        .route("/archive/{*path}", get(handle_archive_with_path))
-        .route("/archive/", get(handle_archive_without_path))
-        .route("/upload/{*path}", post(file_upload_with_path))
-        .route("/upload/", post(file_upload_without_path))
-        .nest_service("/files", ServeDir::new(&target_dir))
         .leptos_routes_with_context(
             &app_state,
             routes,
@@ -105,8 +122,13 @@ async fn main() {
             move || shell(leptos_options.clone()),
         )
         .fallback(file_and_error_handler)
+        .layer(compression)
+        .route("/archive/{*path}", get(handle_archive_with_path))
+        .route("/archive/", get(handle_archive_without_path))
+        .route("/upload/{*path}", post(file_upload_with_path))
+        .route("/upload/", post(file_upload_without_path))
+        .nest_service("/files", ServeDir::new(&target_dir))
         .layer(DefaultBodyLimit::disable())
-        .layer(CompressionLayer::new())
         .with_state(app_state);
 
     let display_urls = get_display_urls(&interfaces, port);
