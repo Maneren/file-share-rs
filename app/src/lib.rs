@@ -40,13 +40,14 @@ struct PathQuery {
 pub fn FilesPage() -> impl IntoView {
     let path_query = use_params::<PathQuery>();
 
-    let path =
-        Memo::new(
-            move |_| match path_query.read().as_ref().map(|query| decode(&query.path)) {
-                Ok(Ok(path)) => PathBuf::from(path.as_ref()),
-                _ => PathBuf::new(),
-            },
-        );
+    let path = Memo::new(move |_| {
+        path_query
+            .read()
+            .as_ref()
+            .ok()
+            .and_then(|query| decode(&query.path).ok())
+            .map_or_default(|path| PathBuf::from(path.as_ref()))
+    });
 
     let create_folder_action = ServerAction::<NewFolder>::new();
 

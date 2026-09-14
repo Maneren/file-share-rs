@@ -24,13 +24,10 @@ pub fn ErrorTemplate(
     #[prop(optional)] outside_errors: Option<Errors>,
     #[prop(optional)] errors: Option<RwSignal<Errors>>,
 ) -> impl IntoView {
-    let errors = match outside_errors {
-        Some(e) => RwSignal::new(e),
-        None => match errors {
-            Some(e) => e,
-            None => panic!("No Errors found and we expected errors!"),
-        },
-    };
+    let errors = outside_errors
+        .map(RwSignal::new)
+        .or(errors)
+        .expect("No Errors found and we expected errors!");
 
     let errors = errors()
         .into_iter()

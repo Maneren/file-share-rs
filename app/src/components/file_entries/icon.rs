@@ -24,16 +24,16 @@ struct IconMaps {
 }
 
 static DECODED_ICONS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
-    let mut map = HashMap::new();
-    for key in Icons::iter() {
-        if let Some(file) = Icons::get(&key) {
-            map.insert(
-                key.into_owned(),
-                String::from_utf8_lossy(file.data.as_ref()).into_owned(),
-            );
-        }
-    }
-    map
+    Icons::iter()
+        .filter_map(|key| {
+            Icons::get(&key).map(|file| {
+                (
+                    key.into_owned(),
+                    String::from_utf8_lossy(file.data.as_ref()).into_owned(),
+                )
+            })
+        })
+        .collect()
 });
 
 fn get_icon(name: &str) -> Option<String> {

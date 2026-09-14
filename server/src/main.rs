@@ -196,6 +196,7 @@ fn print_qr_codes(display_urls: &[String]) {
             },
             Err(e) => {
                 error!("Failed to render QR to terminal: {e}");
+                break;
             },
         }
     }

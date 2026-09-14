@@ -25,7 +25,12 @@ pub fn ProgressBar(
         if total == 0 {
             return 0;
         }
-        uploaded.with(|queue| queue.back().map_or(0, |(uploaded, _)| *uploaded) * 100 / total)
+        uploaded.with(|queue| {
+            queue
+                .back()
+                .map(|(uploaded, _)| uploaded * 100 / total)
+                .unwrap_or_default()
+        })
     };
     let average_speed = move || {
         uploaded.with(|queue| {
