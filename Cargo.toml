@@ -7,7 +7,7 @@ version = "1.6.0"
 license = "MIT"
 repository = "https://github.com/Maneren/file-share-rs"
 description = "Fast Rust-powered HTTP file server with beautiful web-based GUI"
-rust-version = "1.88.0"
+rust-version = "1.98.0"
 
 [workspace]
 resolver = "2"
