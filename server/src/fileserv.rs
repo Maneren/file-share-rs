@@ -150,16 +150,13 @@ fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResponse +
         }
     });
 
-    let headers: [(_, HeaderValue); 6] = [
+    let headers: [(_, HeaderValue); 3] = [
         (
             header::CONTENT_DISPOSITION,
             format!(r#"attachment; filename="{file_name}""#).parse(),
         ),
         (header::CONTENT_TYPE, archive_method.mimetype().parse()),
-        (header::TRANSFER_ENCODING, "chunked".parse()),
         (header::CACHE_CONTROL, "no-cache".parse()),
-        (header::CONNECTION, "keep-alive".parse()),
-        (header::CONTENT_ENCODING, "identity".parse()),
     ]
     .map(|(key, value)| (key, value.expect("The headers are valid")));
 
