@@ -32,21 +32,21 @@ use tokio_util::compat::TokioAsyncReadCompatExt as _;
 #[derive(Debug, ThisError)]
 pub enum Error {
     /// Any kind of IO errors
-    #[error("{0}\ncaused by: {1}")]
-    Io(String, std::io::Error),
+    #[error("{0}")]
+    Io(String, #[source] std::io::Error),
 
     /// Any error related to an invalid path (failed to retrieve entry name,
     /// unexpected entry type, etc)
-    #[error("Invalid path\ncaused by: {0}")]
+    #[error("Invalid path: {0}")]
     InvalidPath(String),
 
     /// Any other kind of error
-    #[error("Other error\ncaused by: {0}")]
+    #[error("{0}")]
     Other(String),
 
     /// Might occur when the creation of an archive fails
-    #[error("An error occurred while creating the {0}\ncaused by: {1}")]
-    ArchiveCreation(String, Box<Error>),
+    #[error("An error occurred while creating {0}")]
+    ArchiveCreation(String, #[source] Box<Error>),
 }
 
 /// Create an archive from given dir using the given method.
