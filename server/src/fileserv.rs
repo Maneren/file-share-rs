@@ -1,7 +1,6 @@
 mod archive;
 
 use std::{
-    collections::HashMap,
     fmt::Write as _,
     path::{Path as StdPath, PathBuf},
 };
@@ -98,12 +97,16 @@ fn serve_static_file(request: &Request<Body>, path: &str, file: EmbeddedFile) ->
         .into_response()
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct ArchiveQuery {
+    method: Option<Method>,
+}
+
 /// Handles archive requests.
-#[allow(clippy::implicit_hasher)]
 pub async fn handle_archive_with_path<'a>(
     State(app_state): State<AppState>,
     Path(path): Path<String>,
-    Query(params): Query<HashMap<String, String>>,
+    Query(params): Query<ArchiveQuery>,
 ) -> impl IntoResponse + use<'a> {
     let target_dir = &app_state.app_config.target_dir;
     logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
@@ -112,32 +115,22 @@ pub async fn handle_archive_with_path<'a>(
         return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
     };
 
-    handle_archive(path, params.get("method")).into_response()
+    handle_archive(path, params.method.unwrap_or_default()).into_response()
 }
 
 /// Handles archive requests.
-#[allow(clippy::implicit_hasher)]
 pub async fn handle_archive_without_path(
     State(app_state): State<AppState>,
-    Query(params): Query<HashMap<String, String>>,
+    Query(params): Query<ArchiveQuery>,
 ) -> impl IntoResponse + use<> {
     logging::log!("Handling archive without path and with params '{params:?}'");
     handle_archive(
         app_state.app_config.target_dir.clone(),
-        params.get("method"),
+        params.method.unwrap_or_default(),
     )
 }
 
-fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResponse + use<> {
-    let method = method.map_or_default(String::as_str);
-
-    let Ok(archive_method) = Method::try_from(method) else {
-        return (
-            StatusCode::BAD_REQUEST,
-            format!("Invalid archive method: {method}"),
-        )
-            .into_response();
-    };
+fn handle_archive(path: PathBuf, archive_method: Method) -> impl IntoResponse + use<> {
 
     let Some(name) = path.file_name() else {
         return (

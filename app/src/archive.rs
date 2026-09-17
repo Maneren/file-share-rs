@@ -4,7 +4,9 @@
 //! target and the WASM frontend target. The (tokio-based) code that actually
 //! writes archives lives in the server crate.
 
-use std::fmt;
+use std::{fmt, str::FromStr};
+
+use serde::{Deserialize, Deserializer};
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Method {
@@ -73,17 +75,51 @@ impl Method {
     }
 }
 
-impl TryFrom<&str> for Method {
-    type Error = ();
+/// Error returned when parsing an archive [`Method`] from a query string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseMethodError(String);
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+impl fmt::Display for ParseMethodError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "invalid archive method '{}', expected one of: tar, tar.gz, tar.zst, zip",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for ParseMethodError {}
+
+impl FromStr for Method {
+    type Err = ParseMethodError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "tar" => Ok(Method::Tar),
             "tar.gz" => Ok(Method::TarGz),
             "tar.zst" => Ok(Method::TarZstd),
             "zip" => Ok(Method::Zip),
-            _ => Err(()),
+            _ => Err(ParseMethodError(value.to_owned())),
         }
+    }
+}
+
+impl TryFrom<&str> for Method {
+    type Error = ParseMethodError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value.parse()
+    }
+}
+
+impl<'de> Deserialize<'de> for Method {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        s.parse().map_err(serde::de::Error::custom)
     }
 }
 

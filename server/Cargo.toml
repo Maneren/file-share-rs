@@ -31,6 +31,7 @@ port_check.workspace = true
 qr_code.workspace = true
 rfd.workspace = true
 rust-embed.workspace = true
+serde.workspace = true
 thiserror.workspace = true
 tokio-stream.workspace = true
 tokio-tar.workspace = true
