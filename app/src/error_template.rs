@@ -5,7 +5,7 @@ use leptos::prelude::*;
 use leptos_axum::ResponseOptions;
 use thiserror::Error;
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum AppError {
     #[error("Not Found")]
     NotFound,
@@ -24,28 +24,32 @@ pub fn ErrorTemplate(
     #[prop(optional)] outside_errors: Option<Errors>,
     #[prop(optional)] errors: Option<RwSignal<Errors>>,
 ) -> impl IntoView {
-    let errors = outside_errors
+    let errors_signal = outside_errors
         .map(RwSignal::new)
         .or(errors)
-        .expect("No Errors found and we expected errors!");
+        .unwrap_or_else(RwSignal::default);
 
-    let errors = errors()
-        .into_iter()
-        .filter_map(|(_k, v)| v.downcast_ref().cloned())
-        .collect::<Vec<AppError>>();
+    let errors = Memo::new(move |_| {
+        errors_signal()
+            .into_iter()
+            .filter_map(|(_k, v)| v.downcast_ref::<AppError>().cloned())
+            .collect::<Vec<AppError>>()
+    });
 
     cfg_if! { if #[cfg(feature="ssr")] {
         let response = use_context::<ResponseOptions>();
-        if let Some(response) = response {
-            response.set_status(errors[0].status_code());
+        if let (Some(response), Some(first)) = (response, errors().first()) {
+            response.set_status(first.status_code());
         }
     }}
 
-    let errors_len = errors.len();
-
     view! {
-      <h1>{if errors_len > 1 { "Errors" } else { "Error" }}</h1>
-      <For each=move || errors.clone().into_iter().enumerate() key=|(index, _)| *index let:error>
+      <h1>{move || if errors().len() > 1 { "Errors" } else { "Error" }}</h1>
+      <For
+        each=move || errors().into_iter().enumerate()
+        key=|(index, _)| *index
+        let:error
+      >
         <h2>{error.1.status_code().to_string()}</h2>
         <p>"Error: " {error.1.to_string()}</p>
       </For>
