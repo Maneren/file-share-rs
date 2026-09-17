@@ -28,9 +28,16 @@ fn EntryComponent(
     let inner = view! {
       <div class="grid gap-2 w-full entry grid-cols-(--entry-cols-mobile) md:grid-cols-(--entry-cols)">
         <Icon type_=type_ name=name.clone() />
-        <span class="flex overflow-x-hidden items-center">{name}</span>
+        <span
+          class="flex overflow-hidden text-ellipsis whitespace-nowrap items-center"
+          title=name.clone()
+        >
+          {name.clone()}
+        </span>
         <span class="flex justify-end items-center">{size}</span>
-        <span class="hidden items-center md:flex">{relative_time}</span>
+        <span class="hidden items-center md:flex" title=relative_time.clone()>
+          {relative_time.clone()}
+        </span>
       </div>
     };
 
@@ -55,37 +62,48 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
         return Either::Left(view! { <div class="file-view">"The folder is empty"</div> });
     }
 
-    let path = path.get_untracked();
+    let path = StoredValue::new(path.get_untracked());
+    let entries = StoredValue::new(entries);
 
     Either::Right(view! {
       <div class="file-view">
-        {entries
-          .into_iter()
-          .map(|entry| match entry {
+        <For
+          each=move || entries.get_value()
+          key=|entry| match entry {
+            ServerEntry::File { name, .. } => format!("f:{name}"),
+            ServerEntry::Folder { name, .. } => format!("d:{name}"),
+          }
+          let:entry
+        >
+          {match entry {
             ServerEntry::File { name, size, last_modified } => {
+              let base = path.get_value();
               view! {
                 <EntryComponent
                   type_=EntryType::File
-                  href=format_file_href(&path, &name)
+                  href=format_file_href(&base, &name)
                   name=name
                   size=Some(format_bytes(size))
                   relative_time=last_modified.humanize()
                 />
               }
+                .into_any()
             }
             ServerEntry::Folder { name, last_modified } => {
+              let base = path.get_value();
               view! {
                 <EntryComponent
                   type_=EntryType::Folder
-                  href=format_folder_href(&path, &name)
+                  href=format_folder_href(&base, &name)
                   name=name
                   size=None
                   relative_time=last_modified.humanize()
                 />
               }
+                .into_any()
             }
-          })
-          .collect_view()}
+          }}
+        </For>
       </div>
     })
 }
