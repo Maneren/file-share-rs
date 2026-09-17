@@ -26,7 +26,7 @@ use leptos::{
     logging::{error, warn},
     prelude::{get_configuration, provide_context},
 };
-use leptos_axum::{LeptosRoutes, generate_route_list};
+use leptos_axum::{AxumRouteListing, LeptosRoutes, generate_route_list};
 use tokio::task::JoinSet;
 use tower_http::{
     compression::{
@@ -101,43 +101,7 @@ async fn main() {
         target_dir.to_string_lossy().yellow().bold()
     );
 
-    // Compress only responses that actually benefit from it.
-    let compression_predicate = DefaultPredicate::new()
-        // skip upload progress
-        .and(NotForContentType::new("application/octet-stream"))
-        // skip already-compressed payloads
-        .and(NotForContentType::new("application/zip"))
-        .and(NotForContentType::new("application/gzip"))
-        .and(NotForContentType::new("application/zstd"))
-        .and(NotForContentType::new("application/x-tar"))
-        // skip generally incompressible payloads
-        .and(NotForContentType::new("video/"))
-        .and(NotForContentType::new("audio/"));
-    let compression = CompressionLayer::new().compress_when(compression_predicate);
-
-    // NOTE: `Router::layer` only wraps routes registered *before* it, so
-    // compression applies solely to the UI/API routes above it.
-    let app = Router::new()
-        .route("/", get(|| async { Redirect::to("/index") }))
-        .route("/help", get(|| async { API_HELP_TEXT }))
-        .leptos_routes_with_context(
-            &app_state,
-            routes,
-            move || provide_context(Arc::clone(&app_config)),
-            {
-                let leptos_options = Arc::clone(&app_state.leptos_options);
-                move || shell((*leptos_options).clone())
-            },
-        )
-        .fallback(file_and_error_handler)
-        .layer(compression)
-        .route("/archive/{*path}", get(handle_archive_with_path))
-        .route("/archive/", get(handle_archive_without_path))
-        .route("/upload/{*path}", post(file_upload_with_path))
-        .route("/upload/", post(file_upload_without_path))
-        .nest_service("/files", ServeDir::new(&target_dir))
-        .layer(DefaultBodyLimit::disable())
-        .with_state(app_state);
+    let app = create_router(app_state.clone(), routes);
 
     let display_urls = get_display_urls(&interfaces, port);
 
@@ -200,6 +164,49 @@ async fn main() {
             Err(e) => error!("Server task failed: {e}"),
         }
     }
+}
+
+fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Router {
+    // Compress only responses that actually benefit from it.
+    let compression_predicate = DefaultPredicate::new()
+        // skip upload progress
+        .and(NotForContentType::new("application/octet-stream"))
+        // skip already-compressed payloads
+        .and(NotForContentType::new("application/zip"))
+        .and(NotForContentType::new("application/gzip"))
+        .and(NotForContentType::new("application/zstd"))
+        .and(NotForContentType::new("application/x-tar"))
+        // skip generally incompressible payloads
+        .and(NotForContentType::new("video/"))
+        .and(NotForContentType::new("audio/"));
+    let compression = CompressionLayer::new().compress_when(compression_predicate);
+
+    let app_config = Arc::clone(&app_state.app_config);
+    let target_dir = app_state.app_config.target_dir.clone();
+
+    // NOTE: `Router::layer` only wraps routes registered *before* it, so
+    // compression applies solely to the UI/API routes above it.
+    Router::new()
+        .route("/", get(|| async { Redirect::to("/index") }))
+        .route("/help", get(|| async { API_HELP_TEXT }))
+        .leptos_routes_with_context(
+            &app_state,
+            routes,
+            move || provide_context(Arc::clone(&app_config)),
+            {
+                let leptos_options = Arc::clone(&app_state.leptos_options);
+                move || shell((*leptos_options).clone())
+            },
+        )
+        .fallback(file_and_error_handler)
+        .layer(compression)
+        .route("/archive/{*path}", get(handle_archive_with_path))
+        .route("/archive/", get(handle_archive_without_path))
+        .route("/upload/{*path}", post(file_upload_with_path))
+        .route("/upload/", post(file_upload_without_path))
+        .nest_service("/files", ServeDir::new(&target_dir))
+        .layer(DefaultBodyLimit::disable())
+        .with_state(app_state)
 }
 
 fn print_qr_codes(display_urls: &[String]) {
