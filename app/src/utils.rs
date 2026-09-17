@@ -87,7 +87,7 @@ pub fn is_safe_relative_path(path: &Path) -> bool {
     !path.is_absolute()
         && path
             .components()
-            .all(|comp| matches!(comp, Component::Normal(_) | Component::CurDir))
+            .all(|comp| matches!(comp, Component::Normal(_)))
 }
 
 pub fn is_safe_file_name(name: impl AsRef<Path>) -> bool {
