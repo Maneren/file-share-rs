@@ -64,6 +64,7 @@ pub async fn get_config() -> Result<Config, String> {
         picker,
         upload,
     } = Cli::parse();
+
     let target_dir = if picker {
         rfd::AsyncFileDialog::new()
             .set_title("Select directory to share")
@@ -73,8 +74,14 @@ pub async fn get_config() -> Result<Config, String> {
             .path()
             .to_path_buf()
     } else {
-        target_dir.canonicalize().map_err(|e| e.to_string())?
+        target_dir
     };
+
+    let canonical_target_dir = target_dir.canonicalize().map_err(|e| e.to_string())?;
+
+    if !canonical_target_dir.is_dir() {
+        return Err(format!("`{}` is not a directory", target_dir.display()));
+    }
 
     let port = (port != 0 && port_check::is_local_port_free(port))
         .then_some(port)
@@ -82,7 +89,7 @@ pub async fn get_config() -> Result<Config, String> {
         .ok_or("Couldn't find an open port")?;
 
     Ok(Config {
-        target_dir,
+        target_dir: canonical_target_dir,
         allow_upload: upload,
         port,
         qr,
