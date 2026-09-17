@@ -1,6 +1,7 @@
 use std::{
     hash::{DefaultHasher, Hash, Hasher},
     path::PathBuf,
+    sync::Arc,
 };
 
 use leptos::{
@@ -54,7 +55,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
         Ok(buffer)
     }
 
-    let app_config = expect_context::<AppConfig>();
+    let app_config = expect_context::<Arc<AppConfig>>();
 
     if !app_config.allow_upload {
         return Err(ServerError("Uploads are disabled".into()));

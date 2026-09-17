@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 pub mod archive;
 mod components;
@@ -58,7 +58,7 @@ pub fn FilesPage() -> impl IntoView {
 
     let path_signal = Signal::from(path);
 
-    let app_config = expect_context::<AppConfig>();
+    let app_config = expect_context::<Arc<AppConfig>>();
 
     let upload_bar = app_config.allow_upload.then(|| {
         view! { <UploadBar path=path_signal create_folder_action=create_folder_action /> }

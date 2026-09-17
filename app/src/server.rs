@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 cfg_if! { if #[cfg(feature = "ssr")] {
     use leptos::logging::warn;
@@ -30,7 +30,7 @@ pub enum ServerEntry {
 
 #[server(name = ListDir, prefix = "/api", endpoint = "list_dir")]
 pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
-    let base_path = expect_context::<AppConfig>().target_dir;
+    let base_path = expect_context::<Arc<AppConfig>>().target_dir.clone();
 
     let Ok(path) = base_path.join(&path).canonicalize() else {
         warn!("Attempt to access invalid path: {path:?}");
@@ -78,7 +78,7 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
 pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError> {
     use crate::utils::{is_safe_file_name, is_safe_relative_path};
 
-    let app_config = expect_context::<AppConfig>();
+    let app_config = expect_context::<Arc<AppConfig>>();
 
     if !app_config.allow_upload {
         return Err(ServerFnError::ServerError("Uploads are disabled".into()));

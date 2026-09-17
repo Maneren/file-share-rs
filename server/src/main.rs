@@ -9,6 +9,7 @@ use std::{
     io,
     net::{IpAddr, SocketAddr},
     process,
+    sync::Arc,
 };
 
 use axum::{
@@ -76,14 +77,14 @@ async fn main() {
         allow_upload,
     } = cli_config;
 
-    let app_config = AppConfig {
+    let app_config = Arc::new(AppConfig {
         target_dir: target_dir.clone(),
         allow_upload,
-    };
+    });
 
     let app_state = AppState {
-        app_config: app_config.clone(),
-        leptos_options: leptos_options.clone(),
+        app_config: Arc::clone(&app_config),
+        leptos_options: Arc::new(leptos_options),
     };
 
     if let Err(e) = create_dir_all(&target_dir) {
@@ -118,8 +119,11 @@ async fn main() {
         .leptos_routes_with_context(
             &app_state,
             routes,
-            move || provide_context(app_config.clone()),
-            move || shell(leptos_options.clone()),
+            move || provide_context(Arc::clone(&app_config)),
+            {
+                let leptos_options = Arc::clone(&app_state.leptos_options);
+                move || shell((*leptos_options).clone())
+            },
         )
         .fallback(file_and_error_handler)
         .layer(compression)

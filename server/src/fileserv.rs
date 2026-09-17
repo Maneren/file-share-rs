@@ -14,7 +14,7 @@ use axum::{
 };
 pub use file_share_app::archive::Method;
 use file_share_app::{
-    AppConfig, AppState, shell,
+    AppState, shell,
     utils::{format_bytes, is_safe_file_name, is_safe_relative_path, try_decode_path},
 };
 use leptos::{logging, prelude::provide_context};
@@ -46,8 +46,14 @@ pub async fn file_and_error_handler(
     }
 
     let handler = leptos_axum::render_app_to_stream_with_context(
-        move || provide_context(app_state.app_config.clone()),
-        move || shell(app_state.leptos_options.clone()),
+        {
+            let app_config = app_state.app_config.clone();
+            move || provide_context(app_config.clone())
+        },
+        {
+            let leptos_options = app_state.leptos_options.clone();
+            move || shell((*leptos_options).clone())
+        },
     );
     handler(request).await.into_response()
 }
@@ -95,13 +101,14 @@ fn serve_static_file(request: &Request<Body>, path: &str, file: EmbeddedFile) ->
 /// Handles archive requests.
 #[allow(clippy::implicit_hasher)]
 pub async fn handle_archive_with_path<'a>(
-    State(AppConfig { target_dir, .. }): State<AppConfig>,
+    State(app_state): State<AppState>,
     Path(path): Path<String>,
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse + use<'a> {
+    let target_dir = &app_state.app_config.target_dir;
     logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
 
-    let Some(path) = safe_join_path(&target_dir, &try_decode_path(&path)) else {
+    let Some(path) = safe_join_path(target_dir, &try_decode_path(&path)) else {
         return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
     };
 
@@ -111,11 +118,14 @@ pub async fn handle_archive_with_path<'a>(
 /// Handles archive requests.
 #[allow(clippy::implicit_hasher)]
 pub async fn handle_archive_without_path(
-    State(AppConfig { target_dir, .. }): State<AppConfig>,
+    State(app_state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> impl IntoResponse + use<> {
     logging::log!("Handling archive without path and with params '{params:?}'");
-    handle_archive(target_dir, params.get("method"))
+    handle_archive(
+        app_state.app_config.target_dir.clone(),
+        params.get("method"),
+    )
 }
 
 fn handle_archive(path: PathBuf, method: Option<&String>) -> impl IntoResponse + use<> {
@@ -197,7 +207,7 @@ pub async fn file_upload_without_path(
         return UPLOAD_DISABLED.into_response();
     }
 
-    file_upload(app_config.target_dir, multipart)
+    file_upload(app_config.target_dir.clone(), multipart)
         .await
         .into_response()
 }
