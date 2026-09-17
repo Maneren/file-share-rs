@@ -980,7 +980,9 @@ dependencies = [
  "tokio-stream",
  "tokio-tar",
  "tokio-util",
+ "tower",
  "tower-http",
+ "urlencoding",
 ]
 
 [[package]]

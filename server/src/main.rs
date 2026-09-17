@@ -15,6 +15,7 @@ use std::{
 use axum::{
     Router,
     extract::DefaultBodyLimit,
+    middleware,
     response::Redirect,
     routing::{get, post},
 };
@@ -28,6 +29,7 @@ use leptos::{
 };
 use leptos_axum::{AxumRouteListing, LeptosRoutes, generate_route_list};
 use tokio::task::JoinSet;
+use tower::Layer as _;
 use tower_http::{
     compression::{
         CompressionLayer,
@@ -39,7 +41,7 @@ use tower_http::{
 use crate::{
     config::{Config, get_config},
     fileserv::{
-        file_and_error_handler, file_upload_with_path, file_upload_without_path,
+        file_and_error_handler, file_upload_with_path, file_upload_without_path, gate_shared_files,
         handle_archive_with_path, handle_archive_without_path,
     },
 };
@@ -204,7 +206,11 @@ fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Router {
         .route("/archive/", get(handle_archive_without_path))
         .route("/upload/{*path}", post(file_upload_with_path))
         .route("/upload/", post(file_upload_without_path))
-        .nest_service("/files", ServeDir::new(&target_dir))
+        .nest_service(
+            "/files",
+            middleware::from_fn_with_state(app_state.clone(), gate_shared_files)
+                .layer(ServeDir::new(&target_dir)),
+        )
         .layer(DefaultBodyLimit::disable())
         .with_state(app_state)
 }

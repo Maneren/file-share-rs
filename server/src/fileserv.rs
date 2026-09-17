@@ -9,7 +9,8 @@ use axum::{
     body::Body,
     extract::{Multipart, Path, Query, State},
     http::{HeaderValue, Request, Response, StatusCode, Uri, header},
-    response::IntoResponse,
+    middleware::Next,
+    response::{IntoResponse, Response as AxumResponse},
 };
 pub use file_share_app::archive::Method;
 use file_share_app::{
@@ -238,6 +239,34 @@ fn content_disposition(file_name: &str) -> Option<HeaderValue> {
 
 const UPLOAD_DISABLED: (StatusCode, &str) = (StatusCode::FORBIDDEN, "Upload is not enabled");
 const PATH_NOT_FOUND: (StatusCode, &str) = (StatusCode::NOT_FOUND, "Requested path not found");
+
+/// Reject requests escaping the share before `ServeDir` sees them.
+///
+/// `ServeDir` opens paths on disk as-is, so a symlink inside the share
+/// pointing outside (e.g. `link -> /etc`) would expose arbitrary files.
+/// Resolving through the real filesystem here closes that hole; valid
+/// requests pass through untouched, preserving `ServeDir` range support.
+pub async fn gate_shared_files(
+    State(app_state): State<AppState>,
+    req: Request<Body>,
+    next: Next,
+) -> AxumResponse {
+    let rel = req
+        .uri()
+        .path()
+        .trim_start_matches("/files")
+        .trim_start_matches('/');
+    // `ServeDir` decodes percent-encoding itself, so validate the decoded
+    // form exactly once here; anything unresolvable is a 404 either way.
+    let Ok(decoded) = urlencoding::decode(rel) else {
+        return PATH_NOT_FOUND.into_response();
+    };
+    let base = &app_state.app_config.target_dir;
+    match tokio::fs::canonicalize(base.join(StdPath::new(decoded.as_ref()))).await {
+        Ok(canonical) if canonical.starts_with(base) => next.run(req).await,
+        _ => PATH_NOT_FOUND.into_response(),
+    }
+}
 
 pub async fn file_upload_with_path(
     State(AppState { app_config, .. }): State<AppState>,

@@ -37,4 +37,6 @@ tokio-stream.workspace = true
 tokio-tar.workspace = true
 tokio-util.workspace = true
 tokio.workspace = true
+tower.workspace = true
 tower-http.workspace = true
+urlencoding.workspace = true

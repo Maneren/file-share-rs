@@ -60,6 +60,7 @@ tokio = { version = "1.38", features = [
 tokio-stream = "0.1"
 tokio-tar = "0.3"
 tokio-util = { version = "0.7", features = ["io", "compat"] }
+tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = [
   "async-compression",
   "fs",
