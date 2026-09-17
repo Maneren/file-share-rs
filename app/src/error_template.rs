@@ -27,7 +27,7 @@ pub fn ErrorTemplate(
     let errors_signal = outside_errors
         .map(RwSignal::new)
         .or(errors)
-        .unwrap_or_else(RwSignal::default);
+        .unwrap_or_default();
 
     let errors = Memo::new(move |_| {
         errors_signal()
