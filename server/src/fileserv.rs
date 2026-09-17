@@ -144,27 +144,77 @@ fn handle_archive(path: PathBuf, archive_method: Method) -> impl IntoResponse + 
 
     logging::log!("Creating: {file_name}");
 
+    let Some(disposition) = content_disposition(&file_name) else {
+        logging::error!("Failed to build Content-Disposition for {file_name:?}");
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to prepare download",
+        )
+            .into_response();
+    };
+
     let (mut writer, reader) = tokio::io::duplex(DUPLEX_BUF_SIZE);
     let stream = ReaderStream::with_capacity(reader, READER_STREAM_CAPACITY);
 
     tokio::spawn(async move {
         if let Err(err) = archive::create_archive(archive_method, path, &mut writer).await {
             logging::error!("Error during archive creation: {err:?}");
-            writer.shutdown().await.expect("Failed to shutdown writer");
+            if let Err(err) = writer.shutdown().await {
+                logging::error!("Failed to shut down archive stream: {err}");
+            }
         }
     });
 
-    let headers: [(_, HeaderValue); 3] = [
+    let headers = [
+        (header::CONTENT_DISPOSITION, disposition),
         (
-            header::CONTENT_DISPOSITION,
-            format!(r#"attachment; filename="{file_name}""#).parse(),
+            header::CONTENT_TYPE,
+            archive_method
+                .mimetype()
+                .parse()
+                .expect("Static mimetypes are valid"),
         ),
-        (header::CONTENT_TYPE, archive_method.mimetype().parse()),
-        (header::CACHE_CONTROL, "no-cache".parse()),
-    ]
-    .map(|(key, value)| (key, value.expect("The headers are valid")));
+        (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
+    ];
 
     (headers, Body::from_stream(stream)).into_response()
+}
+
+/// Build a `Content-Disposition` value safe for on-disk file names.
+///
+/// The quoted `filename` carries an ASCII-only fallback (`"` and other
+/// problematic characters replaced), while `filename*` (RFC 5987) carries
+/// the exact UTF-8 name. Returns `None` when no valid header can be built
+/// instead of panicking on attacker-influenced input.
+fn content_disposition(file_name: &str) -> Option<HeaderValue> {
+    fn is_attr_char(b: u8) -> bool {
+        b.is_ascii_alphanumeric() || matches!(b, b'!' | b'#' | b'$' | b'&' | b'+' | b'-' | b'.' | b'^' | b'_' | b'`' | b'|' | b'~')
+    }
+
+    let fallback: String = file_name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_graphic() && !matches!(c, '"' | '\\') {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    let mut encoded = String::with_capacity(file_name.len());
+    for b in file_name.bytes() {
+        if is_attr_char(b) {
+            encoded.push(b as char);
+        } else {
+            use std::fmt::Write as _;
+            let _ = write!(encoded, "%{b:02X}");
+        }
+    }
+
+    format!(r#"attachment; filename="{fallback}"; filename*=UTF-8''{encoded}"#)
+        .parse()
+        .ok()
 }
 
 const UPLOAD_DISABLED: (StatusCode, &str) = (StatusCode::FORBIDDEN, "Upload is not enabled");
