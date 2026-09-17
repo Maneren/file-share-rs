@@ -17,7 +17,6 @@ use file_share_app::{
     AppConfig, AppState, shell,
     utils::{format_bytes, is_safe_file_name, is_safe_relative_path, try_decode_path},
 };
-use futures::{Stream, stream::Chunks};
 use leptos::{logging, prelude::provide_context};
 use rust_embed::{EmbeddedFile, RustEmbed};
 use tokio::{fs::File, io::AsyncWriteExt};
