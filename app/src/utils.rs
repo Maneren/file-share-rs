@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     path::{Component, PathBuf},
     time::{self, UNIX_EPOCH},
 };
@@ -66,13 +65,6 @@ pub fn encode_path(path: impl AsRef<Path>) -> String {
         .join("/")
 }
 
-#[must_use]
-pub fn try_decode_path(path: &str) -> PathBuf {
-    urlencoding::decode(path)
-        .map(Cow::into_owned)
-        .unwrap_or_else(|_| path.to_owned())
-        .into()
-}
 #[must_use]
 pub fn format_folder_href(base_path: &Path, name: &str) -> String {
     format!("/index/{}", encode_path(base_path.join(name)))

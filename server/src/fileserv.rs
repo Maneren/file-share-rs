@@ -14,7 +14,7 @@ use axum::{
 pub use file_share_app::archive::Method;
 use file_share_app::{
     AppState, shell,
-    utils::{format_bytes, is_safe_file_name, resolve_contained_path, try_decode_path},
+    utils::{format_bytes, is_safe_file_name, resolve_contained_path},
 };
 use leptos::{logging, prelude::provide_context};
 use rust_embed::{EmbeddedFile, RustEmbed};
@@ -111,7 +111,9 @@ pub async fn handle_archive_with_path<'a>(
     let target_dir = &app_state.app_config.target_dir;
     logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
 
-    let Some(path) = resolve_contained_path(target_dir, &try_decode_path(&path)).await else {
+    // Axum already percent-decodes `Path` params exactly once; decoding
+    // again here would turn `%252e` into `.` and reopen traversal.
+    let Some(path) = resolve_contained_path(target_dir, StdPath::new(&path)).await else {
         return PATH_NOT_FOUND.into_response();
     };
 
