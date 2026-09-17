@@ -32,6 +32,11 @@ pub enum ServerEntry {
 
 #[server(name = ListDir, prefix = "/api", endpoint = "list_dir")]
 pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
+    fn read_dir_error(path: &PathBuf, e: impl std::fmt::Display) -> ServerFnError {
+        warn!("Failed to read directory {path:?}: {e}");
+        ServerFnError::ServerError("Failed to read directory".into())
+    }
+
     let base_path = expect_context::<Arc<AppConfig>>().target_dir.clone();
 
     let Some(path) = resolve_contained_path(&base_path, &path).await else {
@@ -43,12 +48,27 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
 
     let mut entries = Vec::new();
 
-    let mut directory = fs::read_dir(path).await?;
+    let mut directory = fs::read_dir(&path)
+        .await
+        .map_err(|e| read_dir_error(&path, e))?;
 
-    while let Some(entry) = directory.next_entry().await? {
+    while let Some(entry) = directory
+        .next_entry()
+        .await
+        .map_err(|e| read_dir_error(&path, e))?
+    {
         let name = entry.file_name().to_string_lossy().into_owned();
-        let metadata = entry.metadata().await?;
-        let last_modified = metadata.modified()?.into();
+        // One unreadable entry must not fail the whole listing, and its
+        // OS error stays server-side.
+        let Ok(metadata) = entry.metadata().await else {
+            warn!("Skipping {path:?}/{name}: cannot read metadata");
+            continue;
+        };
+        let Ok(modified) = metadata.modified() else {
+            warn!("Skipping {path:?}/{name}: cannot read modification time");
+            continue;
+        };
+        let last_modified = modified.into();
 
         if metadata.is_dir() {
             entries.push(ServerEntry::Folder {
@@ -73,6 +93,11 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
 pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError> {
     use crate::utils::{is_safe_file_name, is_safe_relative_path};
 
+    fn create_dir_error(path: &PathBuf, name: &str, e: impl std::fmt::Display) -> ServerFnError {
+        warn!("Failed to create folder {path:?}/{name}: {e}");
+        ServerFnError::ServerError("Failed to create folder".into())
+    }
+
     let app_config = expect_context::<Arc<AppConfig>>();
 
     if !app_config.allow_upload {
@@ -91,7 +116,9 @@ pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError
         return Err(ServerFnError::ServerError("Invalid path".into()));
     };
 
-    fs::create_dir(parent.join(&name)).await?;
+    fs::create_dir(parent.join(&name))
+        .await
+        .map_err(|e| create_dir_error(&path, &name, e))?;
 
     Ok(())
 }

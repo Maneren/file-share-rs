@@ -319,9 +319,10 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
         let mut file = match File::create_new(&path).await {
             Ok(file) => file,
             Err(err) => {
+                logging::error!("Failed to create file {}: {err}", path.display());
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to create file: {err}"),
+                    "Failed to create file",
                 )
                     .into_response();
             },
@@ -332,20 +333,18 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             let chunk = match field.chunk().await {
                 Ok(chunk) => chunk,
                 Err(e) => {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        format!("Invalid file content: {e}"),
-                    )
-                        .into_response();
+                    logging::error!("Failed to read upload for {}: {e}", path.display());
+                    return (StatusCode::BAD_REQUEST, "Failed to read upload").into_response();
                 },
             };
             let Some(chunk) = chunk else { break };
 
             total_bytes += chunk.len() as u64;
             if let Err(err) = file.write_all(&chunk).await {
+                logging::error!("Failed to write file {}: {err}", path.display());
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to write file: {err}"),
+                    "Failed to store upload",
                 )
                     .into_response();
             }

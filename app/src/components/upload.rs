@@ -35,11 +35,21 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
         utils::{is_safe_file_name, is_safe_relative_path},
     };
 
+    fn read_upload_error(e: impl std::fmt::Display) -> ServerFnError {
+        logging::error!("Failed to read upload: {e}");
+        server_fn::ServerFnError::ServerError("Failed to read upload".into())
+    }
+
+    fn store_upload_error(name: &str, e: impl std::fmt::Display) -> ServerFnError {
+        logging::error!("[{name}]\tfailed to store upload: {e}");
+        server_fn::ServerFnError::ServerError("Failed to store upload".into())
+    }
+
     async fn collect_field_with_name(
         data: &mut multer::Multipart<'static>,
         name: &str,
     ) -> Result<String, ServerFnError> {
-        let Some(mut field) = data.next_field().await? else {
+        let Some(mut field) = data.next_field().await.map_err(read_upload_error)? else {
             logging::error!("no field");
             return Err(ServerError("No field.".into()));
         };
@@ -49,7 +59,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
         }
 
         let mut buffer = String::new();
-        while let Some(chunk) = field.chunk().await? {
+        while let Some(chunk) = field.chunk().await.map_err(read_upload_error)? {
             buffer.push_str(&String::from_utf8_lossy(&chunk));
         }
 
@@ -80,7 +90,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
 
     logging::log!("[{id}]\tbase path: {base_req_path:?}");
 
-    while let Some(mut field) = data.next_field().await? {
+    while let Some(mut field) = data.next_field().await.map_err(read_upload_error)? {
         let Some(name) = field.file_name().map(str::to_owned) else {
             logging::error!("no file name");
             return Err(ServerError("Missing file name in multipart".into()));
@@ -98,15 +108,18 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
             .write(true)
             .truncate(true)
             .open(&path)
-            .await?;
+            .await
+            .map_err(|e| store_upload_error(&name, e))?;
 
         logging::log!("[{name}]\topen");
 
-        while let Some(chunk) = field.chunk().await? {
+        while let Some(chunk) = field.chunk().await.map_err(read_upload_error)? {
             let len = chunk.len();
 
             progress::add_chunk(&id, len).await;
-            file.write_all(&chunk).await?;
+            file.write_all(&chunk)
+                .await
+                .map_err(|e| store_upload_error(&name, e))?;
         }
 
         logging::log!("[{name}]\tfinished");
