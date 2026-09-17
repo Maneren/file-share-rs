@@ -15,10 +15,10 @@ jobs:
     env:
       CARGO_TARGET_DIR: target
       LEPTOS_BIN_TARGET_TRIPLE: ${{ inputs.target }}
-      LEPTOS_TAILWIND_VERSION: v4.1.18
+      LEPTOS_TAILWIND_VERSION: v4.3.3
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Initialize workflow variables
         id: vars
         shell: bash
@@ -53,7 +53,7 @@ jobs:
           sudo apt-get -y update
           sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Install NodeJS
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: lts/*
           check-latest: true
@@ -76,7 +76,7 @@ jobs:
         env:
           LEPTOS_BIN_CARGO_COMMAND: cross
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.target }}-${{ env.BINARY }}
           path: ${{ env.RELEASE }}/${{ env.BINARY }}
