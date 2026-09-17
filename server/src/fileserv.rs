@@ -208,7 +208,11 @@ fn handle_archive(path: PathBuf, archive_method: Method) -> impl IntoResponse + 
 /// instead of panicking on attacker-influenced input.
 fn content_disposition(file_name: &str) -> Option<HeaderValue> {
     fn is_attr_char(b: u8) -> bool {
-        b.is_ascii_alphanumeric() || matches!(b, b'!' | b'#' | b'$' | b'&' | b'+' | b'-' | b'.' | b'^' | b'_' | b'`' | b'|' | b'~')
+        b.is_ascii_alphanumeric()
+            || matches!(
+                b,
+                b'!' | b'#' | b'$' | b'&' | b'+' | b'-' | b'.' | b'^' | b'_' | b'`' | b'|' | b'~'
+            )
     }
 
     let fallback: String = file_name
@@ -320,10 +324,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             Ok(file) => file,
             Err(err) => {
                 logging::error!("Failed to create file {}: {err}", path.display());
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Failed to create file",
-                )
+                return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create file")
                     .into_response();
             },
         };
@@ -342,10 +343,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             total_bytes += chunk.len() as u64;
             if let Err(err) = file.write_all(&chunk).await {
                 logging::error!("Failed to write file {}: {err}", path.display());
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Failed to store upload",
-                )
+                return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to store upload")
                     .into_response();
             }
         }

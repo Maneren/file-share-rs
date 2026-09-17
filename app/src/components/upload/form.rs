@@ -28,13 +28,7 @@ pub fn UploadForm(
         />
         // placeholder that is filled on submission
         <input type="hidden" name="id" value="" />
-        <input
-          type="file"
-          name="uploads"
-          class="file-input grow-[3]"
-          multiple
-          node_ref=file_ref
-        />
+        <input type="file" name="uploads" class="file-input grow-[3]" multiple node_ref=file_ref />
         <button type="submit" class="btn btn-primary grow">
           Upload
         </button>

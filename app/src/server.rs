@@ -111,8 +111,7 @@ pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError
     // Resolve the parent through the real filesystem so a symlinked
     // directory cannot redirect the new folder outside the share.
     // `name` is a single normal component, so joining it cannot escape.
-    let Some(parent) = resolve_contained_path(&app_config.target_dir, &path).await
-    else {
+    let Some(parent) = resolve_contained_path(&app_config.target_dir, &path).await else {
         return Err(ServerFnError::ServerError("Invalid path".into()));
     };
 

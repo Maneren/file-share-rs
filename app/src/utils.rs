@@ -1,9 +1,9 @@
+#[cfg(feature = "ssr")]
+use std::path::PathBuf;
 use std::{
     path::Component,
     time::{self, UNIX_EPOCH},
 };
-#[cfg(feature = "ssr")]
-use std::path::PathBuf;
 
 use chrono::{DateTime, TimeZone, Utc};
 use chrono_humanize::Humanize;
@@ -43,7 +43,9 @@ impl IntoRender for SystemTime {
     type Output = String;
 
     fn into_render(self) -> Self::Output {
-        DateTime::from(self).format("%Y-%m-%d %H:%M:%S UTC").to_string()
+        DateTime::from(self)
+            .format("%Y-%m-%d %H:%M:%S UTC")
+            .to_string()
     }
 }
 impl SystemTime {
