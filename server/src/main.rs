@@ -15,6 +15,7 @@ use std::{
 use axum::{
     Router,
     extract::DefaultBodyLimit,
+    http::{HeaderValue, header},
     middleware,
     response::Redirect,
     routing::{get, post},
@@ -36,6 +37,7 @@ use tower_http::{
         predicate::{DefaultPredicate, NotForContentType, Predicate as _},
     },
     services::ServeDir,
+    set_header::SetResponseHeaderLayer,
 };
 
 use crate::{
@@ -212,6 +214,20 @@ fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Router {
                 .layer(ServeDir::new(&target_dir)),
         )
         .layer(DefaultBodyLimit::disable())
+        // No CSP: Leptos hydration relies on inline scripts, which a
+        // `script-src` policy without `unsafe-inline` would block.
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::REFERRER_POLICY,
+            HeaderValue::from_static("no-referrer"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::X_FRAME_OPTIONS,
+            HeaderValue::from_static("SAMEORIGIN"),
+        ))
         .with_state(app_state)
 }
 
