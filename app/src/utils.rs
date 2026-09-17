@@ -42,7 +42,7 @@ impl IntoRender for SystemTime {
     type Output = String;
 
     fn into_render(self) -> Self::Output {
-        DateTime::from(self).format("%Y-%m-%d %H:%M:%S").to_string()
+        DateTime::from(self).format("%Y-%m-%d %H:%M:%S UTC").to_string()
     }
 }
 impl SystemTime {
