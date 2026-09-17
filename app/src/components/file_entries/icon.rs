@@ -12,6 +12,7 @@ flate!(static FILE_ICON: str from "assets/icons/file.svg");
 flate!(static FOLDER_ICON: str from "assets/icons/folder.svg");
 
 #[derive(RustEmbed)]
+#[compression]
 #[folder = "assets/icons"]
 struct Icons;
 
