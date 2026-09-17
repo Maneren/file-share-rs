@@ -1,7 +1,8 @@
+#[cfg(feature = "ssr")]
+use std::sync::Arc;
 use std::{
     hash::{DefaultHasher, Hash, Hasher},
     path::PathBuf,
-    sync::Arc,
 };
 
 use leptos::{

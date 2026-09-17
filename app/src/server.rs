@@ -1,17 +1,19 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+#[cfg(feature = "ssr")]
+use std::sync::Arc;
 
 cfg_if! { if #[cfg(feature = "ssr")] {
     use leptos::logging::warn;
     use tokio::fs;
 
-    use crate::config::AppConfig;
+    use crate::{config::AppConfig, utils::resolve_contained_path};
 }}
 
 use cfg_if::cfg_if;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::{SystemTime, resolve_contained_path};
+use crate::utils::SystemTime;
 
 pub type Entries = Vec<ServerEntry>;
 

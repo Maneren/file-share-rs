@@ -1,7 +1,9 @@
 use std::{
-    path::{Component, PathBuf},
+    path::Component,
     time::{self, UNIX_EPOCH},
 };
+#[cfg(feature = "ssr")]
+use std::path::PathBuf;
 
 use chrono::{DateTime, TimeZone, Utc};
 use chrono_humanize::Humanize;
