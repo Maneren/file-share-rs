@@ -10,7 +10,12 @@ use wasm_bindgen::prelude::wasm_bindgen;
 #[wasm_bindgen]
 pub fn hydrate() {
     // initializes logging using the `log` crate
-    _ = console_log::init_with_level(log::Level::Debug);
+    let level = if cfg!(debug_assertions) {
+        log::Level::Debug
+    } else {
+        log::Level::Warn
+    };
+    _ = console_log::init_with_level(level);
     console_error_panic_hook::set_once();
     leptos::mount::hydrate_islands();
 }
