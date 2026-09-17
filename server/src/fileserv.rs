@@ -117,6 +117,10 @@ pub async fn handle_archive_with_path<'a>(
         return PATH_NOT_FOUND.into_response();
     };
 
+    if let Err(response) = check_archive_dir(&path).await {
+        return response;
+    }
+
     handle_archive(path, params.method.unwrap_or_default()).into_response()
 }
 
@@ -126,10 +130,25 @@ pub async fn handle_archive_without_path(
     Query(params): Query<ArchiveQuery>,
 ) -> impl IntoResponse + use<> {
     logging::log!("Handling archive without path and with params '{params:?}'");
-    handle_archive(
-        app_state.app_config.target_dir.clone(),
-        params.method.unwrap_or_default(),
-    )
+    let path = app_state.app_config.target_dir.clone();
+    if let Err(response) = check_archive_dir(&path).await {
+        return response;
+    }
+    handle_archive(path, params.method.unwrap_or_default()).into_response()
+}
+
+/// Reject missing paths and non-directories before archive headers are sent.
+/// Otherwise a bad target would produce a `200 OK` with a truncated body.
+async fn check_archive_dir(path: &StdPath) -> Result<(), Response<Body>> {
+    match tokio::fs::metadata(path).await {
+        Ok(metadata) if metadata.is_dir() => Ok(()),
+        Ok(_) => Err((
+            StatusCode::BAD_REQUEST,
+            "Archives can only be created from directories",
+        )
+            .into_response()),
+        Err(_) => Err(PATH_NOT_FOUND.into_response()),
+    }
 }
 
 fn handle_archive(path: PathBuf, archive_method: Method) -> impl IntoResponse + use<> {
