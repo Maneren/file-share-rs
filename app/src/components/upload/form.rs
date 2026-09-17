@@ -15,7 +15,7 @@ pub fn UploadForm(
 ) -> impl IntoView {
     view! {
       <form
-        class="flex flex-row gap-2 grow-2"
+        class="flex flex-row gap-2 grow-[2]"
         method="POST"
         enctype="multipart/form-data"
         node_ref=form_ref
@@ -28,8 +28,14 @@ pub fn UploadForm(
         />
         // placeholder that is filled on submission
         <input type="hidden" name="id" value="" />
-        <input type="file" name="uploads" class="file-input grow-3" multiple node_ref=file_ref />
-        <button type="submit" class="btn btn-primary grow-1">
+        <input
+          type="file"
+          name="uploads"
+          class="file-input grow-[3]"
+          multiple
+          node_ref=file_ref
+        />
+        <button type="submit" class="btn btn-primary grow">
           Upload
         </button>
       </form>
