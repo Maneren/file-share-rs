@@ -47,14 +47,11 @@ jobs:
 
           echo "CROSS=${CROSS}"
           echo "CROSS=${CROSS}" >> "$GITHUB_ENV"
-      - name: Install gcc and linker for other archs
-        if: contains(inputs.target, 'linux')
+      - name: Install gcc for aarch64
+        if: startsWith(inputs.target, 'aarch64-') && contains(inputs.target, 'linux')
         run: |
           sudo apt-get -y update
-          case ${{ inputs.target }} in
-            aarch64-*linux*) sudo apt-get -y install gcc-aarch64-linux-gnu ;;
-            x86_64-*linux*)  sudo apt-get -y install mold ;;
-          esac;
+          sudo apt-get -y install gcc-aarch64-linux-gnu
       - name: Install NodeJS
         uses: actions/setup-node@v4
         with:
