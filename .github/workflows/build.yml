@@ -26,8 +26,8 @@ jobs:
           TARGET=${{ inputs.target }}
 
           case $TARGET in
-            *-pc-windows-*) BINARY="file-share.exe" ;;
-            *)              BINARY="file-share" ;;
+              *-pc-windows-*) BINARY="file-share.exe" ;;
+              *)              BINARY="file-share" ;;
           esac;
 
           echo "BINARY=${BINARY}"
@@ -41,8 +41,8 @@ jobs:
 
 
           case $TARGET in
-            x86_64-*) CROSS="false" ;;
-            *)        CROSS="true" ;;
+              x86_64-*) CROSS="false" ;;
+              *)        CROSS="true" ;;
           esac;
 
           echo "CROSS=${CROSS}"
@@ -52,6 +52,13 @@ jobs:
         run: |
           sudo apt-get -y update
           sudo apt-get -y install gcc-aarch64-linux-gnu
+      - name: Install wasm-capable clang (macOS)
+        # Apple's bundled clang has no WebAssembly backend. Use Homebrew's
+        # clang for that target only; native builds keep using Apple's clang.
+        if: contains(inputs.target, 'apple-darwin')
+        run: |
+          brew install llvm
+          echo "CC_wasm32_unknown_unknown=$(brew --prefix llvm)/bin/clang" >> "$GITHUB_ENV"
       - name: Install NodeJS
         uses: actions/setup-node@v7
         with:
