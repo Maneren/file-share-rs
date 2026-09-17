@@ -150,6 +150,10 @@ async fn zip_dir<W>(dir: &Path, out: W) -> Result<(), Error>
 where
     W: AsyncWrite + Unpin,
 {
+    let folder_name = dir
+        .file_name()
+        .ok_or_else(|| Error::InvalidPath("Directory name terminates in \"..\"".to_string()))?;
+
     let mut zip = ZipFileWriter::with_tokio(out);
 
     zip.comment(format!(
@@ -157,6 +161,9 @@ where
         chrono::Local::now().to_rfc2822()
     ));
 
+    // NOTE: `WalkDir` never follows symlinks, and the `file_type` check below
+    // (which does not resolve links either) additionally skips symlinks,
+    // sockets, fifos and devices, so only regular files land in the archive.
     let mut walker = WalkDir::new(dir);
 
     while let Some(entry) = walker.next().await {
@@ -164,11 +171,14 @@ where
             continue;
         };
 
-        if !entry.file_type().await.is_ok_and(|t| t.is_file()) {
+        let Ok(file_type) = entry.file_type().await else {
+            continue;
+        };
+        if file_type.is_symlink() || !file_type.is_file() {
             continue;
         }
 
-        add_file_to_zip(&entry.path(), dir, &mut zip).await?;
+        add_file_to_zip(&entry.path(), dir, folder_name, &mut zip).await?;
     }
 
     zip.close().await.map_err(|e| {
@@ -184,18 +194,20 @@ where
 async fn add_file_to_zip<W>(
     path: &Path,
     base_dir: &Path,
+    folder_name: &std::ffi::OsStr,
     zip: &mut ZipFileWriter<W>,
 ) -> Result<(), Error>
 where
     W: AsyncWrite + Unpin,
 {
-    let name = path.strip_prefix(base_dir).map_err(|_| {
+    let relative = path.strip_prefix(base_dir).map_err(|_| {
         Error::InvalidPath(format!(
             "Failed to strip {} from {}",
             base_dir.display(),
             path.display()
         ))
     })?;
+    let name = Path::new(folder_name).join(relative);
 
     let zip_name = ZipString::new(
         name.to_string_lossy().as_bytes().to_owned(),
