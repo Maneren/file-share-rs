@@ -18,15 +18,16 @@ use axum::{
     response::Redirect,
     routing::{get, post},
 };
+use axum_server::Handle;
 use colored::Colorize;
 use file_share_app::{App, AppConfig, AppState, shell};
-use futures::future::try_join_all;
 use if_addrs::Interface;
 use leptos::{
     logging::{error, warn},
     prelude::{get_configuration, provide_context},
 };
 use leptos_axum::{LeptosRoutes, generate_route_list};
+use tokio::task::JoinSet;
 use tower_http::{
     compression::{
         CompressionLayer,
@@ -60,7 +61,10 @@ Available methods are tar, tar.gz, tar.zst, zip.
 
 #[tokio::main]
 async fn main() {
-    let conf = get_configuration(None).unwrap();
+    let conf = get_configuration(None).unwrap_or_else(|e| {
+        eprintln!("Failed to load Leptos configuration: {e}");
+        process::exit(1);
+    });
     let leptos_options = conf.leptos_options;
     let routes = generate_route_list(App);
 
@@ -168,20 +172,33 @@ async fn main() {
         println!("Quit by pressing CTRL-C");
     }
 
-    let start_server = |app: Router, addr: SocketAddr| async move {
-        axum_server::bind(addr)
-            .serve(app.into_make_service())
-            .await
-            .map_err(|e| format!("Failed to start server at {addr}: {e}"))
-    };
+    let handle = Handle::new();
+    let shutdown_handle = handle.clone();
+    tokio::spawn(async move {
+        if tokio::signal::ctrl_c().await.is_ok() {
+            shutdown_handle.shutdown();
+        }
+    });
 
-    let servers = socket_addresses
-        .into_iter()
-        .map(|addr| tokio::spawn(start_server(app.clone(), addr)));
+    let mut join_set = JoinSet::new();
+    for addr in socket_addresses {
+        let app = app.clone();
+        let handle = handle.clone();
+        join_set.spawn(async move {
+            axum_server::bind(addr)
+                .handle(handle)
+                .serve(app.into_make_service())
+                .await
+                .map_err(|e| format!("Failed to start server at {addr}: {e}"))
+        });
+    }
 
-    // Returns the first error if any of the servers return an error.
-    if let Err(e) = try_join_all(servers).await {
-        error!("{e}");
+    while let Some(result) = join_set.join_next().await {
+        match result {
+            Ok(Ok(())) => {},
+            Ok(Err(e)) => error!("{e}"),
+            Err(e) => error!("Server task failed: {e}"),
+        }
     }
 }
 
