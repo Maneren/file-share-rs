@@ -11,7 +11,7 @@ use cfg_if::cfg_if;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::SystemTime;
+use crate::utils::{SystemTime, resolve_contained_path};
 
 pub type Entries = Vec<ServerEntry>;
 
@@ -32,19 +32,12 @@ pub enum ServerEntry {
 pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
     let base_path = expect_context::<Arc<AppConfig>>().target_dir.clone();
 
-    let Ok(path) = base_path.join(&path).canonicalize() else {
-        warn!("Attempt to access invalid path: {path:?}");
+    let Some(path) = resolve_contained_path(&base_path, &path).await else {
+        warn!("Attempt to access invalid or missing path: {path:?}");
         return Err(ServerFnError::ServerError(
             "Requested path not found".into(),
         ));
     };
-
-    if !path.starts_with(&base_path) {
-        warn!("Attempt to access forbidden path: {path:?}");
-        return Err(ServerFnError::ServerError(
-            "Requested path not found".into(),
-        ));
-    }
 
     let mut entries = Vec::new();
 
@@ -88,14 +81,15 @@ pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError
         return Err(ServerFnError::ServerError("Invalid path or name".into()));
     }
 
-    let joined = app_config.target_dir.join(&path).join(&name);
-
-    // Ensure lexical containment (no traversal after join)
-    if !joined.starts_with(&app_config.target_dir) {
+    // Resolve the parent through the real filesystem so a symlinked
+    // directory cannot redirect the new folder outside the share.
+    // `name` is a single normal component, so joining it cannot escape.
+    let Some(parent) = resolve_contained_path(&app_config.target_dir, &path).await
+    else {
         return Err(ServerFnError::ServerError("Invalid path".into()));
-    }
+    };
 
-    fs::create_dir(joined).await?;
+    fs::create_dir(parent.join(&name)).await?;
 
     Ok(())
 }

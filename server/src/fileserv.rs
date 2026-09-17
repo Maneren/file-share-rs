@@ -14,7 +14,7 @@ use axum::{
 pub use file_share_app::archive::Method;
 use file_share_app::{
     AppState, shell,
-    utils::{format_bytes, is_safe_file_name, is_safe_relative_path, try_decode_path},
+    utils::{format_bytes, is_safe_file_name, resolve_contained_path, try_decode_path},
 };
 use leptos::{logging, prelude::provide_context};
 use rust_embed::{EmbeddedFile, RustEmbed};
@@ -111,8 +111,8 @@ pub async fn handle_archive_with_path<'a>(
     let target_dir = &app_state.app_config.target_dir;
     logging::log!("Handling archive with path '{path:?}' and params '{params:?}'");
 
-    let Some(path) = safe_join_path(target_dir, &try_decode_path(&path)) else {
-        return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
+    let Some(path) = resolve_contained_path(target_dir, &try_decode_path(&path)).await else {
+        return PATH_NOT_FOUND.into_response();
     };
 
     handle_archive(path, params.method.unwrap_or_default()).into_response()
@@ -131,7 +131,6 @@ pub async fn handle_archive_without_path(
 }
 
 fn handle_archive(path: PathBuf, archive_method: Method) -> impl IntoResponse + use<> {
-
     let Some(name) = path.file_name() else {
         return (
             StatusCode::BAD_REQUEST,
@@ -167,14 +166,7 @@ fn handle_archive(path: PathBuf, archive_method: Method) -> impl IntoResponse + 
 }
 
 const UPLOAD_DISABLED: (StatusCode, &str) = (StatusCode::FORBIDDEN, "Upload is not enabled");
-
-fn safe_join_path(base_dir: &StdPath, path: &StdPath) -> Option<PathBuf> {
-    is_safe_relative_path(path).then(|| base_dir.join(path))
-}
-
-fn safe_join_file_name(base_dir: &StdPath, file_name: &str) -> Option<PathBuf> {
-    is_safe_file_name(file_name).then(|| base_dir.join(file_name))
-}
+const PATH_NOT_FOUND: (StatusCode, &str) = (StatusCode::NOT_FOUND, "Requested path not found");
 
 pub async fn file_upload_with_path(
     State(AppState { app_config, .. }): State<AppState>,
@@ -185,8 +177,9 @@ pub async fn file_upload_with_path(
         return UPLOAD_DISABLED.into_response();
     }
 
-    let Some(base_path) = safe_join_path(&app_config.target_dir, StdPath::new(&path)) else {
-        return (StatusCode::BAD_REQUEST, format!("Invalid path: {path}")).into_response();
+    let Some(base_path) = resolve_contained_path(&app_config.target_dir, StdPath::new(&path)).await
+    else {
+        return PATH_NOT_FOUND.into_response();
     };
 
     file_upload(base_path, multipart).await.into_response()
@@ -211,7 +204,9 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             continue;
         };
 
-        let Some(path) = safe_join_file_name(&base_dir, file_name) else {
+        // `file_name` is a single normal component, so joining it onto the
+        // already-resolved `base_dir` cannot escape the share.
+        let Some(path) = is_safe_file_name(file_name).then(|| base_dir.join(file_name)) else {
             return (
                 StatusCode::BAD_REQUEST,
                 format!("Invalid file name: {file_name}"),
