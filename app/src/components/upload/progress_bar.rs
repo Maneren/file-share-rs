@@ -14,25 +14,22 @@ pub struct Progress {
 
 #[component]
 pub fn ProgressBar(
-    #[prop(into)] size: Signal<u64>,
-    #[prop(into)] start_time: Signal<Instant>,
+    size: u64,
+    start_time: Instant,
     #[prop(into)] uploaded: Signal<VecDeque<(u64, Instant)>>,
 ) -> impl IntoView {
-    let start_time = *start_time.read();
-
-    let percent = move || {
-        let total = size();
-        if total == 0 {
+    let percent = Memo::new(move |_| {
+        if size == 0 {
             return 0;
         }
         uploaded.with(|queue| {
             queue
                 .back()
-                .map(|(uploaded, _)| uploaded * 100 / total)
+                .map(|(uploaded, _)| uploaded * 100 / size)
                 .unwrap_or_default()
         })
-    };
-    let average_speed = move || {
+    });
+    let average_speed = Memo::new(move |_| {
         uploaded.with(|queue| {
             let Some((last_size, last_time)) = queue.back() else {
                 return 0.0;
@@ -45,7 +42,7 @@ pub fn ProgressBar(
             let size_f64 = *last_size as f64;
             size_f64 / elapsed
         })
-    };
+    });
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let formatted_speed = move || format_bytes(average_speed() as u64);
 
