@@ -19,7 +19,6 @@ use async_zip::{
     Compression, StringEncoding, ZipEntryBuilder, ZipString, tokio::write::ZipFileWriter,
 };
 use cfg_if::cfg_if;
-use chrono::Local;
 use file_share_app::archive::Method;
 use futures::io::copy;
 use thiserror::Error as ThisError;
@@ -158,10 +157,7 @@ where
 
     let mut zip = ZipFileWriter::with_tokio(out);
 
-    zip.comment(format!(
-        "This archive was created by the file-share-rs server at {}",
-        Local::now().to_rfc2822()
-    ));
+    zip.comment("Created by file-share-rs".to_owned());
 
     // NOTE: `WalkDir` never follows symlinks, and the `file_type` check below
     // (which does not resolve links either) additionally skips symlinks,
@@ -193,6 +189,18 @@ where
     Ok(())
 }
 
+/// Extensions whose contents are already compressed, so Deflating them in
+/// zips would only burn CPU for no size gain.
+fn is_incompressible(path: &Path) -> bool {
+    const INCOMPRESSIBLE: [&str; 24] = [
+        "jpg", "jpeg", "png", "gif", "webp", "avif", "mp4", "mkv", "mov", "avi", "webm", "mp3",
+        "ogg", "opus", "flac", "zip", "gz", "bz2", "xz", "zst", "7z", "rar", "woff", "woff2",
+    ];
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| INCOMPRESSIBLE.contains(&ext.to_ascii_lowercase().as_str()))
+}
+
 async fn add_file_to_zip<W>(
     path: &Path,
     base_dir: &Path,
@@ -217,11 +225,17 @@ where
         StringEncoding::Utf8,
     );
 
+    let compression = if is_incompressible(path) {
+        Compression::Stored
+    } else {
+        Compression::Deflate
+    };
+
     let file = fs::File::open(path)
         .await
         .map_err(|e| Error::Io(format!("Failed to open {} for reading", path.display()), e))?;
 
-    let entry = ZipEntryBuilder::new(zip_name, Compression::Deflate);
+    let entry = ZipEntryBuilder::new(zip_name, compression);
 
     cfg_if! { if #[cfg(target_family = "unix")] {
       use std::os::unix::fs::PermissionsExt as _;
