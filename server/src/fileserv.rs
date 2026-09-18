@@ -19,8 +19,14 @@ use file_share_app::{
 };
 use leptos::{logging, prelude::provide_context};
 use rust_embed::{EmbeddedFile, RustEmbed};
-use tokio::{fs::File, io::AsyncWriteExt};
+use serde::Deserialize;
+use tokio::{
+    fs::{self, File},
+    io::{self, AsyncWriteExt},
+    spawn,
+};
 use tokio_util::io::ReaderStream;
+use urlencoding::decode;
 
 #[derive(RustEmbed)]
 #[folder = "../target/site"]
@@ -98,7 +104,7 @@ fn serve_static_file(request: &Request<Body>, path: &str, file: EmbeddedFile) ->
         .into_response()
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ArchiveQuery {
     method: Option<Method>,
 }
@@ -141,7 +147,7 @@ pub async fn handle_archive_without_path(
 /// Reject missing paths and non-directories before archive headers are sent.
 /// Otherwise a bad target would produce a `200 OK` with a truncated body.
 async fn check_archive_dir(path: &StdPath) -> Result<(), Response<Body>> {
-    match tokio::fs::metadata(path).await {
+    match fs::metadata(path).await {
         Ok(metadata) if metadata.is_dir() => Ok(()),
         Ok(_) => Err((
             StatusCode::BAD_REQUEST,
@@ -173,10 +179,10 @@ fn handle_archive(path: PathBuf, archive_method: Method) -> impl IntoResponse + 
             .into_response();
     };
 
-    let (mut writer, reader) = tokio::io::duplex(DUPLEX_BUF_SIZE);
+    let (mut writer, reader) = io::duplex(DUPLEX_BUF_SIZE);
     let stream = ReaderStream::with_capacity(reader, READER_STREAM_CAPACITY);
 
-    tokio::spawn(async move {
+    spawn(async move {
         if let Err(err) = archive::create_archive(archive_method, path, &mut writer).await {
             logging::error!("Error during archive creation: {err:?}");
             if let Err(err) = writer.shutdown().await {
@@ -231,7 +237,6 @@ fn content_disposition(file_name: &str) -> Option<HeaderValue> {
         if is_attr_char(b) {
             encoded.push(b as char);
         } else {
-            use std::fmt::Write as _;
             let _ = write!(encoded, "%{b:02X}");
         }
     }
@@ -262,11 +267,11 @@ pub async fn gate_shared_files(
         .trim_start_matches('/');
     // `ServeDir` decodes percent-encoding itself, so validate the decoded
     // form exactly once here; anything unresolvable is a 404 either way.
-    let Ok(decoded) = urlencoding::decode(rel) else {
+    let Ok(decoded) = decode(rel) else {
         return PATH_NOT_FOUND.into_response();
     };
     let base = &app_state.app_config.target_dir;
-    match tokio::fs::canonicalize(base.join(StdPath::new(decoded.as_ref()))).await {
+    match fs::canonicalize(base.join(StdPath::new(decoded.as_ref()))).await {
         Ok(canonical) if canonical.starts_with(base) => next.run(req).await,
         _ => PATH_NOT_FOUND.into_response(),
     }

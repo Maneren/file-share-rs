@@ -20,16 +20,17 @@ use axum::{
     response::Redirect,
     routing::{get, post},
 };
-use axum_server::Handle;
+use axum_server::{Handle, bind};
 use colored::Colorize;
 use file_share_app::{App, AppConfig, AppState, shell};
-use if_addrs::Interface;
+use if_addrs::{Interface, get_if_addrs};
 use leptos::{
     logging::{error, warn},
     prelude::{get_configuration, provide_context},
 };
 use leptos_axum::{AxumRouteListing, LeptosRoutes, generate_route_list};
-use tokio::task::JoinSet;
+use qr_code::QrCode;
+use tokio::{signal, spawn, task::JoinSet};
 use tower::Layer as _;
 use tower_http::{
     compression::{
@@ -142,8 +143,8 @@ async fn main() {
 
     let handle = Handle::new();
     let shutdown_handle = handle.clone();
-    tokio::spawn(async move {
-        if tokio::signal::ctrl_c().await.is_ok() {
+    spawn(async move {
+        if signal::ctrl_c().await.is_ok() {
             shutdown_handle.shutdown();
         }
     });
@@ -153,7 +154,7 @@ async fn main() {
         let app = app.clone();
         let handle = handle.clone();
         join_set.spawn(async move {
-            axum_server::bind(addr)
+            bind(addr)
                 .handle(handle)
                 .serve(app.into_make_service())
                 .await
@@ -236,7 +237,7 @@ fn print_qr_codes(display_urls: &[String]) {
         .iter()
         .filter(|url| !url.contains("127.0.0.1") && !url.contains("[::1]"))
     {
-        match qr_code::QrCode::new(url) {
+        match QrCode::new(url) {
             Ok(qr) => {
                 println!(
                     "QR code for {}:\n{}",
@@ -261,7 +262,7 @@ fn get_display_urls(interfaces: &[IpAddr], port: u16) -> Vec<String> {
         let all_ipv4 = wildcard.iter().any(IpAddr::is_ipv4);
         let all_ipv6 = wildcard.iter().any(IpAddr::is_ipv6);
 
-        ifaces = if_addrs::get_if_addrs()
+        ifaces = get_if_addrs()
             .map_err(|e| error!("Failed to get local interface addresses: {e}"))
             .unwrap_or_default()
             .iter()

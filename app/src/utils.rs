@@ -9,6 +9,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use chrono_humanize::Humanize;
 use leptos::prelude::IntoRender;
 use serde::{Deserialize, Serialize};
+use urlencoding::encode;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SystemTime(pub i64, pub u32);
@@ -64,7 +65,7 @@ pub fn display_os_string(str: impl AsRef<OsStr>) -> String {
 pub fn encode_path(path: impl AsRef<Path>) -> String {
     path.as_ref()
         .components()
-        .map(|component| urlencoding::encode(&display_os_string(component)).into_owned())
+        .map(|component| encode(&display_os_string(component)).into_owned())
         .collect::<Vec<_>>()
         .join("/")
 }

@@ -1,4 +1,5 @@
 use leptos::{logging, prelude::*};
+use web_time::Instant;
 
 use super::{file_progress, progress_bar::Progress};
 
@@ -32,7 +33,7 @@ pub async fn update_progress(id: String, upload: RwSignal<Option<(String, Progre
                         uploaded.pop_front();
                     }
 
-                    uploaded.push_back((size, web_time::Instant::now()));
+                    uploaded.push_back((size, Instant::now()));
                 });
             }
         });

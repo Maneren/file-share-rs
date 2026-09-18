@@ -1,6 +1,8 @@
 use std::{net::IpAddr, path::PathBuf};
 
 use clap::Parser;
+use port_check::{free_local_port, is_local_port_free};
+use rfd::AsyncFileDialog;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -66,7 +68,7 @@ pub async fn get_config() -> Result<Config, String> {
     } = Cli::parse();
 
     let target_dir = if picker {
-        rfd::AsyncFileDialog::new()
+        AsyncFileDialog::new()
             .set_title("Select directory to share")
             .pick_folder()
             .await
@@ -83,9 +85,9 @@ pub async fn get_config() -> Result<Config, String> {
         return Err(format!("`{}` is not a directory", target_dir.display()));
     }
 
-    let port = (port != 0 && port_check::is_local_port_free(port))
+    let port = (port != 0 && is_local_port_free(port))
         .then_some(port)
-        .or_else(port_check::free_local_port)
+        .or_else(free_local_port)
         .ok_or("Couldn't find an open port")?;
 
     Ok(Config {

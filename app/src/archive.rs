@@ -4,7 +4,7 @@
 //! target and the WASM frontend target. The (tokio-based) code that actually
 //! writes archives lives in the server crate.
 
-use std::{fmt, str::FromStr};
+use std::{error::Error, fmt, str::FromStr};
 
 use serde::{Deserialize, Deserializer};
 
@@ -89,7 +89,7 @@ impl fmt::Display for ParseMethodError {
     }
 }
 
-impl std::error::Error for ParseMethodError {}
+impl Error for ParseMethodError {}
 
 impl FromStr for Method {
     type Err = ParseMethodError;

@@ -8,7 +8,7 @@
 //! NOTE: Uses the fastest compression level to prevent compression from being a
 //! bottleneck.
 
-use std::path::Path;
+use std::{ffi::OsStr, io, path::Path};
 
 use async_compression::{
     Level,
@@ -19,7 +19,9 @@ use async_zip::{
     Compression, StringEncoding, ZipEntryBuilder, ZipString, tokio::write::ZipFileWriter,
 };
 use cfg_if::cfg_if;
+use chrono::Local;
 use file_share_app::archive::Method;
+use futures::io::copy;
 use thiserror::Error as ThisError;
 use tokio::{
     fs,
@@ -33,7 +35,7 @@ use tokio_util::compat::TokioAsyncReadCompatExt as _;
 pub enum Error {
     /// Any kind of IO errors
     #[error("{0}")]
-    Io(String, #[source] std::io::Error),
+    Io(String, #[source] io::Error),
 
     /// Any error related to an invalid path (failed to retrieve entry name,
     /// unexpected entry type, etc)
@@ -158,7 +160,7 @@ where
 
     zip.comment(format!(
         "This archive was created by the file-share-rs server at {}",
-        chrono::Local::now().to_rfc2822()
+        Local::now().to_rfc2822()
     ));
 
     // NOTE: `WalkDir` never follows symlinks, and the `file_type` check below
@@ -194,7 +196,7 @@ where
 async fn add_file_to_zip<W>(
     path: &Path,
     base_dir: &Path,
-    folder_name: &std::ffi::OsStr,
+    folder_name: &OsStr,
     zip: &mut ZipFileWriter<W>,
 ) -> Result<(), Error>
 where
@@ -242,14 +244,12 @@ where
 
     // NOTE: zip is a fallback for very old devices; `async_zip`'s entry sink
     // is futures-based, so the tokio file needs the compat shim here.
-    futures::io::copy(&mut file.compat(), &mut sink)
-        .await
-        .map_err(|e| {
-            Error::Io(
-                format!("Failed to write {} to the ZIP archive", name.display()),
-                e,
-            )
-        })?;
+    copy(&mut file.compat(), &mut sink).await.map_err(|e| {
+        Error::Io(
+            format!("Failed to write {} to the ZIP archive", name.display()),
+            e,
+        )
+    })?;
 
     sink.close().await.map_err(|e| {
         Error::ArchiveCreation(

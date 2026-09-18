@@ -66,8 +66,7 @@ pub fn FilesPage() -> impl IntoView {
 
     view! {
       <div class="p-3 App">
-        {upload_bar}
-        <Breadcrumbs path=path_signal />
+        {upload_bar} <Breadcrumbs path=path_signal />
         <div class="grid gap-2 mb-1 border-b grid-cols-(--entry-cols-mobile) border-base-content md:grid-cols-(--entry-cols)">
           <span></span>
           <span>Name</span>

@@ -13,6 +13,7 @@ use leptos::{
     task::spawn_local,
 };
 use server_fn::codec::{MultipartData, MultipartFormData, StreamingText, TextStream};
+use web_sys::FormData;
 use web_time::Instant;
 
 mod form;
@@ -37,12 +38,12 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
 
     fn read_upload_error(e: impl std::fmt::Display) -> ServerFnError {
         logging::error!("Failed to read upload: {e}");
-        server_fn::ServerFnError::ServerError("Failed to read upload".into())
+        ServerError("Failed to read upload".into())
     }
 
     fn store_upload_error(name: &str, e: impl std::fmt::Display) -> ServerFnError {
         logging::error!("[{name}]\tfailed to store upload: {e}");
-        server_fn::ServerFnError::ServerError("Failed to store upload".into())
+        ServerError("Failed to store upload".into())
     }
 
     async fn collect_field_with_name(
@@ -148,7 +149,7 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
         ev.prevent_default();
 
         let form = form_ref.get().unwrap();
-        let form_data = web_sys::FormData::new_with_form(&form).unwrap();
+        let form_data = FormData::new_with_form(&form).unwrap();
 
         let file_list = file_ref.get().unwrap().files().unwrap();
 
