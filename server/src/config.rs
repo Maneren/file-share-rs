@@ -20,7 +20,7 @@ pub struct Cli {
     /// IP address(es) of interfaces on which file-share will be available
     ///
     /// Accepts comma separated list of both IPv4 and IPv6 addresses
-    #[arg(short, long, num_args = 1.., value_delimiter = ',', default_value = "0.0.0.0,::")]
+    #[arg(short, long, num_args = 1.., value_delimiter = ',', default_value = "0.0.0.0,::1")]
     pub interfaces: Vec<IpAddr>,
 
     /// Open a GUI file picker to choose the target directory
