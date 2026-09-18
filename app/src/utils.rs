@@ -37,7 +37,11 @@ impl From<SystemTime> for DateTime<Utc> {
     #[allow(clippy::similar_names)]
     fn from(time: SystemTime) -> Self {
         let SystemTime(sec, nsec) = time;
-        Utc.timestamp_opt(sec, nsec).unwrap() // per docs, Utc can't fail
+        // Out-of-range timestamps (settable via `touch`) yield `None`;
+        // fall back to the epoch instead of panicking the listing.
+        Utc.timestamp_opt(sec, nsec)
+            .single()
+            .unwrap_or(DateTime::<Utc>::UNIX_EPOCH)
     }
 }
 impl IntoRender for SystemTime {
