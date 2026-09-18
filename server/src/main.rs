@@ -189,8 +189,10 @@ fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Router {
     let app_config = Arc::clone(&app_state.app_config);
     let target_dir = app_state.app_config.target_dir.clone();
 
-    // NOTE: `Router::layer` only wraps routes registered *before* it, so
-    // compression applies solely to the UI/API routes above it.
+    // NOTE: `Router::layer` only wraps routes registered *before* it.
+    // Compression sits after the file routes on purpose: it also covers
+    // `/files` downloads, while the predicate above keeps already
+    // compressed payloads (archives, media, octet-streams) untouched.
     Router::new()
         .route("/", get(|| async { Redirect::to("/index") }))
         .route("/help", get(|| async { API_HELP_TEXT }))
@@ -204,7 +206,6 @@ fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Router {
             },
         )
         .fallback(file_and_error_handler)
-        .layer(compression)
         .route("/archive/{*path}", get(handle_archive_with_path))
         .route("/archive/", get(handle_archive_without_path))
         .route("/upload/{*path}", post(file_upload_with_path))
@@ -214,6 +215,7 @@ fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Router {
             middleware::from_fn_with_state(app_state.clone(), gate_shared_files)
                 .layer(ServeDir::new(&target_dir)),
         )
+        .layer(compression)
         .layer(DefaultBodyLimit::disable())
         // No CSP: Leptos hydration relies on inline scripts, which a
         // `script-src` policy without `unsafe-inline` would block.
