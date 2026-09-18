@@ -33,17 +33,18 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
 
     use crate::{
         AppConfig,
+        config::{UPLOAD_DISABLED_MESSAGE, UPLOAD_READ_ERROR_MESSAGE, UPLOAD_STORE_ERROR_MESSAGE},
         utils::{is_safe_file_name, is_safe_relative_path},
     };
 
     fn read_upload_error(e: impl std::fmt::Display) -> ServerFnError {
         logging::error!("Failed to read upload: {e}");
-        ServerError("Failed to read upload".into())
+        ServerError(UPLOAD_READ_ERROR_MESSAGE.into())
     }
 
     fn store_upload_error(name: &str, e: impl std::fmt::Display) -> ServerFnError {
         logging::error!("[{name}]\tfailed to store upload: {e}");
-        ServerError("Failed to store upload".into())
+        ServerError(UPLOAD_STORE_ERROR_MESSAGE.into())
     }
 
     async fn collect_field_with_name(
@@ -70,7 +71,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     let app_config = expect_context::<Arc<AppConfig>>();
 
     if !app_config.allow_upload {
-        return Err(ServerError("Uploads are disabled".into()));
+        return Err(ServerError(UPLOAD_DISABLED_MESSAGE.into()));
     }
 
     let Some(mut data) = data.into_inner() else {

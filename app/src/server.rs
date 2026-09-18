@@ -6,7 +6,10 @@ cfg_if! { if #[cfg(feature = "ssr")] {
     use leptos::logging::warn;
     use tokio::fs;
 
-    use crate::{config::AppConfig, utils::resolve_contained_path};
+    use crate::{
+        config::{AppConfig, PATH_NOT_FOUND_MESSAGE, UPLOAD_DISABLED_MESSAGE},
+        utils::resolve_contained_path,
+    };
 }}
 
 use cfg_if::cfg_if;
@@ -41,9 +44,7 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
 
     let Some(path) = resolve_contained_path(&base_path, &path).await else {
         warn!("Attempt to access invalid or missing path: {path:?}");
-        return Err(ServerFnError::ServerError(
-            "Requested path not found".into(),
-        ));
+        return Err(ServerFnError::ServerError(PATH_NOT_FOUND_MESSAGE.into()));
     };
 
     let mut entries = Vec::new();
@@ -101,7 +102,7 @@ pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError
     let app_config = expect_context::<Arc<AppConfig>>();
 
     if !app_config.allow_upload {
-        return Err(ServerFnError::ServerError("Uploads are disabled".into()));
+        return Err(ServerFnError::ServerError(UPLOAD_DISABLED_MESSAGE.into()));
     }
 
     if !is_safe_relative_path(&path) || !is_safe_file_name(&name) {

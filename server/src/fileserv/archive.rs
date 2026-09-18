@@ -210,6 +210,7 @@ where
         ))
     })?;
     let name = Path::new(folder_name).join(relative);
+    let write_context = format!("Failed to write {} to the ZIP archive", name.display());
 
     let zip_name = ZipString::new(
         name.to_string_lossy().as_bytes().to_owned(),
@@ -236,27 +237,18 @@ where
     }}
 
     let mut sink = zip.write_entry_stream(entry).await.map_err(|e| {
-        Error::ArchiveCreation(
-            format!("Failed to write {} to the ZIP archive", name.display()),
-            Error::Other(e.to_string()).into(),
-        )
+        Error::ArchiveCreation(write_context.clone(), Error::Other(e.to_string()).into())
     })?;
 
     // NOTE: zip is a fallback for very old devices; `async_zip`'s entry sink
     // is futures-based, so the tokio file needs the compat shim here.
-    copy(&mut file.compat(), &mut sink).await.map_err(|e| {
-        Error::Io(
-            format!("Failed to write {} to the ZIP archive", name.display()),
-            e,
-        )
-    })?;
+    copy(&mut file.compat(), &mut sink)
+        .await
+        .map_err(|e| Error::Io(write_context.clone(), e))?;
 
-    sink.close().await.map_err(|e| {
-        Error::ArchiveCreation(
-            format!("Failed to write {} to the ZIP archive", name.display()),
-            Error::Other(e.to_string()).into(),
-        )
-    })?;
+    sink.close()
+        .await
+        .map_err(|e| Error::ArchiveCreation(write_context, Error::Other(e.to_string()).into()))?;
 
     Ok(())
 }

@@ -14,7 +14,8 @@ use axum::{
 };
 pub use file_share_app::archive::Method;
 use file_share_app::{
-    AppState, shell,
+    AppState, PATH_NOT_FOUND_MESSAGE, UPLOAD_DISABLED_MESSAGE, UPLOAD_READ_ERROR_MESSAGE,
+    UPLOAD_STORE_ERROR_MESSAGE, shell,
     utils::{format_bytes, is_safe_file_name, resolve_contained_path},
 };
 use leptos::{logging, prelude::provide_context};
@@ -246,8 +247,8 @@ fn content_disposition(file_name: &str) -> Option<HeaderValue> {
         .ok()
 }
 
-const UPLOAD_DISABLED: (StatusCode, &str) = (StatusCode::FORBIDDEN, "Upload is not enabled");
-const PATH_NOT_FOUND: (StatusCode, &str) = (StatusCode::NOT_FOUND, "Requested path not found");
+const UPLOAD_DISABLED: (StatusCode, &str) = (StatusCode::FORBIDDEN, UPLOAD_DISABLED_MESSAGE);
+const PATH_NOT_FOUND: (StatusCode, &str) = (StatusCode::NOT_FOUND, PATH_NOT_FOUND_MESSAGE);
 
 /// Reject requests escaping the share before `ServeDir` sees them.
 ///
@@ -329,7 +330,10 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             Ok(file) => file,
             Err(err) => {
                 logging::error!("Failed to create file {}: {err}", path.display());
-                return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create file")
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    UPLOAD_STORE_ERROR_MESSAGE,
+                )
                     .into_response();
             },
         };
@@ -340,7 +344,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
                 Ok(chunk) => chunk,
                 Err(e) => {
                     logging::error!("Failed to read upload for {}: {e}", path.display());
-                    return (StatusCode::BAD_REQUEST, "Failed to read upload").into_response();
+                    return (StatusCode::BAD_REQUEST, UPLOAD_READ_ERROR_MESSAGE).into_response();
                 },
             };
             let Some(chunk) = chunk else { break };
@@ -348,7 +352,10 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             total_bytes += chunk.len() as u64;
             if let Err(err) = file.write_all(&chunk).await {
                 logging::error!("Failed to write file {}: {err}", path.display());
-                return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to store upload")
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    UPLOAD_STORE_ERROR_MESSAGE,
+                )
                     .into_response();
             }
         }

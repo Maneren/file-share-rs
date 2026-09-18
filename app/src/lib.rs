@@ -21,7 +21,10 @@ use leptos_router::{
 use leptos_router_macro::path;
 use urlencoding::decode;
 
-pub use crate::config::AppConfig;
+pub use crate::config::{
+    AppConfig, PATH_NOT_FOUND_MESSAGE, UPLOAD_DISABLED_MESSAGE, UPLOAD_READ_ERROR_MESSAGE,
+    UPLOAD_STORE_ERROR_MESSAGE,
+};
 #[cfg(feature = "ssr")]
 pub use crate::state::AppState;
 use crate::{
