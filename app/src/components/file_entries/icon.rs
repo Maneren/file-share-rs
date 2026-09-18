@@ -5,8 +5,6 @@ use leptos::{IntoView, prelude::*};
 use rust_embed::RustEmbed;
 use serde::Deserialize;
 
-use crate::components::file_entries::EntryType;
-
 flate!(static ICONS_JSON: str from "assets/icons.json");
 flate!(static FILE_ICON: str from "assets/icons/file.svg");
 flate!(static FOLDER_ICON: str from "assets/icons/folder.svg");
@@ -37,9 +35,11 @@ static DECODED_ICONS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
         .collect()
 });
 
-fn get_icon(name: &str) -> Option<String> {
+/// Look up a decoded SVG by icon name. Returns a borrowed slice, so
+/// listing hundreds of files doesn't clone kilobytes of SVG per row.
+fn get_icon(name: &str) -> Option<&'static str> {
     let key = format!("{name}.svg");
-    DECODED_ICONS.get(&key).cloned()
+    DECODED_ICONS.get(&key).map(String::as_str)
 }
 
 static ICON_MAPS: LazyLock<IconMaps> =
@@ -71,12 +71,12 @@ fn longest_matching_suffix<'a, 'b>(
         .map(|(_, name)| name)
 }
 
-fn get_folder_icon(folder_name: &str) -> String {
+pub(crate) fn get_folder_icon(folder_name: &str) -> &'static str {
     let lowercase = folder_name.to_ascii_lowercase();
     let trimmed = lowercase.trim_matches(['_', ' ', '.']);
 
     if trimmed.is_empty() {
-        return FOLDER_ICON.clone();
+        return &FOLDER_ICON;
     }
 
     ICON_MAPS
@@ -84,21 +84,38 @@ fn get_folder_icon(folder_name: &str) -> String {
         .get(trimmed)
         .or_else(|| longest_matching_suffix(trimmed, &ICON_MAPS.folders))
         .and_then(|name| get_icon(name))
-        .unwrap_or_else(|| FOLDER_ICON.clone())
+        .unwrap_or(&FOLDER_ICON)
 }
 
-fn get_file_icon(file_name: &str) -> String {
-    longest_matching_suffix(&file_name.to_ascii_lowercase(), &*FILENAMES_MAP)
+pub(crate) fn get_file_icon(file_name: &str) -> &'static str {
+    let lower = file_name.to_ascii_lowercase();
+
+    // Exact filename match (`Dockerfile`, `Makefile`, …).
+    if let Some(svg) = FILENAMES_MAP
+        .get(lower.as_str())
         .and_then(|name| get_icon(name))
-        .unwrap_or_else(|| FILE_ICON.clone())
+    {
+        return svg;
+    }
+
+    // Longest dotted suffix, probed longest-first in O(dots) `HashMap`
+    // lookups (covers `.tar.gz`, `.d.ts`); the full scan below remains
+    // for exotic unanchored fragments, preserving old behavior exactly.
+    for (dot, _) in lower.match_indices('.') {
+        if let Some(svg) = FILENAMES_MAP
+            .get(&lower[dot..])
+            .and_then(|name| get_icon(name))
+        {
+            return svg;
+        }
+    }
+
+    longest_matching_suffix(&lower, &*FILENAMES_MAP)
+        .and_then(|name| get_icon(name))
+        .unwrap_or(&FILE_ICON)
 }
 
-#[allow(clippy::needless_pass_by_value)]
 #[component]
-pub fn Icon(type_: EntryType, name: String) -> impl IntoView {
-    let icon = match type_ {
-        EntryType::File => get_file_icon(&name),
-        EntryType::Folder => get_folder_icon(&name),
-    };
+pub fn Icon(icon: &'static str) -> impl IntoView {
     view! { <div class="icon" inner_html=icon /> }
 }
