@@ -23,7 +23,7 @@ use rust_embed::{EmbeddedFile, RustEmbed};
 use serde::Deserialize;
 use tokio::{
     fs::{self, File},
-    io::{self, AsyncWriteExt},
+    io::{self, AsyncWriteExt, BufWriter},
     spawn,
 };
 use tokio_util::io::ReaderStream;
@@ -326,7 +326,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
 
         logging::log!("Uploading to {path:?}");
 
-        let mut file = match File::create_new(&path).await {
+        let file = match File::create_new(&path).await {
             Ok(file) => file,
             Err(err) => {
                 logging::error!("Failed to create file {}: {err}", path.display());
@@ -337,6 +337,9 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
                     .into_response();
             },
         };
+        // Multipart chunks are only a few KiB; buffer to avoid a syscall
+        // per chunk.
+        let mut file = BufWriter::with_capacity(64 * 1024, file);
 
         let mut total_bytes: u64 = 0;
         loop {
@@ -358,6 +361,14 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
                 )
                     .into_response();
             }
+        }
+        if let Err(err) = file.flush().await {
+            logging::error!("Failed to flush file {}: {err}", path.display());
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                UPLOAD_STORE_ERROR_MESSAGE,
+            )
+                .into_response();
         }
 
         logging::log!(

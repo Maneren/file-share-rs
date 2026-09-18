@@ -29,7 +29,10 @@ use use_upload_progress::update_progress;
 #[server(input = MultipartFormData)]
 pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     use server_fn::ServerFnError::ServerError;
-    use tokio::{fs::OpenOptions, io::AsyncWriteExt};
+    use tokio::{
+        fs::OpenOptions,
+        io::{AsyncWriteExt, BufWriter},
+    };
 
     use crate::{
         AppConfig,
@@ -105,7 +108,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
         let path = base_req_path.join(&name);
         logging::log!("[{name}]\tpath: {path:?}");
 
-        let mut file = OpenOptions::new()
+        let file = OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(true)
@@ -115,14 +118,22 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
 
         logging::log!("[{name}]\topen");
 
+        // Multipart chunks are only a few KiB; buffer to avoid a syscall
+        // per chunk.
+        let mut file = BufWriter::with_capacity(1024 * 1024, file);
+
         while let Some(chunk) = field.chunk().await.map_err(read_upload_error)? {
             let len = chunk.len();
 
-            progress::add_chunk(&id, len).await;
             file.write_all(&chunk)
                 .await
                 .map_err(|e| store_upload_error(&name, e))?;
+
+            progress::add_chunk(&id, len).await;
         }
+        file.flush()
+            .await
+            .map_err(|e| store_upload_error(&name, e))?;
 
         logging::log!("[{name}]\tfinished");
     }
