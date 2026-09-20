@@ -20,6 +20,22 @@ use crate::utils::SystemTime;
 
 pub type Entries = Vec<ServerEntry>;
 
+/// Parameters for a directory listing: which slice of the sorted entries
+/// to return. Sorting stays server-side so pages are stable.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ListQuery {
+    pub path: PathBuf,
+    pub limit: usize,
+    pub offset: usize,
+}
+
+/// One page of a directory listing plus the total entry count, so the UI
+/// can render page controls without a separate count round-trip.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListingPage {
+    pub entries: Entries,
+    pub total: usize,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq)]
 pub enum ServerEntry {
     Folder {
@@ -34,12 +50,17 @@ pub enum ServerEntry {
 }
 
 #[server(name = ListDir, prefix = "/api", endpoint = "list_dir")]
-pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
+pub async fn list_dir(query: ListQuery) -> Result<ListingPage, ServerFnError> {
     fn read_dir_error(path: &PathBuf, e: impl std::fmt::Display) -> ServerFnError {
         warn!("Failed to read directory {path:?}: {e}");
         ServerFnError::ServerError("Failed to read directory".into())
     }
 
+    let ListQuery {
+        path,
+        limit,
+        offset,
+    } = query;
     let base_path = expect_context::<Arc<AppConfig>>().target_dir.clone();
 
     let Some(path) = resolve_contained_path(&base_path, &path).await else {
@@ -87,7 +108,9 @@ pub async fn list_dir(path: PathBuf) -> Result<Entries, ServerFnError> {
 
     entries.sort_unstable();
 
-    Ok(entries)
+    let total = entries.len();
+    let entries = entries.into_iter().skip(offset).take(limit).collect();
+    Ok(ListingPage { entries, total })
 }
 
 #[server(name = NewFolder, prefix = "/api", endpoint = "new_folder")]
