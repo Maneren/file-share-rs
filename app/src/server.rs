@@ -64,6 +64,9 @@ pub struct ListingPage {
     pub total: usize,
     /// Dotfiles skipped by the hidden filter (0 when shown).
     pub hidden_count: usize,
+    /// Uppercase initials present in the folder (after the hidden filter,
+    /// before search/initial filters), for the letter buttons.
+    pub initials: Vec<char>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq)]
 pub enum ServerEntry {
@@ -167,12 +170,8 @@ pub async fn list_dir(query: ListQuery) -> Result<ListingPage, ServerFnError> {
         }
     }
 
-    let (entries, total, hidden_count) = filter_sort_page(entries, &query);
-    Ok(ListingPage {
-        entries,
-        total,
-        hidden_count,
-    })
+    let page = filter_sort_page(entries, &query);
+    Ok(page)
 }
 
 /// Filter, sort and paginate collected directory entries.
@@ -184,7 +183,7 @@ pub async fn list_dir(query: ListQuery) -> Result<ListingPage, ServerFnError> {
 ///   (last when descending), purely by time for modified.
 /// - Pagination applies last; `total` counts everything before it.
 #[cfg(feature = "ssr")]
-fn filter_sort_page(entries: Entries, query: &ListQuery) -> (Entries, usize, usize) {
+fn filter_sort_page(entries: Entries, query: &ListQuery) -> ListingPage {
     let mut entries = entries;
     let hidden_count = if query.show_hidden {
         0
@@ -193,6 +192,17 @@ fn filter_sort_page(entries: Entries, query: &ListQuery) -> (Entries, usize, usi
         entries.retain(|entry| !entry.name().starts_with('.'));
         before - entries.len()
     };
+
+    // Initials drive the letter buttons. Computed on the hidden-filtered
+    // set so navigation between letters never traps the user.
+    let mut initials: Vec<char> = entries
+        .iter()
+        .filter_map(|entry| entry.name().chars().next())
+        .map(|c| c.to_ascii_uppercase())
+        .filter(|c| c.is_ascii_alphabetic())
+        .collect();
+    initials.sort_unstable();
+    initials.dedup();
 
     if let Some(initial) = query.initial {
         let needle = initial.to_lowercase().collect::<String>();
@@ -275,7 +285,12 @@ fn filter_sort_page(entries: Entries, query: &ListQuery) -> (Entries, usize, usi
         .take(query.limit)
         .map(|row| row.entry)
         .collect();
-    (entries, total, hidden_count)
+    ListingPage {
+        entries,
+        total,
+        hidden_count,
+        initials,
+    }
 }
 
 #[server(name = NewFolder, prefix = "/api", endpoint = "new_folder")]
@@ -355,23 +370,24 @@ mod tests {
 
     #[test]
     fn name_sort_folders_first() {
-        let (entries, total, _) = filter_sort_page(
+        let page = filter_sort_page(
             fixture(),
             &ListQuery {
                 limit: 100,
                 ..query(SortColumn::Name, SortDir::Asc)
             },
         );
-        assert_eq!(total, 5);
+        assert_eq!(page.total, 5);
         assert_eq!(
-            names(&entries),
+            names(&page.entries),
             ["adir", "bdir", "apple.txt", "Cherry.md", "zebra.bin"]
         );
+        assert_eq!(page.initials, ['A', 'B', 'C', 'Z']);
     }
 
     #[test]
     fn name_sort_desc_folders_last() {
-        let (entries, _, _) = filter_sort_page(
+        let page = filter_sort_page(
             fixture(),
             &ListQuery {
                 limit: 100,
@@ -379,14 +395,14 @@ mod tests {
             },
         );
         assert_eq!(
-            names(&entries),
+            names(&page.entries),
             ["zebra.bin", "Cherry.md", "apple.txt", "bdir", "adir"]
         );
     }
 
     #[test]
     fn size_sort_folders_first() {
-        let (entries, _, _) = filter_sort_page(
+        let page = filter_sort_page(
             fixture(),
             &ListQuery {
                 limit: 100,
@@ -394,14 +410,14 @@ mod tests {
             },
         );
         assert_eq!(
-            names(&entries),
+            names(&page.entries),
             ["adir", "bdir", "Cherry.md", "apple.txt", "zebra.bin"]
         );
     }
 
     #[test]
     fn time_sort_mixes_folders_and_files() {
-        let (entries, _, _) = filter_sort_page(
+        let page = filter_sort_page(
             fixture(),
             &ListQuery {
                 limit: 100,
@@ -409,14 +425,14 @@ mod tests {
             },
         );
         assert_eq!(
-            names(&entries),
+            names(&page.entries),
             ["apple.txt", "bdir", "zebra.bin", "adir", "Cherry.md"]
         );
     }
 
     #[test]
     fn initial_filter_is_case_insensitive() {
-        let (entries, total, _) = filter_sort_page(
+        let page = filter_sort_page(
             fixture(),
             &ListQuery {
                 initial: Some('a'),
@@ -424,10 +440,10 @@ mod tests {
                 ..query(SortColumn::Name, SortDir::Asc)
             },
         );
-        assert_eq!(total, 2);
-        assert_eq!(names(&entries), ["adir", "apple.txt"]);
+        assert_eq!(page.total, 2);
+        assert_eq!(names(&page.entries), ["adir", "apple.txt"]);
 
-        let (entries, total, _) = filter_sort_page(
+        let page = filter_sort_page(
             fixture(),
             &ListQuery {
                 initial: Some('C'),
@@ -435,13 +451,13 @@ mod tests {
                 ..query(SortColumn::Name, SortDir::Asc)
             },
         );
-        assert_eq!(total, 1);
-        assert_eq!(names(&entries), ["Cherry.md"]);
+        assert_eq!(page.total, 1);
+        assert_eq!(names(&page.entries), ["Cherry.md"]);
     }
 
     #[test]
     fn fuzzy_search_finds_and_ranks() {
-        let (entries, total, _) = filter_sort_page(
+        let page = filter_sort_page(
             fixture(),
             &ListQuery {
                 search: "cher".into(),
@@ -449,10 +465,10 @@ mod tests {
                 ..query(SortColumn::Name, SortDir::Asc)
             },
         );
-        assert_eq!(total, 1);
-        assert_eq!(names(&entries), ["Cherry.md"]);
+        assert_eq!(page.total, 1);
+        assert_eq!(names(&page.entries), ["Cherry.md"]);
 
-        let (entries, total, _) = filter_sort_page(
+        let page = filter_sort_page(
             fixture(),
             &ListQuery {
                 search: "ir".into(),
@@ -460,13 +476,13 @@ mod tests {
                 ..query(SortColumn::Name, SortDir::Asc)
             },
         );
-        assert_eq!(total, 2);
-        assert_eq!(names(&entries), ["adir", "bdir"]);
+        assert_eq!(page.total, 2);
+        assert_eq!(names(&page.entries), ["adir", "bdir"]);
     }
 
     #[test]
     fn pagination_slices_after_sort() {
-        let (entries, total, _) = filter_sort_page(
+        let page = filter_sort_page(
             fixture(),
             &ListQuery {
                 limit: 2,
@@ -474,8 +490,8 @@ mod tests {
                 ..query(SortColumn::Name, SortDir::Asc)
             },
         );
-        assert_eq!(total, 5);
-        assert_eq!(names(&entries), ["apple.txt", "Cherry.md"]);
+        assert_eq!(page.total, 5);
+        assert_eq!(names(&page.entries), ["apple.txt", "Cherry.md"]);
     }
 
     #[test]
@@ -487,18 +503,19 @@ mod tests {
                 folder(".hdir", 1),
             ]
         };
-        let (entries, total, hidden_count) = filter_sort_page(
+        let page = filter_sort_page(
             hidden(),
             &ListQuery {
                 limit: 100,
                 ..query(SortColumn::Name, SortDir::Asc)
             },
         );
-        assert_eq!(total, 1);
-        assert_eq!(hidden_count, 2);
-        assert_eq!(names(&entries), ["visible.txt"]);
+        assert_eq!(page.total, 1);
+        assert_eq!(page.hidden_count, 2);
+        assert_eq!(names(&page.entries), ["visible.txt"]);
+        assert_eq!(page.initials, ['V']);
 
-        let (entries, total, hidden_count) = filter_sort_page(
+        let page = filter_sort_page(
             hidden(),
             &ListQuery {
                 show_hidden: true,
@@ -506,8 +523,10 @@ mod tests {
                 ..query(SortColumn::Name, SortDir::Asc)
             },
         );
-        assert_eq!(total, 3);
-        assert_eq!(hidden_count, 0);
-        assert_eq!(names(&entries), [".hdir", ".secret", "visible.txt"]);
+        assert_eq!(page.total, 3);
+        assert_eq!(page.hidden_count, 0);
+        assert_eq!(names(&page.entries), [".hdir", ".secret", "visible.txt"]);
+        // Dotfiles start with `.`, which has no letter button.
+        assert_eq!(page.initials, ['V']);
     }
 }
