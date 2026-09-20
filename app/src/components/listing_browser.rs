@@ -14,10 +14,8 @@ const PAGE_SIZE: usize = 100;
 /// The interactive listing browser: toolbar, sorting, filtering,
 /// entry list, pagination and empty states.
 ///
-/// An island (rather than plain SSR output) so all of the above hydrates
-/// in the browser. `path` is a snapshot, not a signal: navigation performs
-/// full page loads (the router itself is not hydrated), so the island
-/// always mounts with a fresh path.
+/// An island so it hydrates in the browser. `path` is a snapshot:
+/// navigation does full page loads (the router isn't hydrated).
 #[island]
 pub fn ListingBrowser(path: PathBuf, allow_upload: bool) -> impl IntoView {
     let path = StoredValue::new(path);
@@ -32,7 +30,6 @@ pub fn ListingBrowser(path: PathBuf, allow_upload: bool) -> impl IntoView {
 
     // Reset paging on changed sort/filter. Setting an already-zero page
     // does not notify, so this only refetches when shrinking a page.
-    // (Navigation remounts the island, so `path` needs no tracking here.)
     Effect::new(move |_| {
         let _ = (
             sort_column.get(),
@@ -57,10 +54,9 @@ pub fn ListingBrowser(path: PathBuf, allow_upload: bool) -> impl IntoView {
             )
         },
         |(path, page, sort_column, sort_dir, search, initial, show_hidden)| async move {
-            // NOTE: the `Ok` error type must be annotated. Nothing else
-            // pins it, and an ambiguous error type surfaces as bogus
-            // `FnMut`/`IntoView` errors on the `Transition` below instead
-            // of an inference error.
+            // NOTE: the `Ok` error type must be annotated; an ambiguous
+            // error type surfaces as bogus `FnMut`/`IntoView` errors on
+            // the `Transition` below instead of an inference error.
             Ok::<_, ServerFnError>(
                 list_dir(ListQuery {
                     path,

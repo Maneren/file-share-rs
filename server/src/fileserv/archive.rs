@@ -1,12 +1,8 @@
 #![allow(clippy::items_after_statements)]
-//! Utility functions for creating archive files
+//! Utilities for creating archives (`tar`, `tar.gz`, `tar.zst`, `zip`).
 //!
-//! The `create_archive` function is the main entrypoint for creating the
-//! archive. It takes a path and an output stream, and writes the archive to the
-//! output stream.
-//!
-//! NOTE: Uses the fastest compression level to prevent compression from being a
-//! bottleneck.
+//! NOTE: fastest compression level throughout, so compression never
+//! bottlenecks archive streaming.
 
 use std::{ffi::OsStr, io, path::Path};
 
@@ -32,7 +28,6 @@ use tokio_util::compat::TokioAsyncReadCompatExt as _;
 
 #[derive(Debug, ThisError)]
 pub enum Error {
-    /// Any kind of IO errors
     #[error("{0}")]
     Io(String, #[source] io::Error),
 
@@ -41,11 +36,9 @@ pub enum Error {
     #[error("Invalid path: {0}")]
     InvalidPath(String),
 
-    /// Any other kind of error
     #[error("{0}")]
     Other(String),
 
-    /// Might occur when the creation of an archive fails
     #[error("An error occurred while creating {0}")]
     ArchiveCreation(String, #[source] Box<Error>),
 }

@@ -39,8 +39,6 @@ const DUPLEX_BUF_SIZE: usize = 1024 * 1024;
 
 /// Chunk size used when polling the pipe into the HTTP body stream.
 const READER_STREAM_CAPACITY: usize = 64 * 1024;
-
-/// Handles static file requests by delegating to `StaticFiles`.
 pub async fn file_and_error_handler(
     State(app_state): State<AppState>,
     uri: Uri,
@@ -80,7 +78,6 @@ fn serve_static_file(request: &Request<Body>, path: &str, file: EmbeddedFile) ->
         .get(header::IF_NONE_MATCH)
         .is_some_and(|value| value == etag.as_str())
     {
-        // Content hasn't changed; return 304 Not Modified
         logging::debug_log!("Serving static file '{path}' with 304 Not Modified");
         return (StatusCode::NOT_MODIFIED, [(header::ETAG, etag)], "").into_response();
     }
@@ -110,7 +107,6 @@ pub struct ArchiveQuery {
     method: Option<Method>,
 }
 
-/// Handles archive requests.
 pub async fn handle_archive_with_path<'a>(
     State(app_state): State<AppState>,
     Path(path): Path<String>,
@@ -132,7 +128,6 @@ pub async fn handle_archive_with_path<'a>(
     handle_archive(path, params.method.unwrap_or_default()).into_response()
 }
 
-/// Handles archive requests.
 pub async fn handle_archive_without_path(
     State(app_state): State<AppState>,
     Query(params): Query<ArchiveQuery>,

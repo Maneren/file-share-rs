@@ -65,8 +65,7 @@ pub fn FilesPage() -> impl IntoView {
     view! {
       <div class="p-3 App">
         {upload_bar} <Breadcrumbs path=path_signal />
-        // Snapshot: navigation performs full page loads (the router is
-        // not hydrated), so the island always mounts with a fresh path.
+        // Snapshot path: the island remounts fresh on every navigation.
         <ListingBrowser path=path.get_untracked() allow_upload=app_config.allow_upload />
       </div>
     }

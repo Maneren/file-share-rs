@@ -37,10 +37,9 @@ web-time.workspace = true
 
 [features]
 default = []
-# `rust-embed/debug-embed`: the icon files below must be embedded at
-# compile time. Without it, dev builds read them from disk on every
-# access — and WASM has no filesystem, so all icon lookups would miss
-# in the browser.
+# `rust-embed/debug-embed`: icon files must be compile-time embedded —
+# WASM has no filesystem for dev-mode disk reads. Scoped to `hydrate`
+# so the server keeps dynamic reads in dev.
 hydrate = ["leptos/hydrate", "rust-embed/debug-embed"]
 ssr = [
   "leptos/ssr",

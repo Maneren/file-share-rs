@@ -234,7 +234,6 @@ fn filter_sort_page(entries: Entries, query: &ListQuery) -> ListingPage {
                 matcher.fuzzy_match(Utf32Str::new(&lower_name, &mut haystack_buf), needle)
             })
             .flatten();
-        // Without a search everything matches; with one, only matches do.
         if !searching || score.is_some() {
             rows.push(SortRow {
                 lower_name,

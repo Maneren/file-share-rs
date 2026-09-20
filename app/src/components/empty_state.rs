@@ -1,10 +1,7 @@
 use leptos::{either::Either, prelude::*};
 
-/// Fallback shown when a listing page is empty.
-///
-/// Distinguishes a filtered-out view (with an action to clear the filter)
-/// from a genuinely empty folder (pointing at the upload controls and any
-/// hidden files).
+/// Fallback for empty listing pages: clear-action when filtered,
+/// upload/hidden-file pointers when genuinely empty.
 #[component]
 pub fn EmptyState(
     has_filter: bool,
