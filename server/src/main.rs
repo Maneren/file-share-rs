@@ -190,10 +190,6 @@ fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Router {
     let app_config = Arc::clone(&app_state.app_config);
     let target_dir = app_state.app_config.target_dir.clone();
 
-    // NOTE: `Router::layer` only wraps routes registered *before* it.
-    // Compression sits after the file routes on purpose: it also covers
-    // `/files` downloads, while the predicate above keeps already
-    // compressed payloads (archives, media, octet-streams) untouched.
     Router::new()
         .route("/", get(|| async { Redirect::to("/index") }))
         .route("/help", get(|| async { API_HELP_TEXT }))
