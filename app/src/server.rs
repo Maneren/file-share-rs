@@ -184,31 +184,6 @@ pub async fn list_dir(query: ListQuery) -> Result<ListingPage, ServerFnError> {
 /// - Pagination applies last; `total` counts everything before it.
 #[cfg(feature = "ssr")]
 fn filter_sort_page(entries: Entries, query: &ListQuery) -> ListingPage {
-    let mut entries = entries;
-    let hidden_count = if query.show_hidden {
-        0
-    } else {
-        let before = entries.len();
-        entries.retain(|entry| !entry.name().starts_with('.'));
-        before - entries.len()
-    };
-
-    // Initials drive the letter buttons. Computed on the hidden-filtered
-    // set so navigation between letters never traps the user.
-    let mut initials: Vec<char> = entries
-        .iter()
-        .filter_map(|entry| entry.name().chars().next())
-        .map(|c| c.to_ascii_uppercase())
-        .filter(|c| c.is_ascii_alphabetic())
-        .collect();
-    initials.sort_unstable();
-    initials.dedup();
-
-    if let Some(initial) = query.initial {
-        let needle = initial.to_lowercase().collect::<String>();
-        entries.retain(|entry| entry.name().to_lowercase().starts_with(&needle));
-    }
-
     // Lowercase names are cached once so sorting never allocates per
     // comparison.
     struct SortRow {
@@ -218,6 +193,7 @@ fn filter_sort_page(entries: Entries, query: &ListQuery) -> ListingPage {
         score: Option<u16>,
     }
 
+    let initial_needle = query.initial.map(|c| c.to_lowercase().collect::<String>());
     let searching = !query.search.trim().is_empty();
     let mut matcher = Matcher::new(NucleoConfig::DEFAULT);
     let search_lower = query.search.to_lowercase();
@@ -225,9 +201,29 @@ fn filter_sort_page(entries: Entries, query: &ListQuery) -> ListingPage {
     let needle = Utf32Str::new(&search_lower, &mut needle_buf);
     let mut haystack_buf = Vec::new();
 
+    let mut hidden_count = 0;
+    // Initials drive the letter buttons. Collected on the hidden-filtered
+    // set so navigation between letters never traps the user.
+    let mut initials = Vec::new();
+    // Single pass: each name is lowercased exactly once and shared by the
+    // initial filter, the initials collection and the fuzzy matcher.
     let mut rows = Vec::with_capacity(entries.len());
     for entry in entries {
+        if !query.show_hidden && entry.name().starts_with('.') {
+            hidden_count += 1;
+            continue;
+        }
         let lower_name = entry.name().to_lowercase();
+        if let Some(c) = lower_name.chars().next().map(|c| c.to_ascii_uppercase()) {
+            if c.is_ascii_alphabetic() {
+                initials.push(c);
+            }
+        }
+        if let Some(prefix) = &initial_needle {
+            if !lower_name.starts_with(prefix) {
+                continue;
+            }
+        }
         let score = searching
             .then(|| {
                 haystack_buf.clear();
@@ -242,6 +238,8 @@ fn filter_sort_page(entries: Entries, query: &ListQuery) -> ListingPage {
             });
         }
     }
+    initials.sort_unstable();
+    initials.dedup();
 
     rows.sort_by(|a, b| {
         // Search results rank by relevance; the column sort does not apply.
@@ -477,6 +475,81 @@ mod tests {
         );
         assert_eq!(page.total, 2);
         assert_eq!(names(&page.entries), ["adir", "bdir"]);
+    }
+
+    #[test]
+    fn size_sort_desc_files_first() {
+        let page = filter_sort_page(
+            fixture(),
+            &ListQuery {
+                limit: 100,
+                ..query(SortColumn::Size, SortDir::Desc)
+            },
+        );
+        assert_eq!(
+            names(&page.entries),
+            ["zebra.bin", "apple.txt", "Cherry.md", "bdir", "adir"]
+        );
+    }
+
+    #[test]
+    fn time_sort_desc_mixes_folders_and_files() {
+        let page = filter_sort_page(
+            fixture(),
+            &ListQuery {
+                limit: 100,
+                ..query(SortColumn::Modified, SortDir::Desc)
+            },
+        );
+        assert_eq!(
+            names(&page.entries),
+            ["Cherry.md", "adir", "zebra.bin", "bdir", "apple.txt"]
+        );
+    }
+
+    #[test]
+    fn search_combines_with_initial_filter() {
+        let page = filter_sort_page(
+            fixture(),
+            &ListQuery {
+                search: "ir".into(),
+                initial: Some('a'),
+                limit: 100,
+                ..query(SortColumn::Name, SortDir::Asc)
+            },
+        );
+        assert_eq!(page.total, 1);
+        assert_eq!(names(&page.entries), ["adir"]);
+    }
+
+    #[test]
+    fn pagination_past_end_is_empty() {
+        let page = filter_sort_page(
+            fixture(),
+            &ListQuery {
+                limit: 100,
+                offset: 99,
+                ..query(SortColumn::Name, SortDir::Asc)
+            },
+        );
+        assert_eq!(page.total, 5);
+        assert!(page.entries.is_empty());
+    }
+
+    #[test]
+    fn hidden_search_counts_skipped() {
+        let entries = vec![file(".secret", 1, 1), file("visible.txt", 1, 1)];
+        let page = filter_sort_page(
+            entries,
+            &ListQuery {
+                search: "sec".into(),
+                limit: 100,
+                ..query(SortColumn::Name, SortDir::Asc)
+            },
+        );
+        assert_eq!(page.total, 0);
+        assert_eq!(page.hidden_count, 1);
+        assert!(page.entries.is_empty());
     }
 
     #[test]
