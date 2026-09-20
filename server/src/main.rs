@@ -164,10 +164,11 @@ async fn main() {
 
     while let Some(result) = join_set.join_next().await {
         match result {
-            Ok(Ok(())) => {},
+            Ok(Ok(())) => continue,
             Ok(Err(e)) => error!("{e}"),
             Err(e) => error!("Server task failed: {e}"),
         }
+        process::exit(1);
     }
 }
 
