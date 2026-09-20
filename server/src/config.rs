@@ -1,6 +1,6 @@
 use std::{net::IpAddr, path::PathBuf};
 
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use port_check::{free_local_port, is_local_port_free};
 use rfd::AsyncFileDialog;
 
@@ -28,11 +28,11 @@ pub struct Cli {
     /// Open a GUI file picker to choose the target directory
     ///
     /// Overrides `TARGET_DIR`
-    #[arg(short = 'P', long, default_value = "false")]
+    #[arg(short = 'P', long, action = ArgAction::SetTrue)]
     pub picker: bool,
 
     /// Allow client to upload files
-    #[arg(short, long, default_value = "false")]
+    #[arg(short, long, action = ArgAction::SetTrue)]
     pub upload: bool,
 }
 
