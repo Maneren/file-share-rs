@@ -5,6 +5,8 @@ mod folder_download;
 mod listing_browser;
 mod loading;
 mod new_folder;
+mod sort_header;
+mod toolbar;
 mod upload;
 mod upload_bar;
 
@@ -15,5 +17,7 @@ pub use folder_download::FolderDownloads;
 pub use listing_browser::ListingBrowser;
 pub use loading::Loading;
 pub use new_folder::NewFolderButton;
+pub use sort_header::SortHeader;
+pub use toolbar::Toolbar;
 pub use upload::FileUpload;
 pub use upload_bar::UploadBar;

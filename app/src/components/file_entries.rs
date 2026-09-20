@@ -58,8 +58,8 @@ fn EntryComponent(
 }
 
 #[component]
-pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
-    let path = StoredValue::new(path.get_untracked());
+pub fn FileEntries(path: PathBuf, entries: Entries) -> impl IntoView {
+    let path = StoredValue::new(path);
     let entries = StoredValue::new(entries);
 
     view! {
