@@ -11,7 +11,7 @@ mod server;
 mod state;
 pub mod utils;
 
-use leptos::{either::Either, prelude::*};
+use leptos::prelude::*;
 use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
     components::{Route, Router, Routes},
@@ -28,7 +28,7 @@ pub use crate::config::{
 #[cfg(feature = "ssr")]
 pub use crate::state::AppState;
 use crate::{
-    components::{Breadcrumbs, FileEntries, Loading, UploadBar},
+    components::{Breadcrumbs, EmptyState, FileEntries, Loading, UploadBar},
     error_template::{AppError, ErrorTemplate},
     server::{ListQuery, NewFolder, SortColumn, SortDir, list_dir},
     utils::page_window,
@@ -63,6 +63,7 @@ pub fn FilesPage() -> impl IntoView {
     let sort_dir = RwSignal::new(SortDir::Asc);
     let search = RwSignal::new(String::new());
     let initial = RwSignal::new(None::<char>);
+    let show_hidden = RwSignal::new(false);
 
     // Reset paging on navigation, new folders, or changed sort/filter.
     // Setting an already-zero page does not notify, so this only
@@ -75,6 +76,7 @@ pub fn FilesPage() -> impl IntoView {
             sort_dir.get(),
             search.get(),
             initial.get(),
+            show_hidden.get(),
         );
         page.set(0);
     });
@@ -89,9 +91,10 @@ pub fn FilesPage() -> impl IntoView {
                 sort_dir.get(),
                 search.get(),
                 initial.get(),
+                show_hidden.get(),
             )
         },
-        |(path, _, page, sort_column, sort_dir, search, initial)| async move {
+        |(path, _, page, sort_column, sort_dir, search, initial, show_hidden)| async move {
             // NOTE: the `Ok` error type must be annotated. Nothing else
             // pins it, and an ambiguous error type surfaces as bogus
             // `FnMut`/`IntoView` errors on the `Transition` below instead
@@ -103,6 +106,7 @@ pub fn FilesPage() -> impl IntoView {
                     sort_dir,
                     search,
                     initial,
+                    show_hidden,
                     limit: PAGE_SIZE,
                     offset: page * PAGE_SIZE,
                 })
@@ -125,8 +129,16 @@ pub fn FilesPage() -> impl IntoView {
     let path_signal = Signal::from(path);
 
     let app_config = expect_context::<Arc<AppConfig>>();
+    let allow_upload = app_config.allow_upload;
 
-    let upload_bar = app_config.allow_upload.then(|| {
+    let has_active_filter = Memo::new(move |_| !search.get().is_empty() || initial.get().is_some());
+    let clear_filter = Callback::new(move |()| {
+        search.set(String::new());
+        initial.set(None);
+    });
+    let show_hidden_files = Callback::new(move |()| show_hidden.set(true));
+
+    let upload_bar = allow_upload.then(|| {
         view! { <UploadBar path=path_signal create_folder_action=create_folder_action /> }
     });
 
@@ -175,6 +187,16 @@ pub fn FilesPage() -> impl IntoView {
               "Clear"
             </button>
           </Show>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              class="toggle toggle-sm"
+              aria-label="Show hidden files"
+              prop:checked=move || show_hidden.get()
+              on:change=move |ev| show_hidden.set(event_target_checked(&ev))
+            />
+            "Hidden"
+          </label>
         </div>
         <div class="flex flex-wrap gap-1 py-1" role="group" aria-label="Filter by initial letter">
           <button
@@ -222,14 +244,26 @@ pub fn FilesPage() -> impl IntoView {
           {move || Suspend::new(async move {
             match listing.await {
               Ok(page_data) => {
-                Either::Left(
+                if page_data.entries.is_empty() {
+                  view! {
+                    <EmptyState
+                      has_filter=has_active_filter.get()
+                      hidden_count=page_data.hidden_count
+                      allow_upload=allow_upload
+                      on_clear=clear_filter
+                      on_show_hidden=show_hidden_files
+                    />
+                  }
+                    .into_any()
+                } else {
                   view! {
                     <FileEntries path=path_signal entries=page_data.entries />
                     <Pagination page=page total=page_data.total />
-                  },
-                )
+                  }
+                    .into_any()
+                }
               }
-              Err(e) => Either::Right(view! { <p class="text-lg">{format!("{e}")}</p> }),
+              Err(e) => view! { <p class="text-lg">{format!("{e}")}</p> }.into_any(),
             }
           })}
         </Transition>

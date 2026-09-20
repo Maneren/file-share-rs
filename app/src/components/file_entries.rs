@@ -59,14 +59,10 @@ fn EntryComponent(
 
 #[component]
 pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
-    if entries.is_empty() {
-        return Either::Left(view! { <div class="file-view">"The folder is empty"</div> });
-    }
-
     let path = StoredValue::new(path.get_untracked());
     let entries = StoredValue::new(entries);
 
-    Either::Right(view! {
+    view! {
       <div class="file-view">
         <For
           each=move || entries.get_value()
@@ -110,5 +106,5 @@ pub fn FileEntries(path: Signal<PathBuf>, entries: Entries) -> impl IntoView {
           }}
         </For>
       </div>
-    })
+    }
 }

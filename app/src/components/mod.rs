@@ -1,4 +1,5 @@
 mod breadcrumbs;
+mod empty_state;
 mod file_entries;
 mod folder_download;
 mod loading;
@@ -7,6 +8,7 @@ mod upload;
 mod upload_bar;
 
 pub use breadcrumbs::Breadcrumbs;
+pub use empty_state::EmptyState;
 pub use file_entries::FileEntries;
 pub use folder_download::FolderDownloads;
 pub use loading::Loading;
