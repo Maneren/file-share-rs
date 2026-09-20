@@ -30,7 +30,7 @@ pub use crate::state::AppState;
 use crate::{
     components::{Breadcrumbs, FileEntries, Loading, UploadBar},
     error_template::{AppError, ErrorTemplate},
-    server::{ListQuery, NewFolder, list_dir},
+    server::{ListQuery, NewFolder, SortColumn, SortDir, list_dir},
     utils::page_window,
 };
 
@@ -59,16 +59,39 @@ pub fn FilesPage() -> impl IntoView {
     let create_folder_action = ServerAction::<NewFolder>::new();
 
     let page = RwSignal::new(0usize);
-    // Reset paging on navigation or new folders. Setting an already-zero
-    // page does not notify, so this only refetches when shrinking a page.
+    let sort_column = RwSignal::new(SortColumn::Name);
+    let sort_dir = RwSignal::new(SortDir::Asc);
+    let search = RwSignal::new(String::new());
+    let initial = RwSignal::new(None::<char>);
+
+    // Reset paging on navigation, new folders, or changed sort/filter.
+    // Setting an already-zero page does not notify, so this only
+    // refetches when shrinking a page.
     Effect::new(move |_| {
-        let _ = (path.get(), create_folder_action.version().get());
+        let _ = (
+            path.get(),
+            create_folder_action.version().get(),
+            sort_column.get(),
+            sort_dir.get(),
+            search.get(),
+            initial.get(),
+        );
         page.set(0);
     });
 
     let listing = Resource::new(
-        move || (path.get(), create_folder_action.version().get(), page.get()),
-        |(path, _, page)| async move {
+        move || {
+            (
+                path.get(),
+                create_folder_action.version().get(),
+                page.get(),
+                sort_column.get(),
+                sort_dir.get(),
+                search.get(),
+                initial.get(),
+            )
+        },
+        |(path, _, page, sort_column, sort_dir, search, initial)| async move {
             // NOTE: the `Ok` error type must be annotated. Nothing else
             // pins it, and an ambiguous error type surfaces as bogus
             // `FnMut`/`IntoView` errors on the `Transition` below instead
@@ -76,6 +99,10 @@ pub fn FilesPage() -> impl IntoView {
             Ok::<_, ServerFnError>(
                 list_dir(ListQuery {
                     path,
+                    sort_column,
+                    sort_dir,
+                    search,
+                    initial,
                     limit: PAGE_SIZE,
                     offset: page * PAGE_SIZE,
                 })
@@ -83,6 +110,17 @@ pub fn FilesPage() -> impl IntoView {
             )
         },
     );
+
+    // Clamp the page when filtering shrinks the listing below it.
+    // Converges: setting the already-correct page does not notify.
+    Effect::new(move |_| {
+        if let Some(Ok(page_data)) = listing.get() {
+            let pages = page_data.total.div_ceil(PAGE_SIZE);
+            if pages > 0 && page.get() >= pages {
+                page.set(pages - 1);
+            }
+        }
+    });
 
     let path_signal = Signal::from(path);
 
@@ -92,14 +130,93 @@ pub fn FilesPage() -> impl IntoView {
         view! { <UploadBar path=path_signal create_folder_action=create_folder_action /> }
     });
 
+    let toggle_sort = move |column: SortColumn| {
+        if sort_column.get() == column {
+            sort_dir.update(|dir| {
+                *dir = match dir {
+                    SortDir::Asc => SortDir::Desc,
+                    SortDir::Desc => SortDir::Asc,
+                };
+            });
+        } else {
+            sort_column.set(column);
+            sort_dir.set(SortDir::Asc);
+        }
+    };
+    let indicator = move |column: SortColumn| {
+        (sort_column.get() == column)
+            .then(|| match sort_dir.get() {
+                SortDir::Asc => "▲",
+                SortDir::Desc => "▼",
+            })
+            .unwrap_or_default()
+    };
+
     view! {
       <div class="p-3 App">
         {upload_bar} <Breadcrumbs path=path_signal />
+        <div class="flex flex-wrap items-center gap-2 py-1">
+          <input
+            type="search"
+            placeholder="Search…"
+            aria-label="Search files"
+            class="input input-sm input-bordered grow"
+            prop:value=move || search.get()
+            on:input=move |ev| search.set(event_target_value(&ev))
+          />
+          <Show when=move || !search.get().is_empty()>
+            <button
+              class="btn btn-sm btn-ghost"
+              on:click=move |_| {
+                search.set(String::new());
+                initial.set(None);
+              }
+            >
+              "Clear"
+            </button>
+          </Show>
+        </div>
+        <div class="flex flex-wrap gap-1 py-1" role="group" aria-label="Filter by initial letter">
+          <button
+            class="btn btn-xs"
+            class:btn-active=move || initial.get().is_none()
+            on:click=move |_| initial.set(None)
+          >
+            "All"
+          </button>
+          <For each=|| 'A'..='Z' key=|letter| *letter let:letter>
+            <button
+              class="btn btn-xs"
+              class:btn-active=move || initial.get() == Some(letter)
+              on:click=move |_| initial.set(Some(letter))
+            >
+              {letter.to_string()}
+            </button>
+          </For>
+        </div>
         <div class="grid gap-2 mb-1 border-b grid-cols-(--entry-cols-mobile) border-base-content md:grid-cols-(--entry-cols)">
           <span></span>
-          <span>Name</span>
-          <span>Size</span>
-          <span class="hidden md:inline">Last Modified</span>
+          <button
+            class="flex items-center gap-1 text-left"
+            on:click=move |_| toggle_sort(SortColumn::Name)
+          >
+            "Name"
+            <span>{move || indicator(SortColumn::Name)}</span>
+          </button>
+          <button
+            class="flex justify-end items-center gap-1"
+            on:click=move |_| toggle_sort(SortColumn::Size)
+          >
+            "Size"
+            <span>{move || indicator(SortColumn::Size)}</span>
+          </button>
+          <button
+            class="hidden items-center gap-1 md:flex"
+            on:click=move |_| toggle_sort(SortColumn::Modified)
+          >
+            "Last Modified"
+            <span>{move || indicator(SortColumn::Modified)}</span>
+          </button>
         </div>
         <Transition fallback=Loading>
           {move || Suspend::new(async move {

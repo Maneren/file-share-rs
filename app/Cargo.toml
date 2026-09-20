@@ -23,6 +23,7 @@ futures.workspace = true
 http.workspace = true
 include-flate.workspace = true
 multer = { workspace = true, optional = true }
+nucleo = { workspace = true, optional = true }
 rust-embed.workspace = true
 serde_json.workspace = true
 serde.workspace = true
@@ -45,6 +46,7 @@ ssr = [
   "dep:async-broadcast",
   "dep:axum",
   "dep:multer",
+  "dep:nucleo",
   "dep:tokio",
   "dep:tokio-stream",
 ]
