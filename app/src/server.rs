@@ -495,6 +495,38 @@ mod tests {
     }
 
     #[test]
+    fn listing_query_page_serde_roundtrip() {
+        // The client fetches these over the wire; a missing/broken impl
+        // would surface only at runtime in the browser.
+        let query = ListQuery {
+            path: PathBuf::new(),
+            sort_column: SortColumn::Size,
+            sort_dir: SortDir::Desc,
+            search: "vid".into(),
+            initial: Some('V'),
+            show_hidden: true,
+            limit: 100,
+            offset: 200,
+        };
+        let back: ListQuery =
+            serde_json::from_str(&serde_json::to_string(&query).unwrap()).unwrap();
+        assert_eq!(back, query);
+
+        let page = ListingPage {
+            entries: fixture(),
+            total: 5,
+            hidden_count: 1,
+            initials: vec!['A', 'Z'],
+        };
+        let back: ListingPage =
+            serde_json::from_str(&serde_json::to_string(&page).unwrap()).unwrap();
+        assert_eq!(back.total, 5);
+        assert_eq!(back.hidden_count, 1);
+        assert_eq!(back.initials, ['A', 'Z']);
+        assert_eq!(names(&back.entries).len(), 5);
+    }
+
+    #[test]
     fn hidden_files_filtered_unless_shown() {
         let hidden = || {
             vec![
