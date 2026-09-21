@@ -51,20 +51,8 @@ pub fn ListingBrowser(path: PathBuf, allow_upload: bool) -> impl IntoView {
             limit: PAGE_SIZE,
             offset: page.get() * PAGE_SIZE,
         },
-        // NOTE: no `?` inside: it would leave the error type ambiguous,
-        // which surfaces as bogus `FnMut`/`IntoView` errors below.
-        |query: ListQuery| async move { list_dir(query).await },
+        list_dir,
     );
-
-    // Initials present in the folder, for enabling letter buttons.
-    // Empty (all disabled) while the listing loads.
-    let initials = Memo::new(move |_| {
-        listing
-            .get()
-            .and_then(|result| result.ok())
-            .map(|page_data| page_data.initials)
-            .unwrap_or_default()
-    });
 
     let has_active_filter = Memo::new(move |_| !search.get().is_empty() || initial.get().is_some());
     let clear_filter = Callback::new(move |()| {
@@ -79,7 +67,7 @@ pub fn ListingBrowser(path: PathBuf, allow_upload: bool) -> impl IntoView {
           search=search
           initial=initial
           show_hidden=show_hidden
-          initials=initials
+          listing=listing
           on_clear=clear_filter
         />
         <SortHeader sort_column=sort_column sort_dir=sort_dir />

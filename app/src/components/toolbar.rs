@@ -1,12 +1,14 @@
 use leptos::prelude::*;
 
+use crate::server::ListingPage;
+
 /// Search box, hidden-file toggle and initial-letter strip.
 #[component]
 pub fn Toolbar(
     search: RwSignal<String>,
     initial: RwSignal<Option<char>>,
     show_hidden: RwSignal<bool>,
-    initials: Memo<Vec<char>>,
+    listing: Resource<Result<ListingPage, ServerFnError>>,
     on_clear: Callback<()>,
 ) -> impl IntoView {
     view! {
@@ -43,14 +45,11 @@ pub fn Toolbar(
         >
           "All"
         </button>
-        <Suspense fallback=|| {
+        <Transition fallback=|| {
           view! { <span class="text-xs opacity-50">"A–Z"</span> }
         }>
-          {move || {
-            let present = initials.get();
-            // Read here, not in the caller: the resource must be first
-            // touched inside suspense, or hydration warns about reads
-            // outside a suspense boundary.
+          {move || Suspend::new(async move {
+            let present = listing.await.map(|page_data| page_data.initials).unwrap_or_default();
             view! {
               <For each=|| 'A'..='Z' key=|letter| *letter let:letter>
                 <button
@@ -66,8 +65,8 @@ pub fn Toolbar(
                 </button>
               </For>
             }
-          }}
-        </Suspense>
+          })}
+        </Transition>
       </div>
     }
 }

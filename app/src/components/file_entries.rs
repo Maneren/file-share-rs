@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 use icon::{Icon, get_file_icon, get_folder_icon};
 use leptos::{either::Either, prelude::*};
-use leptos_router::components::A;
 
 use crate::{
     server::{Entries, ServerEntry},
@@ -43,16 +42,12 @@ fn EntryComponent(
     };
 
     if type_ == EntryType::Folder {
-        Either::Left(view! {
-          <A href=href exact=true>
-            {inner}
-          </A>
-        })
+        Either::Left(view! { <a href=href>{inner}</a> })
     } else {
         Either::Right(view! {
-          <A href=href attr:download>
+          <a href=href download>
             {inner}
-          </A>
+          </a>
         })
     }
 }
