@@ -105,9 +105,10 @@ pub fn page_window(current: usize, pages: usize) -> Vec<Option<usize>> {
     if pages <= 7 {
         return (0..pages).map(Some).collect();
     }
-    let mut window = vec![Some(0)];
-    let lo = current.saturating_sub(1).max(1);
-    let hi = (current + 1).min(pages - 2);
+    let mut window = Vec::with_capacity(9);
+    window.push(Some(0));
+    let lo = current.saturating_sub(2).max(1);
+    let hi = current.saturating_add(2).min(pages - 2);
     if lo > 1 {
         window.push(None);
     }
@@ -202,19 +203,29 @@ mod tests {
         );
         assert_eq!(
             page_window(0, 8),
-            numbered(&[Some(0), Some(1), None, Some(7)])
+            numbered(&[Some(0), Some(1), Some(2), None, Some(7)])
         );
         assert_eq!(
             page_window(4, 10),
-            numbered(&[Some(0), None, Some(3), Some(4), Some(5), None, Some(9)])
+            numbered(&[
+                Some(0),
+                None,
+                Some(2),
+                Some(3),
+                Some(4),
+                Some(5),
+                Some(6),
+                None,
+                Some(9)
+            ])
         );
         assert_eq!(
             page_window(9, 10),
-            numbered(&[Some(0), None, Some(8), Some(9)])
+            numbered(&[Some(0), None, Some(7), Some(8), Some(9)])
         );
         assert_eq!(
             page_window(6, 8),
-            numbered(&[Some(0), None, Some(5), Some(6), Some(7)])
+            numbered(&[Some(0), None, Some(4), Some(5), Some(6), Some(7)])
         );
     }
 }

@@ -4,7 +4,7 @@ use leptos::prelude::*;
 /// upload/hidden-file pointers when genuinely empty.
 #[component]
 pub fn EmptyState(
-    has_filter: bool,
+    #[prop(into)] has_filter: Signal<bool>,
     hidden_count: usize,
     allow_upload: bool,
     on_clear: Callback<()>,
@@ -13,7 +13,7 @@ pub fn EmptyState(
     view! {
       <div class="flex flex-col items-center gap-2 py-10 text-center" role="status">
         <Show
-          when=move || has_filter
+          when=has_filter
           fallback=move || {
             view! {
               <p class="text-lg">"This folder is empty."</p>

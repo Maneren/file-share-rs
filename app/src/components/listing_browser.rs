@@ -9,13 +9,10 @@ use crate::{
 };
 
 /// Entries per directory page.
-const PAGE_SIZE: usize = 100;
+const PAGE_SIZE: usize = 50;
 
 /// The interactive listing browser: toolbar, sorting, filtering,
 /// entry list, pagination and empty states.
-///
-/// An island so it hydrates in the browser. `path` is a snapshot:
-/// navigation does full page loads (the router isn't hydrated).
 #[island]
 pub fn ListingBrowser(path: PathBuf, allow_upload: bool) -> impl IntoView {
     let path = StoredValue::new(path);
@@ -54,7 +51,8 @@ pub fn ListingBrowser(path: PathBuf, allow_upload: bool) -> impl IntoView {
         list_dir,
     );
 
-    let has_active_filter = Memo::new(move |_| !search.get().is_empty() || initial.get().is_some());
+    let has_active_filter =
+        Signal::derive(move || !search.get().is_empty() || initial.get().is_some());
     let clear_filter = Callback::new(move |()| {
         search.set(String::new());
         initial.set(None);
@@ -78,7 +76,7 @@ pub fn ListingBrowser(path: PathBuf, allow_upload: bool) -> impl IntoView {
                 if page_data.entries.is_empty() {
                   view! {
                     <EmptyState
-                      has_filter=has_active_filter.get()
+                      has_filter=has_active_filter
                       hidden_count=page_data.hidden_count
                       allow_upload=allow_upload
                       on_clear=clear_filter
@@ -146,7 +144,7 @@ fn Pagination(page: RwSignal<usize>, total: usize) -> impl IntoView {
                   Some(p) => {
                     let label = (p + 1).to_string();
                     if p == page.get() {
-                      view! { <button class="join-item btn btn-sm btn-active">{label}</button> }
+                      view! { <button class="join-item btn btn-sm btn-primary">{label}</button> }
                         .into_any()
                     } else {
                       view! {

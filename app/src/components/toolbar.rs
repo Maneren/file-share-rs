@@ -40,7 +40,7 @@ pub fn Toolbar(
       <div class="flex flex-wrap gap-1 py-1" role="group" aria-label="Filter by initial letter">
         <button
           class="btn btn-xs"
-          class:btn-active=move || initial.get().is_none()
+          class:btn-primary=move || initial.get().is_none()
           on:click=move |_| initial.set(None)
         >
           "All"
@@ -54,7 +54,7 @@ pub fn Toolbar(
               <For each=|| 'A'..='Z' key=|letter| *letter let:letter>
                 <button
                   class="btn btn-xs"
-                  class:btn-active=move || initial.get() == Some(letter)
+                  class:btn-primary=move || initial.get() == Some(letter)
                   disabled={
                     let present = present.clone();
                     move || !present.contains(&letter)

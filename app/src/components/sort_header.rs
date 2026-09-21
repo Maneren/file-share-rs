@@ -25,33 +25,25 @@ pub fn SortHeader(sort_column: RwSignal<SortColumn>, sort_dir: RwSignal<SortDir>
                 SortDir::Asc => "▲",
                 SortDir::Desc => "▼",
             })
-            .unwrap_or_default()
+            .unwrap_or(" ")
     };
 
     view! {
       <div class="grid gap-2 mb-1 border-b grid-cols-(--entry-cols-mobile) border-base-content md:grid-cols-(--entry-cols)">
         <span></span>
-        <button
-          class="flex items-center gap-1 text-left"
-          on:click=move |_| toggle_sort(SortColumn::Name)
-        >
-          "Name"
-          <span>{move || indicator(SortColumn::Name)}</span>
-        </button>
-        <button
-          class="flex justify-end items-center gap-1"
-          on:click=move |_| toggle_sort(SortColumn::Size)
-        >
-          "Size"
-          <span>{move || indicator(SortColumn::Size)}</span>
-        </button>
-        <button
-          class="hidden items-center gap-1 md:flex"
-          on:click=move |_| toggle_sort(SortColumn::Modified)
-        >
-          "Last Modified"
-          <span>{move || indicator(SortColumn::Modified)}</span>
-        </button>
+        {[SortColumn::Name, SortColumn::Size, SortColumn::Modified]
+          .map(|column| {
+            view! {
+              <button class="flex items-center gap-3" on:click=move |_| toggle_sort(column)>
+                {match column {
+                  SortColumn::Name => "Name",
+                  SortColumn::Size => "Size",
+                  SortColumn::Modified => "Last Modified",
+                }}
+                <span class="ml-2">{move || indicator(column)}</span>
+              </button>
+            }
+          })}
       </div>
     }
 }
