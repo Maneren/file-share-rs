@@ -994,6 +994,7 @@ dependencies = [
  "rfd",
  "rust-embed",
  "serde",
+ "socket2",
  "thiserror 2.0.20",
  "tokio",
  "tokio-stream",

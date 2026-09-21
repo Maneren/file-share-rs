@@ -12,7 +12,7 @@ pub struct Cli {
     pub target_dir: PathBuf,
 
     /// Port to listen on
-    #[arg(short, long, default_value = "3000")]
+    #[arg(short, long, default_value = "18765")]
     pub port: u16,
 
     /// Show QR codes that link to the site
@@ -21,8 +21,10 @@ pub struct Cli {
 
     /// IP address(es) of interfaces on which file-share will be available
     ///
-    /// Accepts comma separated list of both IPv4 and IPv6 addresses
-    #[arg(short, long, num_args = 1.., value_delimiter = ',', default_value = "0.0.0.0,::1")]
+    /// Accepts comma separated list of both IPv4 and IPv6 addresses.
+    /// `0.0.0.0`/`::` listen on all interfaces (IPv6 served on a v6-only
+    /// socket so both wildcards coexist on dual-stack systems)
+    #[arg(short, long, num_args = 1.., value_delimiter = ',', default_value = "0.0.0.0,::")]
     pub interfaces: Vec<IpAddr>,
 
     /// Open a GUI file picker to choose the target directory

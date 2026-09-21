@@ -6,8 +6,8 @@ pub mod fileserv;
 
 use std::{
     fs::create_dir_all,
-    io,
-    net::{IpAddr, SocketAddr},
+    io::{self, IsTerminal},
+    net::{IpAddr, SocketAddr, TcpListener},
     process,
     sync::Arc,
 };
@@ -20,7 +20,7 @@ use axum::{
     response::Redirect,
     routing::{get, post},
 };
-use axum_server::{Handle, bind};
+use axum_server::{Handle, bind, from_tcp};
 use colored::Colorize;
 use file_share_app::{App, AppConfig, AppState, shell};
 use if_addrs::{Interface, get_if_addrs};
@@ -30,6 +30,7 @@ use leptos::{
 };
 use leptos_axum::{AxumRouteListing, LeptosRoutes, generate_route_list};
 use qr_code::QrCode;
+use socket2::{Domain, Socket, Type};
 use tokio::{signal, spawn, task::JoinSet};
 use tower::Layer as _;
 use tower_http::{
@@ -108,7 +109,7 @@ async fn main() {
 
     let app = create_router(app_state.clone(), routes);
 
-    let display_urls = get_display_urls(&interfaces, port);
+    let targets = display_targets(&interfaces, port);
 
     let socket_addresses = interfaces
         .iter()
@@ -124,17 +125,17 @@ async fn main() {
     println!("Listening on {display_sockets}");
     println!(
         "Available on:\n{}",
-        display_urls
+        targets
             .iter()
-            .map(|url| format!("   {url}").green().bold().to_string())
+            .map(|target| format!("   {}", target.url).green().bold().to_string())
             .collect::<Vec<_>>()
             .join("\n")
     );
 
-    let is_terminal = io::IsTerminal::is_terminal(&io::stdout());
+    let is_terminal = IsTerminal::is_terminal(&io::stdout());
 
     if qr && is_terminal {
-        print_qr_codes(&display_urls);
+        print_qr_codes(&targets);
     }
 
     if is_terminal {
@@ -151,15 +152,7 @@ async fn main() {
 
     let mut join_set = JoinSet::new();
     for addr in socket_addresses {
-        let app = app.clone();
-        let handle = handle.clone();
-        join_set.spawn(async move {
-            bind(addr)
-                .handle(handle)
-                .serve(app.into_make_service())
-                .await
-                .map_err(|e| format!("Failed to start server at {addr}: {e}"))
-        });
+        serve_address(&mut join_set, app.clone(), handle.clone(), addr);
     }
 
     while let Some(result) = join_set.join_next().await {
@@ -169,6 +162,47 @@ async fn main() {
             Err(e) => error!("Server task failed: {e}"),
         }
         process::exit(1);
+    }
+}
+
+fn serve_address(
+    servers: &mut JoinSet<Result<(), String>>,
+    app: Router,
+    handle: Handle<SocketAddr>,
+    addr: SocketAddr,
+) {
+    if is_v6_wildcard(&addr) {
+        // Pre-bound v6-only socket (see `bind_v6_wildcard`); the bind is
+        // synchronous so a failure here is reported before serving.
+        let listener = match bind_v6_wildcard(addr) {
+            Ok(listener) => listener,
+            Err(e) => {
+                error!("Failed to bind server socket at {addr}: {e}");
+                process::exit(1);
+            },
+        };
+        let server = match from_tcp(listener) {
+            Ok(server) => server,
+            Err(e) => {
+                error!("Failed to start server at {addr}: {e}");
+                process::exit(1);
+            },
+        };
+        servers.spawn(async move {
+            server
+                .handle(handle)
+                .serve(app.into_make_service())
+                .await
+                .map_err(|e| format!("Failed to serve at {addr}: {e}"))
+        });
+    } else {
+        servers.spawn(async move {
+            bind(addr)
+                .handle(handle)
+                .serve(app.into_make_service())
+                .await
+                .map_err(|e| format!("Failed to start server at {addr}: {e}"))
+        });
     }
 }
 
@@ -231,53 +265,124 @@ fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Router {
         .with_state(app_state)
 }
 
-fn print_qr_codes(display_urls: &[String]) {
-    for url in display_urls
-        .iter()
-        .filter(|url| !url.contains("127.0.0.1") && !url.contains("[::1]"))
-    {
-        match QrCode::new(url) {
-            Ok(qr) => {
-                println!(
-                    "QR code for {}:\n{}",
-                    url.green().bold(),
-                    qr.to_string(false, 1)
-                );
-            },
-            Err(e) => {
-                error!("Failed to render QR to terminal: {e}");
-                break;
-            },
-        }
+/// Interface-name prefixes of virtual container bridges (Docker, libvirt,
+/// veth pairs). Their addresses are never reachable from other machines,
+/// so they are skipped when expanding wildcard binds for display.
+const VIRTUAL_IFACE_PREFIXES: &[&str] = &["docker", "veth", "br-", "virbr"];
+
+/// Unicast scopes with no usable route for LAN clients (ARP/ND link-local).
+fn is_link_local(ip: &IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => ip.is_link_local(),
+        IpAddr::V6(ip) => ip.is_unicast_link_local(),
     }
 }
 
-fn get_display_urls(interfaces: &[IpAddr], port: u16) -> Vec<String> {
-    let (wildcard, mut ifaces): (Vec<IpAddr>, Vec<IpAddr>) =
+/// Addresses worth showing to the user: drops loopback, link-local,
+/// multicast and unspecified addresses.
+fn is_usable_address(ip: &IpAddr) -> bool {
+    !(ip.is_loopback() || ip.is_unspecified() || ip.is_multicast() || is_link_local(ip))
+}
+
+fn is_v6_wildcard(addr: &SocketAddr) -> bool {
+    matches!(addr.ip(), IpAddr::V6(ip) if ip.is_unspecified())
+}
+
+/// Pre-bind the IPv6 wildcard on a v6-only socket.
+///
+/// A dual-stack wildcard would clash with the IPv4 wildcard on Linux
+/// (`EADDRINUSE`), so the v6 socket is pinned to v6-only: both wildcards
+/// then always coexist, and any bind failure is genuine.
+fn bind_v6_wildcard(addr: SocketAddr) -> io::Result<TcpListener> {
+    let socket = Socket::new(Domain::IPV6, Type::STREAM, None)?;
+    socket.set_only_v6(true)?;
+    socket.set_reuse_address(true)?;
+    socket.bind(&addr.into())?;
+    socket.listen(1024)?;
+    socket.set_nonblocking(true)?;
+    Ok(socket.into())
+}
+
+/// A served address plus its printable URL.
+struct DisplayTarget {
+    ip: IpAddr,
+    url: String,
+}
+
+fn format_url(ip: IpAddr, port: u16) -> String {
+    match ip {
+        IpAddr::V4(_) => format!("http://{ip}:{port}"),
+        IpAddr::V6(_) => format!("http://[{ip}]:{port}"),
+    }
+}
+
+/// Concrete addresses to show: explicitly configured addresses as-is, plus
+/// usable LAN addresses discovered for wildcards (deduped).
+fn display_targets(interfaces: &[IpAddr], port: u16) -> Vec<DisplayTarget> {
+    let (wildcards, explicit): (Vec<IpAddr>, Vec<IpAddr>) =
         interfaces.iter().copied().partition(IpAddr::is_unspecified);
 
-    // Replace wildcard addresses with local interface addresses
-    if !wildcard.is_empty() {
-        let all_ipv4 = wildcard.iter().any(IpAddr::is_ipv4);
-        let all_ipv6 = wildcard.iter().any(IpAddr::is_ipv6);
+    let mut targets: Vec<DisplayTarget> = explicit
+        .into_iter()
+        .map(|ip| DisplayTarget {
+            ip,
+            url: format_url(ip, port),
+        })
+        .collect();
 
-        ifaces = get_if_addrs()
-            .map_err(|e| error!("Failed to get local interface addresses: {e}"))
-            .unwrap_or_default()
-            .iter()
-            .map(Interface::ip)
-            .filter(|ip| (all_ipv4 && ip.is_ipv4()) || (all_ipv6 && ip.is_ipv6()))
-            .collect();
+    // Replace wildcard addresses with usable local interface addresses.
+    if !wildcards.is_empty() {
+        let want_v4 = wildcards.iter().any(IpAddr::is_ipv4);
+        let want_v6 = wildcards.iter().any(IpAddr::is_ipv6);
 
-        ifaces.sort_unstable();
+        match get_if_addrs() {
+            Ok(ifaces) => {
+                let mut found: Vec<IpAddr> = ifaces
+                    .iter()
+                    .filter(|iface| {
+                        let ip = iface.ip();
+                        ((want_v4 && ip.is_ipv4()) || (want_v6 && ip.is_ipv6()))
+                            && is_usable_address(&ip)
+                            && !VIRTUAL_IFACE_PREFIXES
+                                .iter()
+                                .any(|prefix| iface.name.starts_with(prefix))
+                    })
+                    .map(Interface::ip)
+                    .collect();
+                found.sort_unstable();
+                found.dedup();
+                found.retain(|ip| !targets.iter().any(|target| target.ip == *ip));
+                targets.extend(found.into_iter().map(|ip| DisplayTarget {
+                    ip,
+                    url: format_url(ip, port),
+                }));
+            },
+            Err(e) => {
+                warn!("Failed to list network interfaces, showing configured addresses only: {e}");
+            },
+        }
     }
 
-    ifaces
-        .into_iter()
-        .map(|addr| match addr {
-            IpAddr::V4(_) => format!("{addr}"),
-            IpAddr::V6(_) => format!("[{addr}]"),
-        })
-        .map(|url| format!("http://{url}:{port}"))
-        .collect::<Vec<_>>()
+    targets
+}
+
+fn print_qr_codes(targets: &[DisplayTarget]) {
+    for target in targets {
+        // Loopback/link-local addresses are useless on another device.
+        if !is_usable_address(&target.ip) {
+            continue;
+        }
+        match QrCode::new(&target.url) {
+            Ok(qr) => {
+                println!(
+                    "\n QR code for {}:\n{}",
+                    target.url.green().bold(),
+                    qr.to_string(false, 1)
+                );
+            },
+            // A single bad address must not hide the rest; only a failed
+            // bind is fatal.
+            Err(e) => warn!("Failed to render QR code for {}: {e}", target.url),
+        }
+    }
 }
