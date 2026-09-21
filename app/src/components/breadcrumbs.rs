@@ -14,9 +14,9 @@ pub fn Breadcrumbs(path: Signal<PathBuf>) -> impl IntoView {
                     let path = format!("/index/{}", encode_path(&path));
 
                     Some(view! {
-                      <li>
-                        <a href=path>{display_os_string(part)}</a>
-                      </li>
+                        <li>
+                            <a href=path>{display_os_string(part)}</a>
+                        </li>
                     })
                 })
                 .collect_view()
@@ -24,19 +24,19 @@ pub fn Breadcrumbs(path: Signal<PathBuf>) -> impl IntoView {
     };
 
     let home_icon = view! {
-      <a href="/index">
-        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
-          <path d="M12,3L20,9V21H15V14H9V21H4V9L12,3Z" />
-        </svg>
-      </a>
+        <a href="/index">
+            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                <path d="M12,3L20,9V21H15V14H9V21H4V9L12,3Z" />
+            </svg>
+        </a>
     };
 
     view! {
-      <div class="max-w-full text-lg breadcrumbs">
-        <ul class="h-8">
-          <li>{home_icon}</li>
-          {breadcrumbs}
-        </ul>
-      </div>
+        <div class="max-w-full text-lg breadcrumbs">
+            <ul class="h-8">
+                <li>{home_icon}</li>
+                {breadcrumbs}
+            </ul>
+        </div>
     }
 }

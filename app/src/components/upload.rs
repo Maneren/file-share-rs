@@ -216,23 +216,23 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
     };
 
     view! {
-      <div class="flex flex-col gap-2 grow">
-        <UploadForm path=path file_ref=file_ref form_ref=form_ref on_submit=on_submit />
+        <div class="flex flex-col gap-2 grow">
+            <UploadForm path=path file_ref=file_ref form_ref=form_ref on_submit=on_submit />
 
-        {move || {
-          current_upload
-            .read()
-            .as_ref()
-            .map(|(_, progress)| {
-              view! {
-                <ProgressBar
-                  size=progress.size
-                  start_time=progress.start_time
-                  uploaded=progress.uploaded.read_only()
-                />
-              }
-            })
-        }}
-      </div>
+            {move || {
+                current_upload
+                    .read()
+                    .as_ref()
+                    .map(|(_, progress)| {
+                        view! {
+                            <ProgressBar
+                                size=progress.size
+                                start_time=progress.start_time
+                                uploaded=progress.uploaded.read_only()
+                            />
+                        }
+                    })
+            }}
+        </div>
     }
 }

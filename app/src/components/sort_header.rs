@@ -31,21 +31,24 @@ pub fn SortHeader(sort_column: RwSignal<SortColumn>, sort_dir: RwSignal<SortDir>
     };
 
     view! {
-      <div class="grid gap-2 mb-1 border-b grid-cols-(--entry-cols-mobile) border-base-content md:grid-cols-(--entry-cols)">
-        <span></span>
-        {[SortColumn::Name, SortColumn::Size, SortColumn::Modified]
-          .map(|column| {
-            view! {
-              <button class="flex items-center gap-3" on:click=move |_| toggle_sort(column)>
-                {match column {
-                  SortColumn::Name => "Name",
-                  SortColumn::Size => "Size",
-                  SortColumn::Modified => "Last Modified",
-                }}
-                <span class="ml-2">{move || indicator(column)}</span>
-              </button>
-            }
-          })}
-      </div>
+        <div class="grid gap-2 mb-1 border-b grid-cols-(--entry-cols-mobile) border-base-content md:grid-cols-(--entry-cols)">
+            <span></span>
+            {[SortColumn::Name, SortColumn::Size, SortColumn::Modified]
+                .map(|column| {
+                    view! {
+                        <button
+                            class="flex items-center gap-3"
+                            on:click=move |_| toggle_sort(column)
+                        >
+                            {match column {
+                                SortColumn::Name => "Name",
+                                SortColumn::Size => "Size",
+                                SortColumn::Modified => "Last Modified",
+                            }}
+                            <span class="ml-2">{move || indicator(column)}</span>
+                        </button>
+                    }
+                })}
+        </div>
     }
 }

@@ -44,10 +44,10 @@ pub fn ErrorTemplate(
     }}
 
     view! {
-      <h1>{move || if errors().len() > 1 { "Errors" } else { "Error" }}</h1>
-      <For each=move || errors().into_iter().enumerate() key=|(index, _)| *index let:error>
-        <h2>{error.1.status_code().to_string()}</h2>
-        <p>"Error: " {error.1.to_string()}</p>
-      </For>
+        <h1>{move || if errors().len() > 1 { "Errors" } else { "Error" }}</h1>
+        <For each=move || errors().into_iter().enumerate() key=|(index, _)| *index let:error>
+            <h2>{error.1.status_code().to_string()}</h2>
+            <p>"Error: " {error.1.to_string()}</p>
+        </For>
     }
 }

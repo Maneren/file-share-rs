@@ -63,31 +63,31 @@ pub fn FilesPage() -> impl IntoView {
     });
 
     view! {
-      <div class="p-3 App">
-        {upload_bar} <Breadcrumbs path=path_signal />
-        // Snapshot path: the island remounts fresh on every navigation.
-        <ListingBrowser path=path.get_untracked() allow_upload=app_config.allow_upload />
-      </div>
+        <div class="p-3 App">
+            {upload_bar} <Breadcrumbs path=path_signal />
+            // Snapshot path: the island remounts fresh on every navigation.
+            <ListingBrowser path=path.get_untracked() allow_upload=app_config.allow_upload />
+        </div>
     }
 }
 
 #[must_use]
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
-          <AutoReload options=options.clone() />
-          <HydrationScripts options islands=true />
-          <MetaTags />
-        </head>
-        <body>
-          <App />
-        </body>
-      </html>
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
+                <AutoReload options=options.clone() />
+                <HydrationScripts options islands=true />
+                <MetaTags />
+            </head>
+            <body>
+                <App />
+            </body>
+        </html>
     }
 }
 
@@ -97,16 +97,16 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     view! {
-      <Router>
-        <Stylesheet id="leptos" href="/pkg/file-share.css" />
-        <Title text="File Share" />
-        <Routes fallback=|| {
-          let mut outside_errors = Errors::default();
-          outside_errors.insert_with_default_key(AppError::NotFound);
-          view! { <ErrorTemplate outside_errors /> }.into_view()
-        }>
-          <Route path=path!("/index/*path") view=FilesPage />
-        </Routes>
-      </Router>
+        <Router>
+            <Stylesheet id="leptos" href="/pkg/file-share.css" />
+            <Title text="File Share" />
+            <Routes fallback=|| {
+                let mut outside_errors = Errors::default();
+                outside_errors.insert_with_default_key(AppError::NotFound);
+                view! { <ErrorTemplate outside_errors /> }.into_view()
+            }>
+                <Route path=path!("/index/*path") view=FilesPage />
+            </Routes>
+        </Router>
     }
 }

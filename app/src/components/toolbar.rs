@@ -12,61 +12,64 @@ pub fn Toolbar(
     on_clear: Callback<()>,
 ) -> impl IntoView {
     view! {
-      <div class="flex flex-wrap items-center gap-2 py-1">
-        <input
-          type="search"
-          placeholder="Search…"
-          aria-label="Search files"
-          class="input input-sm input-bordered grow"
-          prop:value=move || search.get()
-          on:input=move |ev| search.set(event_target_value(&ev))
-        />
-        <Show when=move || !search.get().is_empty()>
-          <button class="btn btn-sm btn-ghost" on:click=move |_| on_clear.run(())>
-            "Clear"
-          </button>
-        </Show>
-        <label class="flex items-center gap-2 text-sm cursor-pointer">
-          <input
-            type="checkbox"
-            class="toggle toggle-sm"
-            aria-label="Show hidden files"
-            prop:checked=move || show_hidden.get()
-            on:change=move |ev| show_hidden.set(event_target_checked(&ev))
-          />
-          "Hidden"
-        </label>
-      </div>
-      <div class="flex flex-wrap gap-1 py-1" role="group" aria-label="Filter by initial letter">
-        <button
-          class="btn btn-xs"
-          class:btn-primary=move || initial.get().is_none()
-          on:click=move |_| initial.set(None)
-        >
-          "All"
-        </button>
-        <Transition fallback=|| {
-          view! { <span class="text-xs opacity-50">"A–Z"</span> }
-        }>
-          {move || Suspend::new(async move {
-            let present = listing.await.map(|page_data| page_data.initials).unwrap_or_default();
-            view! {
-              <For each=|| 'A'..='Z' key=|letter| *letter let:letter>
-                <button
-                  class="btn btn-xs"
-                  class:btn-primary=move || initial.get() == Some(letter)
-                  disabled={
-                    let present = present.clone();
-                    move || !present.contains(&letter)
-                  }
-                  on:click=move |_| initial.set(Some(letter))
-                >
-                  {letter.to_string()}
+        <div class="flex flex-wrap items-center gap-2 py-1">
+            <input
+                type="search"
+                placeholder="Search…"
+                aria-label="Search files"
+                class="input input-sm input-bordered grow"
+                prop:value=move || search.get()
+                on:input=move |ev| search.set(event_target_value(&ev))
+            />
+            <Show when=move || !search.get().is_empty()>
+                <button class="btn btn-sm btn-ghost" on:click=move |_| on_clear.run(())>
+                    "Clear"
                 </button>
-              </For>
-            }
-          })}
-        </Transition>
-      </div>
+            </Show>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                    type="checkbox"
+                    class="toggle toggle-sm"
+                    aria-label="Show hidden files"
+                    prop:checked=move || show_hidden.get()
+                    on:change=move |ev| show_hidden.set(event_target_checked(&ev))
+                />
+                "Hidden"
+            </label>
+        </div>
+        <div class="flex flex-wrap gap-1 py-1" role="group" aria-label="Filter by initial letter">
+            <button
+                class="btn btn-xs"
+                class:btn-primary=move || initial.get().is_none()
+                on:click=move |_| initial.set(None)
+            >
+                "All"
+            </button>
+            <Transition fallback=|| {
+                view! { <span class="text-xs opacity-50">"A–Z"</span> }
+            }>
+                {move || Suspend::new(async move {
+                    let present = listing
+                        .await
+                        .map(|page_data| page_data.initials)
+                        .unwrap_or_default();
+                    view! {
+                        <For each=|| 'A'..='Z' key=|letter| *letter let:letter>
+                            <button
+                                class="btn btn-xs"
+                                class:btn-primary=move || initial.get() == Some(letter)
+                                disabled={
+                                    let present = present.clone();
+                                    move || !present.contains(&letter)
+                                }
+                                on:click=move |_| initial.set(Some(letter))
+                            >
+                                {letter.to_string()}
+                            </button>
+                        </For>
+                    }
+                })}
+            </Transition>
+        </div>
     }
 }

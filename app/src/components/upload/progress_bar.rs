@@ -47,15 +47,15 @@ pub fn ProgressBar(
     let formatted_speed = move || format_bytes(average_speed() as u64);
 
     view! {
-      <div class="flex flex-row gap-5 justify-between items-baseline m-2 w-full">
-        <span>Uploading {move || format!("{: >3}", percent())}%</span>
-        <div class="h-3 rounded-full bg-neutral grow">
-          <div
-            class="h-full rounded-full transition-all ease-linear bg-info duration-50"
-            style:width=move || format!("{: >3}%", percent())
-          />
+        <div class="flex flex-row gap-5 justify-between items-baseline m-2 w-full">
+            <span>Uploading {move || format!("{: >3}", percent())}%</span>
+            <div class="h-3 rounded-full bg-neutral grow">
+                <div
+                    class="h-full rounded-full transition-all ease-linear bg-info duration-50"
+                    style:width=move || format!("{: >3}%", percent())
+                />
+            </div>
+            <span class="w-28 text-right">{formatted_speed}/s</span>
         </div>
-        <span class="w-28 text-right">{formatted_speed}/s</span>
-      </div>
     }
 }
