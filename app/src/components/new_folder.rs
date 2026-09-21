@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use leptos::{html::Input, prelude::*};
 
-use crate::{server::NewFolder, utils::display_os_string};
+use crate::{api::NewFolder, paths::display_os_string};
 
 #[component]
 pub fn NewFolderButton(path: Signal<PathBuf>, action: ServerAction<NewFolder>) -> impl IntoView {

@@ -1,9 +1,15 @@
+//! Client-side polling hook for upload progress.
+//!
+//! Subscribes to the [`crate::api::upload_progress::file_progress`] text
+//! stream and folds samples into [`super::state::Progress`].
+
 use leptos::{logging, prelude::*};
 use web_time::Instant;
 
-use super::{file_progress, progress_bar::Progress};
+use super::state::Progress;
+use crate::api::upload_progress::file_progress;
 
-pub async fn update_progress(id: String, upload: RwSignal<Option<(String, Progress)>>) {
+pub async fn subscribe_upload_progress(id: String, upload: RwSignal<Option<(String, Progress)>>) {
     use futures::StreamExt;
 
     let mut progress = file_progress(id.clone())

@@ -1,16 +1,13 @@
+//! Upload progress bar component.
+//!
+//! Progress state itself lives in [`super::state::Progress`].
+
 use std::collections::VecDeque;
 
 use leptos::prelude::*;
 use web_time::Instant;
 
-use crate::utils::format_bytes;
-
-#[derive(Debug, Clone, Copy)]
-pub struct Progress {
-    pub size: u64,
-    pub start_time: Instant,
-    pub uploaded: RwSignal<VecDeque<(u64, Instant)>>,
-}
+use crate::format::format_bytes;
 
 #[component]
 pub fn ProgressBar(

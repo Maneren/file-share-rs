@@ -1,10 +1,10 @@
 use leptos::prelude::*;
 
-use crate::server::ListingPage;
+use crate::api::ListingPage;
 
 /// Search box, hidden-file toggle and initial-letter strip.
 #[component]
-pub fn Toolbar(
+pub fn ListingToolbar(
     search: RwSignal<String>,
     initial: RwSignal<Option<char>>,
     show_hidden: RwSignal<bool>,

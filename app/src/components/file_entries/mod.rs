@@ -1,13 +1,15 @@
-mod icon;
+pub mod icons;
 
 use std::path::PathBuf;
 
-use icon::{Icon, get_file_icon, get_folder_icon};
+use icons::{get_file_icon, get_folder_icon};
 use leptos::{either::Either, prelude::*};
 
 use crate::{
-    server::{Entries, ServerEntry},
-    utils::{format_bytes, format_file_href, format_folder_href},
+    api::{Entries, ServerEntry},
+    components::Icon,
+    format::format_bytes,
+    paths::{format_file_href, format_folder_href},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]

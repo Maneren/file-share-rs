@@ -1,7 +1,6 @@
 use std::{collections::HashMap, sync::LazyLock};
 
 use include_flate::flate;
-use leptos::{IntoView, prelude::*};
 use rust_embed::RustEmbed;
 use serde::Deserialize;
 
@@ -113,9 +112,4 @@ pub(crate) fn get_file_icon(file_name: &str) -> &'static str {
     longest_matching_suffix(&lower, &*FILENAMES_MAP)
         .and_then(|name| get_icon(name))
         .unwrap_or(&FILE_ICON)
-}
-
-#[component]
-pub fn Icon(icon: &'static str) -> impl IntoView {
-    view! { <div class="icon" inner_html=icon /> }
 }

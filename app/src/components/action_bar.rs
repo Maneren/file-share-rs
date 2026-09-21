@@ -1,3 +1,7 @@
+//! Top action bar: upload form + new-folder button + folder downloads.
+//!
+//! Renamed from `upload_bar` — only one of three children is an upload.
+
 use std::path::PathBuf;
 
 use leptos::prelude::*;
@@ -5,9 +9,9 @@ use leptos::prelude::*;
 use crate::components::{FileUpload, FolderDownloads, NewFolderButton};
 
 #[component]
-pub fn UploadBar(
+pub fn ActionBar(
     #[prop(into)] path: Signal<PathBuf>,
-    create_folder_action: ServerAction<crate::server::NewFolder>,
+    create_folder_action: ServerAction<crate::api::NewFolder>,
 ) -> impl IntoView {
     view! {
         <div class="flex flex-wrap gap-2 justify-center items-start py-2 w-full">

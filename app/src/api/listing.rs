@@ -1,177 +1,20 @@
-use std::path::PathBuf;
-#[cfg(feature = "ssr")]
-use std::{cmp::Ordering, sync::Arc};
+#![cfg(feature = "ssr")]
 
-cfg_if! { if #[cfg(feature = "ssr")] {
-    use leptos::logging::warn;
-    use tokio::fs;
+//! Pure filter/sort/paginate logic for directory listings.
+//!
+//! No I/O here — takes already-collected [`Entries`] plus a [`ListQuery`]
+//! and returns a [`ListingPage`]. Fully unit-tested below.
 
-    use crate::{
-        config::{AppConfig, PATH_NOT_FOUND_MESSAGE, UPLOAD_DISABLED_MESSAGE},
-        utils::resolve_contained_path,
-    };
-    use nucleo::{Config as NucleoConfig, Matcher, Utf32Str};
-}}
+use std::cmp::Ordering;
 
-use cfg_if::cfg_if;
-use leptos::prelude::*;
-use serde::{Deserialize, Serialize};
+use nucleo::{Config as NucleoConfig, Matcher, Utf32Str};
 
-use crate::utils::SystemTime;
-
-pub type Entries = Vec<ServerEntry>;
-
-/// Parameters for a directory listing: which slice of the sorted entries
-/// to return. Sorting stays server-side so pages are stable.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct ListQuery {
-    pub path: PathBuf,
-    pub sort_column: SortColumn,
-    pub sort_dir: SortDir,
-    /// Fuzzy name filter (nucleo); empty disables it.
-    pub search: String,
-    /// Initial-letter filter; `None` disables it.
-    pub initial: Option<char>,
-    /// Show dotfiles. Hidden files are skipped (and counted) otherwise.
-    pub show_hidden: bool,
-    pub limit: usize,
-    pub offset: usize,
-}
-
-/// Column to sort a listing by.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub enum SortColumn {
-    #[default]
-    Name,
-    Size,
-    Modified,
-}
-
-/// Sort direction. Also flips folder grouping: folders come first
-/// ascending, last descending.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub enum SortDir {
-    #[default]
-    Asc,
-    Desc,
-}
-
-/// One page of a directory listing plus the total entry count, so the UI
-/// can render page controls without a separate count round-trip.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ListingPage {
-    pub entries: Entries,
-    pub total: usize,
-    /// Dotfiles skipped by the hidden filter (0 when shown).
-    pub hidden_count: usize,
-    /// Uppercase initials present in the folder (after the hidden filter,
-    /// before search/initial filters), for the letter buttons.
-    pub initials: Vec<char>,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq)]
-pub enum ServerEntry {
-    Folder {
-        name: String,
-        last_modified: SystemTime,
-    },
-    File {
-        name: String,
-        size: u64,
-        last_modified: SystemTime,
-    },
-}
-
-#[cfg(feature = "ssr")]
-impl ServerEntry {
-    fn name(&self) -> &str {
-        match self {
-            Self::Folder { name, .. } | Self::File { name, .. } => name,
-        }
-    }
-
-    fn is_folder(&self) -> bool {
-        matches!(self, Self::Folder { .. })
-    }
-
-    /// File size, or 0 for folders (only compared within the folder group).
-    fn file_size(&self) -> u64 {
-        match self {
-            Self::File { size, .. } => *size,
-            Self::Folder { .. } => 0,
-        }
-    }
-
-    fn modified(&self) -> SystemTime {
-        match self {
-            Self::Folder { last_modified, .. } | Self::File { last_modified, .. } => *last_modified,
-        }
-    }
-}
+use super::models::{Entries, ListQuery, ListingPage, ServerEntry, SortColumn, SortDir};
 
 /// Folders sort before files; the caller reverses the whole ordering for
 /// descending sorts, which puts them last there.
-#[cfg(feature = "ssr")]
 fn folders_first(a: &ServerEntry, b: &ServerEntry) -> Ordering {
     a.is_folder().cmp(&b.is_folder()).reverse()
-}
-
-#[server(name = ListDir, prefix = "/api", endpoint = "list_dir")]
-pub async fn list_dir(query: ListQuery) -> Result<ListingPage, ServerFnError> {
-    fn read_dir_error(path: &PathBuf, e: impl std::fmt::Display) -> ServerFnError {
-        warn!("Failed to read directory {path:?}: {e}");
-        ServerFnError::ServerError("Failed to read directory".into())
-    }
-
-    let base_path = expect_context::<Arc<AppConfig>>().target_dir.clone();
-
-    let Some(path) = resolve_contained_path(&base_path, &query.path).await else {
-        warn!(
-            "Attempt to access invalid or missing path: {:?}",
-            query.path
-        );
-        return Err(ServerFnError::ServerError(PATH_NOT_FOUND_MESSAGE.into()));
-    };
-
-    let mut entries = Vec::new();
-
-    let mut directory = fs::read_dir(&path)
-        .await
-        .map_err(|e| read_dir_error(&path, e))?;
-
-    while let Some(entry) = directory
-        .next_entry()
-        .await
-        .map_err(|e| read_dir_error(&path, e))?
-    {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        // One unreadable entry must not fail the whole listing, and its
-        // OS error stays server-side.
-        let Ok(metadata) = entry.metadata().await else {
-            warn!("Skipping {path:?}/{name}: cannot read metadata");
-            continue;
-        };
-        let Ok(modified) = metadata.modified() else {
-            warn!("Skipping {path:?}/{name}: cannot read modification time");
-            continue;
-        };
-        let last_modified = modified.into();
-
-        if metadata.is_dir() {
-            entries.push(ServerEntry::Folder {
-                name,
-                last_modified,
-            });
-        } else if metadata.is_file() {
-            entries.push(ServerEntry::File {
-                name,
-                size: metadata.len(),
-                last_modified,
-            });
-        }
-    }
-
-    let page = filter_sort_page(entries, &query);
-    Ok(page)
 }
 
 /// Filter, sort and paginate collected directory entries.
@@ -182,8 +25,7 @@ pub async fn list_dir(query: ListQuery) -> Result<ListingPage, ServerFnError> {
 /// - Otherwise entries sort by `sort_column`: folders first for name and size
 ///   (last when descending), purely by time for modified.
 /// - Pagination applies last; `total` counts everything before it.
-#[cfg(feature = "ssr")]
-fn filter_sort_page(entries: Entries, query: &ListQuery) -> ListingPage {
+pub(crate) fn filter_sort_page(entries: Entries, query: &ListQuery) -> ListingPage {
     // Lowercase names are cached once so sorting never allocates per
     // comparison.
     struct SortRow {
@@ -291,43 +133,12 @@ fn filter_sort_page(entries: Entries, query: &ListQuery) -> ListingPage {
     }
 }
 
-#[server(name = NewFolder, prefix = "/api", endpoint = "new_folder")]
-pub async fn new_folder(name: String, path: PathBuf) -> Result<(), ServerFnError> {
-    use crate::utils::{is_safe_file_name, is_safe_relative_path};
-
-    fn create_dir_error(path: &PathBuf, name: &str, e: impl std::fmt::Display) -> ServerFnError {
-        warn!("Failed to create folder {path:?}/{name}: {e}");
-        ServerFnError::ServerError("Failed to create folder".into())
-    }
-
-    let app_config = expect_context::<Arc<AppConfig>>();
-
-    if !app_config.allow_upload {
-        return Err(ServerFnError::ServerError(UPLOAD_DISABLED_MESSAGE.into()));
-    }
-
-    if !is_safe_relative_path(&path) || !is_safe_file_name(&name) {
-        return Err(ServerFnError::ServerError("Invalid path or name".into()));
-    }
-
-    // Resolve the parent through the real filesystem so a symlinked
-    // directory cannot redirect the new folder outside the share.
-    // `name` is a single normal component, so joining it cannot escape.
-    let Some(parent) = resolve_contained_path(&app_config.target_dir, &path).await else {
-        return Err(ServerFnError::ServerError("Invalid path".into()));
-    };
-
-    fs::create_dir(parent.join(&name))
-        .await
-        .map_err(|e| create_dir_error(&path, &name, e))?;
-
-    Ok(())
-}
-
 #[cfg(all(test, feature = "ssr"))]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
-    use crate::utils::SystemTime;
+    use crate::time::SystemTime;
 
     fn file(name: &str, size: u64, modified: i64) -> ServerEntry {
         ServerEntry::File {
@@ -345,7 +156,12 @@ mod tests {
     }
 
     fn names(entries: &Entries) -> Vec<&str> {
-        entries.iter().map(ServerEntry::name).collect()
+        entries
+            .iter()
+            .map(|e| match e {
+                ServerEntry::Folder { name, .. } | ServerEntry::File { name, .. } => name.as_str(),
+            })
+            .collect()
     }
 
     fn fixture() -> Entries {

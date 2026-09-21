@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::server::{SortColumn, SortDir};
+use crate::api::{SortColumn, SortDir};
 
 /// Sortable listing header. Clicking a column selects it, clicking again
 /// flips the direction.

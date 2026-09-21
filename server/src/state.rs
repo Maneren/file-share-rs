@@ -1,9 +1,13 @@
+//! Axum server state shared across handlers and Leptos routes.
+//!
+//! Moved out of `file-share-app` — this wires Axum (`FromRef`) and Leptos
+//! server options, so it belongs to the server binary, not the shared UI crate.
+
 use std::sync::Arc;
 
 use axum::extract::FromRef;
+use file_share_app::AppConfig;
 use leptos::prelude::LeptosOptions;
-
-use crate::AppConfig;
 
 #[derive(FromRef, Clone, Debug)]
 pub struct AppState {

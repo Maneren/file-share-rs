@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use leptos::prelude::*;
 
-use crate::{archive::Method, utils::display_os_string};
+use crate::{archive::Method, paths::display_os_string};
 
 fn method_url_query(path: &String, method: &str) -> String {
     format!("{path}?method={method}")
