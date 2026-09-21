@@ -214,15 +214,16 @@ fn filter_sort_page(entries: Entries, query: &ListQuery) -> ListingPage {
             continue;
         }
         let lower_name = entry.name().to_lowercase();
-        if let Some(c) = lower_name.chars().next().map(|c| c.to_ascii_uppercase()) {
-            if c.is_ascii_alphabetic() {
-                initials.push(c);
-            }
+        if let Some(c) = lower_name.chars().next().map(|c| c.to_ascii_uppercase())
+            && c.is_ascii_alphabetic()
+        {
+            initials.push(c);
         }
-        if let Some(prefix) = &initial_needle {
-            if !lower_name.starts_with(prefix) {
-                continue;
-            }
+        if initial_needle
+            .as_ref()
+            .is_some_and(|prefix| !lower_name.starts_with(prefix))
+        {
+            continue;
         }
         let score = searching
             .then(|| {

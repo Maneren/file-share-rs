@@ -122,7 +122,7 @@ pub async fn handle_archive_with_path<'a>(
     };
 
     if let Err(response) = check_archive_dir(&path).await {
-        return response;
+        return *response;
     }
 
     handle_archive(path, params.method.unwrap_or_default()).into_response()
@@ -135,22 +135,24 @@ pub async fn handle_archive_without_path(
     logging::log!("Handling archive without path and with params '{params:?}'");
     let path = app_state.app_config.target_dir.clone();
     if let Err(response) = check_archive_dir(&path).await {
-        return response;
+        return *response;
     }
     handle_archive(path, params.method.unwrap_or_default()).into_response()
 }
 
 /// Reject missing paths and non-directories before archive headers are sent.
 /// Otherwise a bad target would produce a `200 OK` with a truncated body.
-async fn check_archive_dir(path: &StdPath) -> Result<(), Response<Body>> {
+async fn check_archive_dir(path: &StdPath) -> Result<(), Box<Response<Body>>> {
     match fs::metadata(path).await {
         Ok(metadata) if metadata.is_dir() => Ok(()),
-        Ok(_) => Err((
-            StatusCode::BAD_REQUEST,
-            "Archives can only be created from directories",
-        )
-            .into_response()),
-        Err(_) => Err(PATH_NOT_FOUND.into_response()),
+        Ok(_) => Err(Box::new(
+            (
+                StatusCode::BAD_REQUEST,
+                "Archives can only be created from directories",
+            )
+                .into_response(),
+        )),
+        Err(_) => Err(Box::new(PATH_NOT_FOUND.into_response())),
     }
 }
 

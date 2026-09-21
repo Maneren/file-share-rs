@@ -20,12 +20,14 @@ pub fn SortHeader(sort_column: RwSignal<SortColumn>, sort_dir: RwSignal<SortDir>
         }
     };
     let indicator = move |column: SortColumn| {
-        (sort_column.get() == column)
-            .then(|| match sort_dir.get() {
+        if sort_column.get() == column {
+            match sort_dir.get() {
                 SortDir::Asc => "▲",
                 SortDir::Desc => "▼",
-            })
-            .unwrap_or(" ")
+            }
+        } else {
+            " "
+        }
     };
 
     view! {
