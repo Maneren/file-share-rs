@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use axum::{
     Router,
-    extract::DefaultBodyLimit,
     http::{HeaderValue, header},
     middleware,
     response::Redirect,
@@ -17,10 +16,12 @@ use leptos::prelude::provide_context;
 use leptos_axum::{AxumRouteListing, LeptosRoutes};
 use tower::Layer as _;
 use tower_http::{
+    catch_panic::CatchPanicLayer,
     compression::{
         CompressionLayer,
         predicate::{DefaultPredicate, NotForContentType, Predicate as _},
     },
+    limit::RequestBodyLimitLayer,
     services::ServeDir,
     set_header::SetResponseHeaderLayer,
 };
@@ -66,6 +67,16 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
     let app_config = Arc::clone(&app_state.app_config);
     let target_dir = app_state.app_config.target_dir.clone();
 
+    // Opt-in via `--max-upload-size`: bounds `/upload` bodies and the
+    // browser upload server-fn (previously `DefaultBodyLimit::disable()`
+    // left every server-fn unbounded). Without the flag request bodies stay
+    // unlimited for back-compat.
+    let body_limit = app_state
+        .security
+        .max_upload_size
+        .and_then(|max| usize::try_from(max).ok())
+        .unwrap_or(usize::MAX);
+
     Router::new()
         .route("/", get(|| async { Redirect::to("/index") }))
         .route("/help", get(|| async { API_HELP_TEXT }))
@@ -89,7 +100,11 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
                 .layer(ServeDir::new(&target_dir)),
         )
         .layer(compression)
-        .layer(DefaultBodyLimit::disable())
+        .layer(RequestBodyLimitLayer::new(body_limit))
+        // Innermost: a panicking handler becomes `500` instead of a hung
+        // connection. (No global timeout: it would kill legit long
+        // uploads/archives; archives get a per-request `--archive-timeout`.)
+        .layer(CatchPanicLayer::new())
         // No CSP: Leptos hydration relies on inline scripts, which a
         // `script-src` policy without `unsafe-inline` would block.
         .layer(SetResponseHeaderLayer::if_not_present(
