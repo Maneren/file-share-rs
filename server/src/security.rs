@@ -12,7 +12,23 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::cli::Config;
+use axum::{
+    Form,
+    body::Body,
+    extract::State,
+    http::{HeaderValue, Request, StatusCode, header},
+    middleware::Next,
+    response::{IntoResponse, Redirect, Response},
+};
+use serde::Deserialize;
+
+use crate::{cli::Config, state::AppState};
+
+/// Name of the login cookie carrying the shared token.
+const AUTH_COOKIE: &str = "fs_auth";
+
+/// How long the login cookie lasts (30 days).
+const COOKIE_MAX_AGE: u64 = 30 * 24 * 60 * 60;
 
 /// Cap on tracked IPs before stale buckets are evicted (memory DoS guard).
 const MAX_TRACKED_IPS: usize = 8192;
@@ -127,6 +143,121 @@ struct Bucket {
     last: Instant,
 }
 
+/// Require the shared `--auth-token` on every request when configured.
+///
+/// Accepts `Authorization: Bearer <token>` (curl/API) or the `fs_auth`
+/// cookie set by `POST /login` (browser UI fetches carry cookies, so the web
+/// UI keeps working after one login). No-op when no token is configured.
+pub async fn require_auth(
+    State(app_state): State<AppState>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    let security = &app_state.security;
+    if !security.auth_enabled() || req.uri().path() == "/login" {
+        return next.run(req).await;
+    }
+
+    let authorized = bearer_token(&req)
+        .map(str::to_owned)
+        .or_else(|| cookie_token(&req))
+        .is_some_and(|token| security.verify_token(&token));
+    if authorized {
+        return next.run(req).await;
+    }
+
+    let mut response = if wants_html(&req) {
+        login_page(safe_next(req.uri().path())).into_response()
+    } else {
+        (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
+    };
+    response.headers_mut().insert(
+        header::WWW_AUTHENTICATE,
+        HeaderValue::from_static("Bearer"),
+    );
+    *response.status_mut() = StatusCode::UNAUTHORIZED;
+    response
+}
+
+#[derive(Deserialize)]
+pub struct LoginForm {
+    token: String,
+    next: Option<String>,
+}
+
+/// Verify the token from the login form; on success set the cookie and
+/// redirect back, otherwise `403` without saying why.
+pub async fn login(
+    State(app_state): State<AppState>,
+    Form(form): Form<LoginForm>,
+) -> Response {
+    if !app_state.security.auth_enabled() || !app_state.security.verify_token(&form.token) {
+        return (StatusCode::FORBIDDEN, "Forbidden").into_response();
+    }
+    let target = form.next.map_or_else(|| "/".to_string(), |n| safe_next(&n));
+    let cookie = format!(
+        "{AUTH_COOKIE}={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={COOKIE_MAX_AGE}",
+        urlencoding::encode(&form.token),
+    );
+    ([(header::SET_COOKIE, cookie)], Redirect::to(&target)).into_response()
+}
+
+/// Extract `Authorization: Bearer <token>`, if present and well-formed.
+fn bearer_token(req: &Request<Body>) -> Option<&str> {
+    req.headers()
+        .get(header::AUTHORIZATION)?
+        .to_str()
+        .ok()?
+        .strip_prefix("Bearer ")
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+}
+
+/// Extract the login cookie value, if present and well-formed.
+fn cookie_token(req: &Request<Body>) -> Option<String> {
+    let cookies = req.headers().get(header::COOKIE)?.to_str().ok()?;
+    cookies.split(';').find_map(|pair| {
+        let (name, value) = pair.split_once('=')?;
+        (name.trim() == AUTH_COOKIE)
+            .then(|| urlencoding::decode(value.trim()).ok().map(|v| v.into_owned()))
+            .flatten()
+    })
+}
+
+fn wants_html(req: &Request<Body>) -> bool {
+    req.headers()
+        .get(header::ACCEPT)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|accept| accept.contains("text/html"))
+}
+
+/// Keep only same-origin redirect targets; everything else becomes `/`.
+fn safe_next(next: &str) -> String {
+    let valid = next.starts_with('/')
+        && !next.starts_with("//")
+        && next
+            .chars()
+            .all(|c| !c.is_control() && !matches!(c, '"' | '\'' | '<' | '>' | '\\' | ' '));
+    if valid { next.to_string() } else { "/".to_string() }
+}
+
+/// `401` page with an inline login form (avoids a redirect round-trip).
+fn login_page(next: String) -> (StatusCode, [(header::HeaderName, &'static str); 1], String) {
+    let body = format!(
+        "<!DOCTYPE html><html><body><h1>Login required</h1>\
+        <form method=\"post\" action=\"/login\">\
+        <input type=\"hidden\" name=\"next\" value=\"{next}\">\
+        <input type=\"password\" name=\"token\" placeholder=\"Access token\" autofocus>\
+        <button type=\"submit\">Log in</button>\
+        </form></body></html>"
+    );
+    (
+        StatusCode::UNAUTHORIZED,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        body,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,5 +307,15 @@ mod tests {
         assert!(!security.verify_token("wrong"));
         assert!(!security.verify_token("secre"));
         assert!(!security.verify_token("secret-longer"));
+    }
+
+    #[test]
+    fn redirect_targets_stay_same_origin() {
+        assert_eq!(safe_next("/files/a%20b"), "/files/a%20b");
+        assert_eq!(safe_next("/"), "/");
+        assert_eq!(safe_next("https://evil.example"), "/");
+        assert_eq!(safe_next("//evil.example"), "/");
+        assert_eq!(safe_next("/x\" onload=\"y"), "/");
+        assert_eq!(safe_next(""), "/");
     }
 }

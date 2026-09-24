@@ -31,6 +31,7 @@ use crate::{
         file_and_error_handler, file_upload_with_path, file_upload_without_path, gate_shared_files,
         handle_archive_with_path, handle_archive_without_path,
     },
+    security::{login, require_auth},
     state::AppState,
 };
 
@@ -80,6 +81,7 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
     Router::new()
         .route("/", get(|| async { Redirect::to("/index") }))
         .route("/help", get(|| async { API_HELP_TEXT }))
+        .route("/login", post(login))
         .leptos_routes_with_context(
             &app_state,
             routes,
@@ -105,6 +107,12 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
         // connection. (No global timeout: it would kill legit long
         // uploads/archives; archives get a per-request `--archive-timeout`.)
         .layer(CatchPanicLayer::new())
+        // Outermost (runs first): auth rejects unauthenticated requests
+        // before any body is read. No-op without `--auth-token`.
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            require_auth,
+        ))
         // No CSP: Leptos hydration relies on inline scripts, which a
         // `script-src` policy without `unsafe-inline` would block.
         .layer(SetResponseHeaderLayer::if_not_present(
