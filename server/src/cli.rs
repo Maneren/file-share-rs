@@ -12,6 +12,8 @@ pub struct Cli {
     pub target_dir: PathBuf,
 
     /// Port to listen on
+    ///
+    /// Use `0` to auto-pick a free port; any other busy port is an error.
     #[arg(short, long, default_value = "18765")]
     pub port: u16,
 
@@ -87,10 +89,13 @@ pub async fn get_config() -> Result<Config, String> {
         return Err(format!("`{}` is not a directory", target_dir.display()));
     }
 
-    let port = (port != 0 && is_local_port_free(port))
-        .then_some(port)
-        .or_else(free_local_port)
-        .ok_or("Couldn't find an open port")?;
+    let port = if port == 0 {
+        free_local_port().ok_or("Couldn't find an open port")?
+    } else if is_local_port_free(port) {
+        port
+    } else {
+        return Err(format!("Port {port} is already in use"));
+    };
 
     Ok(Config {
         target_dir: canonical_target_dir,
