@@ -198,3 +198,19 @@ pub async fn get_config() -> Result<Config, String> {
         archive_timeout,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::parse_size;
+
+    #[test]
+    fn parses_byte_sizes() {
+        assert_eq!(parse_size("1024"), Ok(1024));
+        assert_eq!(parse_size("100MB"), Ok(100 * 1024 * 1024));
+        assert_eq!(parse_size("1.5gb"), Ok(1_610_612_736));
+        assert_eq!(parse_size("2K"), Ok(2048));
+        assert_eq!(parse_size("1T"), Ok(1024 * 1024 * 1024 * 1024));
+        assert!(parse_size("10XB").is_err());
+        assert!(parse_size("abc").is_err());
+    }
+}
