@@ -33,9 +33,10 @@ Arguments:
 
 Options:
   -p, --port <PORT>
-          Port to listen on
+          Port to listen on (use `0` to auto-pick a free port; any other busy
+          port is an error)
 
-          [default: 3000]
+          [default: 18765]
 
   -q, --qr
           Show QR codes that link to the site
@@ -54,6 +55,40 @@ Options:
 
   -u, --upload
           Allow client to upload files
+
+      --auth-token <TOKEN>
+          Require a shared secret for every request
+
+          Clients send it as `Authorization: Bearer <TOKEN>` (curl) or log in
+          once via the browser form at `/login` (sets a cookie, so the web UI
+          keeps working). Disabled when absent.
+
+      --rate-limit <RPS>
+          Max sustained requests per second per client IP (burst = same value)
+
+          Excess requests get `429 Too Many Requests`. Disabled when absent.
+
+      --max-upload-size <SIZE>
+          Max request body size, e.g. `100MB`, `1GB`
+
+          Bounds `/upload` and the browser upload endpoint; without it request
+          bodies are unlimited (back-compat).
+
+      --max-archive-size <SIZE>
+          Max total bytes in one generated archive, e.g. `2GB`
+
+          The archive stream aborts once exceeded. Disabled when absent.
+
+      --max-archive-depth <N>
+          Max directory depth included in archives
+
+          Deeper trees are rejected before streaming starts. Disabled when
+          absent.
+
+      --archive-timeout <SECS>
+          Max seconds spent generating one archive
+
+          The stream aborts once exceeded. Disabled when absent.
 
   -h, --help
           Print help (see a summary with '-h')
