@@ -11,6 +11,7 @@ pub mod cli;
 pub mod fileserv;
 pub mod net;
 pub mod router;
+pub mod security;
 pub mod serve;
 pub mod state;
 
@@ -27,6 +28,7 @@ use crate::{
     cli::{Config, get_config},
     net::{display_targets, print_qr_codes},
     router::create_router,
+    security::SecurityConfig,
     serve::serve_address,
     state::AppState,
 };
@@ -45,12 +47,15 @@ async fn main() {
         process::exit(1);
     });
 
+    let security = Arc::new(SecurityConfig::new(&cli_config));
+
     let Config {
         target_dir,
         port,
         qr,
         interfaces,
         allow_upload,
+        ..
     } = cli_config;
 
     let app_config = Arc::new(AppConfig {
@@ -61,6 +66,7 @@ async fn main() {
     let app_state = AppState {
         app_config: Arc::clone(&app_config),
         leptos_options: Arc::new(leptos_options),
+        security,
     };
 
     if let Err(e) = create_dir_all(&target_dir) {

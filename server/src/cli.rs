@@ -38,6 +38,77 @@ pub struct Cli {
     /// Allow client to upload files
     #[arg(short, long, action = ArgAction::SetTrue)]
     pub upload: bool,
+
+    /// Require a shared secret for every request
+    ///
+    /// Clients send it as `Authorization: Bearer <TOKEN>` (curl) or log in
+    /// once via the browser form at `/login` (sets a cookie, so the web UI
+    /// keeps working). Disabled when absent.
+    #[arg(long, value_name = "TOKEN")]
+    pub auth_token: Option<String>,
+
+    /// Max sustained requests per second per client IP (burst = same value)
+    ///
+    /// Excess requests get `429 Too Many Requests`. Disabled when absent.
+    #[arg(long, value_name = "RPS")]
+    pub rate_limit: Option<u32>,
+
+    /// Max request body size, e.g. `100MB`, `1GB`
+    ///
+    /// Bounds `/upload` and the browser upload endpoint; without it request
+    /// bodies are unlimited (back-compat).
+    #[arg(long, value_name = "SIZE", value_parser = parse_size)]
+    pub max_upload_size: Option<u64>,
+
+    /// Max total bytes in one generated archive, e.g. `2GB`
+    ///
+    /// The archive stream aborts once exceeded. Disabled when absent.
+    #[arg(long, value_name = "SIZE", value_parser = parse_size)]
+    pub max_archive_size: Option<u64>,
+
+    /// Max directory depth included in archives
+    ///
+    /// Deeper trees are rejected before streaming starts. Disabled when absent.
+    #[arg(long, value_name = "N")]
+    pub max_archive_depth: Option<usize>,
+
+    /// Max seconds spent generating one archive
+    ///
+    /// The stream aborts once exceeded. Disabled when absent.
+    #[arg(long, value_name = "SECS")]
+    pub archive_timeout: Option<u64>,
+}
+
+/// Parse a byte size like `1024`, `100MB`, `1.5GB` (case-insensitive).
+///
+/// # Errors
+///
+/// Returns a message when the value has no numeric prefix or an unknown suffix.
+pub fn parse_size(input: &str) -> Result<u64, String> {
+    let input = input.trim();
+    let split = input
+        .find(|c: char| !c.is_ascii_digit() && c != '.')
+        .unwrap_or(input.len());
+    let (number, suffix) = input.split_at(split);
+    let number: f64 = number
+        .parse()
+        .map_err(|_| format!("Invalid size: '{input}'"))?;
+    if number < 0.0 {
+        return Err(format!("Invalid size: '{input}'"));
+    }
+    let multiplier: f64 = match suffix.trim().to_ascii_uppercase().as_str() {
+        "" | "B" => 1.0,
+        "K" | "KB" => 1024.0,
+        "M" | "MB" => 1024.0 * 1024.0,
+        "G" | "GB" => 1024.0 * 1024.0 * 1024.0,
+        "T" | "TB" => 1024.0 * 1024.0 * 1024.0 * 1024.0,
+        _ => return Err(format!("Unknown size suffix in '{input}'")),
+    };
+    let bytes = number * multiplier;
+    if bytes > u64::MAX as f64 {
+        return Err(format!("Size too large: '{input}'"));
+    }
+    Ok(bytes as u64)
 }
 
 #[derive(Debug, Clone)]
@@ -47,6 +118,12 @@ pub struct Config {
     pub port: u16,
     pub qr: bool,
     pub interfaces: Vec<IpAddr>,
+    pub auth_token: Option<String>,
+    pub rate_limit: Option<u32>,
+    pub max_upload_size: Option<u64>,
+    pub max_archive_size: Option<u64>,
+    pub max_archive_depth: Option<usize>,
+    pub archive_timeout: Option<u64>,
 }
 
 /// Get the config from CLI arguments.
@@ -69,6 +146,12 @@ pub async fn get_config() -> Result<Config, String> {
         interfaces,
         picker,
         upload,
+        auth_token,
+        rate_limit,
+        max_upload_size,
+        max_archive_size,
+        max_archive_depth,
+        archive_timeout,
     } = Cli::parse();
 
     let target_dir = if picker {
@@ -97,11 +180,21 @@ pub async fn get_config() -> Result<Config, String> {
         return Err(format!("Port {port} is already in use"));
     };
 
+    if let Some(0) = rate_limit {
+        return Err("--rate-limit must be at least 1".to_string());
+    }
+
     Ok(Config {
         target_dir: canonical_target_dir,
         allow_upload: upload,
         port,
         qr,
         interfaces,
+        auth_token,
+        rate_limit,
+        max_upload_size,
+        max_archive_size,
+        max_archive_depth,
+        archive_timeout,
     })
 }
