@@ -34,5 +34,5 @@ pub use crate::{
         AppConfig, PATH_NOT_FOUND_MESSAGE, UPLOAD_DISABLED_MESSAGE, UPLOAD_READ_ERROR_MESSAGE,
         UPLOAD_STORE_ERROR_MESSAGE,
     },
-    pages::{AppError, ErrorTemplate, FilesPage},
+    pages::{AppError, ErrorTemplate, FilesPage, LoginPage},
 };

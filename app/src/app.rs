@@ -5,7 +5,7 @@ use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
 use leptos_router::components::{Route, Router, Routes};
 use leptos_router_macro::path;
 
-use crate::pages::{AppError, ErrorTemplate, FilesPage};
+use crate::pages::{AppError, ErrorTemplate, FilesPage, LoginPage};
 
 #[must_use]
 pub fn shell(options: LeptosOptions) -> impl IntoView {
@@ -42,6 +42,7 @@ pub fn App() -> impl IntoView {
                 view! { <ErrorTemplate outside_errors /> }.into_view()
             }>
                 <Route path=path!("/index/*path") view=FilesPage />
+                <Route path=path!("/login") view=LoginPage />
             </Routes>
         </Router>
     }
