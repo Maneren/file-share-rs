@@ -120,7 +120,7 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
     let succeed = Callback::new(move |_| {
         current_upload.set(None);
         xhr_handle.set(None);
-        if let Some(input) = file_ref.get() {
+        if let Some(input) = file_ref.get_untracked() {
             input.set_value("");
         }
         notify_listing_changed();
@@ -130,11 +130,11 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
         ev.prevent_default();
         upload_error.set(None);
 
-        if current_upload.with(Option::is_some) {
+        if current_upload.with_untracked(Option::is_some) {
             fail.run("Upload already in progress.".to_string());
             return;
         }
-        let (Some(form), Some(input)) = (form_ref.get(), file_ref.get()) else {
+        let (Some(form), Some(input)) = (form_ref.get_untracked(), file_ref.get_untracked()) else {
             return;
         };
         let Ok(form_data) = FormData::new_with_form(&form) else {

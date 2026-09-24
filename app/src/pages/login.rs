@@ -20,11 +20,11 @@ pub fn LoginPage() -> impl IntoView {
 
     // Snapshot: a navigation remounts the island below, so plain props do.
     let next = query
-        .read()
+        .read_untracked()
         .get("next")
         .filter(|next| looks_same_origin(next))
         .unwrap_or_else(|| "/".to_string());
-    let failed = query.read().get("error").is_some();
+    let failed = query.read_untracked().get("error").is_some();
 
     view! {
         <Title text="Login — File Share" />
