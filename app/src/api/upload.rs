@@ -16,7 +16,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     use crate::{
         AppConfig,
         config::{UPLOAD_DISABLED_MESSAGE, UPLOAD_READ_ERROR_MESSAGE, UPLOAD_STORE_ERROR_MESSAGE},
-        fs_guard::{is_safe_file_name, is_safe_relative_path, remove_partial_upload},
+        fs_guard::{is_safe_file_name, remove_partial_upload, resolve_contained_path},
     };
 
     fn read_upload_error(e: impl std::fmt::Display) -> ServerFnError {
@@ -63,11 +63,12 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     let base_req_path = {
         let req_path = collect_field_with_name(&mut data, "path").await?;
         let trimmed = req_path.trim();
-        let trimmed_path = PathBuf::from(trimmed);
-        if !is_safe_relative_path(&trimmed_path) {
-            return Err(ServerError(format!("Invalid path: {trimmed}")));
+        // Resolve through the real filesystem (same as the curl endpoint)
+        // so a symlinked directory cannot redirect uploads outside the share.
+        match resolve_contained_path(&app_config.target_dir, &PathBuf::from(trimmed)).await {
+            Some(path) => path,
+            None => return Err(ServerError(format!("Invalid path: {trimmed}"))),
         }
-        app_config.target_dir.join(trimmed)
     };
 
     let id = collect_field_with_name(&mut data, "id").await?;

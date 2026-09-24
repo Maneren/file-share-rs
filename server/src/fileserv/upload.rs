@@ -17,7 +17,7 @@ use file_share_app::{
 };
 use leptos::logging;
 use tokio::{
-    fs::File,
+    fs::OpenOptions,
     io::{AsyncWriteExt, BufWriter},
 };
 
@@ -82,12 +82,16 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
 
         logging::log!("Uploading to {path:?}");
 
-        let file = match File::create_new(&path).await {
+        // Same policy as the browser upload: overwrite silently. Uploads are
+        // opt-in (`--upload`), so a writer may replace its own files.
+        let file = match OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&path)
+            .await
+        {
             Ok(file) => file,
-            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
-                logging::error!("Upload target {} already exists", path.display());
-                return (StatusCode::CONFLICT, "File already exists").into_response();
-            },
             Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
                 logging::error!("Permission denied creating {}: {err}", path.display());
                 return (StatusCode::FORBIDDEN, UPLOAD_STORE_ERROR_MESSAGE).into_response();

@@ -15,4 +15,4 @@ Verified against `server/src/**/*`, `app/src/**/*`.
 - `folder_download.rs`: `navigator.clipboard` string onclick fails on `http://LAN-IP` (needs secure context) with no fallback, `curl '...'` unescaped injection, hover-only dropdown inaccessible on touch/keyboard.
 - `breadcrumbs.rs`, `file_entries.rs`: no `<nav aria-label>`, no `aria-current`, no `overflow-x-auto` (deep paths clip mobile), no `title`/ellipsis in breadcrumbs, no `role=progressbar`, `Loading...` bare `<p>` no spinner/`aria-live`.
 - `app/src/lib.rs`, `server/src/main.rs`: `/` → `/index` but route is `/index/*path`, 404 renders with `200`.
-- Missing flags: `--tls`, `--read-only`, `--hidden` (`--max-upload-size`, `--auth-token`, `--rate-limit`, archive caps, and `--port 0` auto-pick done — see §1).
+- Missing flags: `--tls`, `--read-only`, `--hidden`.
