@@ -36,3 +36,12 @@ pub async fn resolve_contained_path(base: &Path, rel: &Path) -> Option<PathBuf> 
     let resolved = tokio::fs::canonicalize(base.join(rel)).await.ok()?;
     resolved.starts_with(base).then_some(resolved)
 }
+
+/// Best-effort removal of a partially written upload so failed transfers
+/// don't leave corrupt files behind.
+#[cfg(feature = "ssr")]
+pub async fn remove_partial_upload(path: &Path) {
+    if let Err(e) = tokio::fs::remove_file(path).await {
+        leptos::logging::error!("Failed to remove partial upload {}: {e}", path.display());
+    }
+}

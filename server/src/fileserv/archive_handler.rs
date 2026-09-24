@@ -106,7 +106,7 @@ async fn check_archive_dir(path: &StdPath) -> Result<(), Box<Response<Body>>> {
     }
 }
 
-/// Opt-in (`--max-archive-size`, `--archive-timeout`) bounds for one archive.
+/// Per-request archive bounds, copied out of [`SecurityConfig`].
 #[derive(Clone, Copy)]
 struct ArchiveLimits {
     max_size: Option<u64>,
@@ -150,20 +150,18 @@ fn handle_archive(
     let (writer, reader) = io::duplex(DUPLEX_BUF_SIZE);
     let stream = ReaderStream::with_capacity(reader, READER_STREAM_CAPACITY);
 
-    // Abort the compressor when the client goes away: dropping the response
-    // body drops the stream, which aborts the task instead of letting it
-    // compress a tree nobody reads anymore.
+    // Dropping the response body (client disconnect) aborts the compressor
+    // instead of compressing a tree nobody reads anymore.
     let task = spawn(async move {
         let mut out = CountingWriter::new(writer, limits.max_size);
         let create = archive_io::create_archive(archive_method, path, &mut out);
         let result = match limits.timeout {
-            Some(duration) => match time::timeout(duration, create).await {
-                Ok(inner) => inner,
-                Err(_) => Err(archive_io::Error::Other(format!(
+            Some(duration) => time::timeout(duration, create).await.unwrap_or_else(|_| {
+                Err(archive_io::Error::Other(format!(
                     "Archive creation timed out after {}s",
                     duration.as_secs()
-                ))),
-            },
+                )))
+            }),
             None => create.await,
         };
         if let Err(err) = result {
@@ -230,12 +228,9 @@ fn content_disposition(file_name: &str) -> Option<HeaderValue> {
         .ok()
 }
 
-/// Reject trees that exceed `--max-archive-depth`/`--max-archive-size`
-/// before streaming starts, so the client gets a clean error instead of a
-/// truncated archive. No-op when neither flag is set.
-///
-/// The mid-stream [`CountingWriter`] backstop and `--archive-timeout` still
-/// bound races where the tree grows between this scan and the stream.
+/// Reject over-limit trees before streaming so the client gets a clean error
+/// instead of a truncated archive. No-op when unset; the mid-stream
+/// [`CountingWriter`] covers trees that grow afterwards.
 async fn check_archive_limits(
     root: &StdPath,
     security: &SecurityConfig,
@@ -290,9 +285,8 @@ async fn check_archive_limits(
     Ok(())
 }
 
-/// [`AsyncWrite`](io::AsyncWrite) wrapper that fails once `max` total bytes
-/// were written — backstop for `--max-archive-size` when the tree grows
-/// between the pre-scan and the stream.
+/// Fails writes past `max` total bytes: backstop for trees that grow
+/// mid-stream.
 struct CountingWriter<W> {
     inner: W,
     written: u64,

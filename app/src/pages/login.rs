@@ -1,9 +1,7 @@
-//! Login page: styled token form shown when `--auth-token` is set.
+//! Login page: token form shown when `--auth-token` is set.
 //!
-//! The form is a plain `POST /login` (no JS needed to log in); the
-//! show/hide toggle lives in an island so it hydrates. `next` carries the
-//! originally requested target through the round-trip, `error` surfaces a
-//! rejected token. The server re-validates `next` on POST.
+//! Plain `POST /login` (works without JS); only the show/hide toggle is an
+//! island. The server re-validates `next` on POST.
 
 use leptos::prelude::*;
 use leptos_meta::Title;

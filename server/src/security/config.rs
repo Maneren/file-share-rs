@@ -19,7 +19,8 @@ const BUCKET_TTL: Duration = Duration::from_secs(300);
 pub struct SecurityConfig {
     /// When `Some`, every request needs the token (Bearer or login cookie).
     pub auth_token: Option<String>,
-    /// Bounds `/upload` bodies and the browser upload server-fn (`None` = unlimited).
+    /// Bounds `/upload` bodies and the browser upload server-fn (`None` =
+    /// unlimited).
     pub max_upload_size: Option<u64>,
     /// Aborts an archive stream once its output exceeds this.
     pub max_archive_size: Option<u64>,
@@ -69,7 +70,9 @@ impl SecurityConfig {
     /// fails open if the tracker is over capacity.
     #[must_use]
     pub fn allow_request(&self, ip: IpAddr) -> bool {
-        self.rate_limiter.as_ref().is_none_or(|limiter| limiter.allow(ip))
+        self.rate_limiter
+            .as_ref()
+            .is_none_or(|limiter| limiter.allow(ip))
     }
 }
 

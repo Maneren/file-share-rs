@@ -79,15 +79,13 @@ pub struct Cli {
     pub archive_timeout: Option<u64>,
 }
 
-/// Parse a byte size like `1024`, `100MB`, `1.5GB` (case-insensitive).
-///
-/// Exact integer math (up to 6 fractional digits), so `1.5GB` is precisely
-/// `1610612736` with no float rounding.
+/// Parse a byte size like `1024`, `100MB`, `1.5GB` (case-insensitive) with
+/// exact integer math (up to 6 fractional digits).
 ///
 /// # Errors
 ///
-/// Returns a message when the value has no numeric prefix, has an unknown
-/// suffix, or overflows `u64`.
+/// Returns a message for a missing numeric prefix, an unknown suffix, or a
+/// value overflowing `u64`.
 pub fn parse_size(input: &str) -> Result<u64, String> {
     let invalid = || format!("Invalid size: '{input}'");
     let input = input.trim();
@@ -204,7 +202,7 @@ pub async fn get_config() -> Result<Config, String> {
         return Err(format!("Port {port} is already in use"));
     };
 
-    if let Some(0) = rate_limit {
+    if rate_limit == Some(0) {
         return Err("--rate-limit must be at least 1".to_string());
     }
 

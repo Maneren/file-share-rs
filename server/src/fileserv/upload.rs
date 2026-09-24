@@ -13,7 +13,7 @@ use axum::{
 use file_share_app::{
     UPLOAD_READ_ERROR_MESSAGE, UPLOAD_STORE_ERROR_MESSAGE,
     format::format_bytes,
-    fs_guard::{is_safe_file_name, resolve_contained_path},
+    fs_guard::{is_safe_file_name, remove_partial_upload, resolve_contained_path},
 };
 use leptos::logging;
 use tokio::{
@@ -111,7 +111,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
                 Ok(chunk) => chunk,
                 Err(e) => {
                     logging::error!("Failed to read upload for {}: {e}", path.display());
-                    remove_partial(&path).await;
+                    remove_partial_upload(&path).await;
                     return (StatusCode::BAD_REQUEST, UPLOAD_READ_ERROR_MESSAGE).into_response();
                 },
             };
@@ -120,7 +120,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             total_bytes += chunk.len() as u64;
             if let Err(err) = file.write_all(&chunk).await {
                 logging::error!("Failed to write file {}: {err}", path.display());
-                remove_partial(&path).await;
+                remove_partial_upload(&path).await;
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     UPLOAD_STORE_ERROR_MESSAGE,
@@ -130,7 +130,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
         }
         if let Err(err) = file.flush().await {
             logging::error!("Failed to flush file {}: {err}", path.display());
-            remove_partial(&path).await;
+            remove_partial_upload(&path).await;
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 UPLOAD_STORE_ERROR_MESSAGE,
@@ -146,12 +146,4 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
     }
 
     StatusCode::OK.into_response()
-}
-
-/// Best-effort removal of a partially written upload so failed transfers
-/// don't leave corrupt files behind.
-async fn remove_partial(path: &StdPath) {
-    if let Err(err) = tokio::fs::remove_file(path).await {
-        logging::error!("Failed to remove partial upload {}: {err}", path.display());
-    }
 }

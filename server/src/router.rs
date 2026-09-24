@@ -69,10 +69,8 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
     let app_config = Arc::clone(&app_state.app_config);
     let target_dir = app_state.app_config.target_dir.clone();
 
-    // Opt-in via `--max-upload-size`: bounds `/upload` bodies and the
-    // browser upload server-fn (previously `DefaultBodyLimit::disable()`
-    // left every server-fn unbounded). Without the flag request bodies stay
-    // unlimited for back-compat.
+    // Bounds `/upload` bodies and the browser upload server-fn; unlimited
+    // without `--max-upload-size` (back-compat).
     let body_limit = app_state
         .security
         .max_upload_size
@@ -82,9 +80,8 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
     Router::new()
         .route("/", get(|| async { Redirect::to("/index") }))
         .route("/help", get(|| async { API_HELP_TEXT }))
-        // POST verifies the token (sets the cookie); GET is served by the
-        // Leptos `/login` route registered above, which renders the login
-        // page (Axum merges the two methods for this path).
+        // POST verifies the token; GET renders the Leptos login page
+        // (registered with the Leptos routes below, merged by Axum).
         .route("/login", post(login))
         .leptos_routes_with_context(
             &app_state,
@@ -107,18 +104,15 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
         )
         .layer(compression)
         .layer(RequestBodyLimitLayer::new(body_limit))
-        // Innermost: a panicking handler becomes `500` instead of a hung
-        // connection. (No global timeout: it would kill legit long
-        // uploads/archives; archives get a per-request `--archive-timeout`.)
+        // A panicking handler becomes `500` instead of a hung connection.
         .layer(CatchPanicLayer::new())
-        // Outermost (runs first): shed floods before auth. No-op without
-        // `--rate-limit`.
+        // Shed floods before auth; no-op without `--rate-limit`.
         .layer(middleware::from_fn_with_state(
             app_state.clone(),
             rate_limit,
         ))
-        // Outermost (runs first): auth rejects unauthenticated requests
-        // before any body is read. No-op without `--auth-token`.
+        // Reject unauthenticated requests before any body is read; no-op
+        // without `--auth-token`.
         .layer(middleware::from_fn_with_state(
             app_state.clone(),
             require_auth,

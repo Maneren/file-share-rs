@@ -16,7 +16,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     use crate::{
         AppConfig,
         config::{UPLOAD_DISABLED_MESSAGE, UPLOAD_READ_ERROR_MESSAGE, UPLOAD_STORE_ERROR_MESSAGE},
-        fs_guard::{is_safe_file_name, is_safe_relative_path},
+        fs_guard::{is_safe_file_name, is_safe_relative_path, remove_partial_upload},
     };
 
     fn read_upload_error(e: impl std::fmt::Display) -> ServerFnError {
@@ -27,14 +27,6 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
     fn store_upload_error(name: &str, e: impl std::fmt::Display) -> ServerFnError {
         logging::error!("[{name}]\tfailed to store upload: {e}");
         ServerError(UPLOAD_STORE_ERROR_MESSAGE.into())
-    }
-
-    /// Best-effort removal of a partially written upload so failed transfers
-    /// don't leave corrupt files behind.
-    async fn remove_partial(name: &str, path: &std::path::Path) {
-        if let Err(e) = tokio::fs::remove_file(path).await {
-            logging::error!("[{name}]\tfailed to remove partial upload: {e}");
-        }
     }
 
     async fn collect_field_with_name(
@@ -115,7 +107,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
             if let Err(e) = file.write_all(&chunk).await {
                 let err = store_upload_error(&name, e);
                 drop(file);
-                remove_partial(&name, &path).await;
+                remove_partial_upload(&path).await;
                 return Err(err);
             }
 
@@ -124,7 +116,7 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
         if let Err(e) = file.flush().await {
             let err = store_upload_error(&name, e);
             drop(file);
-            remove_partial(&name, &path).await;
+            remove_partial_upload(&path).await;
             return Err(err);
         }
 
