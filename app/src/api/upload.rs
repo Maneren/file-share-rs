@@ -29,6 +29,14 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
         ServerError(UPLOAD_STORE_ERROR_MESSAGE.into())
     }
 
+    /// Best-effort removal of a partially written upload so failed transfers
+    /// don't leave corrupt files behind.
+    async fn remove_partial(name: &str, path: &std::path::Path) {
+        if let Err(e) = tokio::fs::remove_file(path).await {
+            logging::error!("[{name}]\tfailed to remove partial upload: {e}");
+        }
+    }
+
     async fn collect_field_with_name(
         data: &mut multer::Multipart<'static>,
         name: &str,
@@ -104,15 +112,21 @@ pub async fn upload_file(data: MultipartData) -> Result<(), ServerFnError> {
         while let Some(chunk) = field.chunk().await.map_err(read_upload_error)? {
             let len = chunk.len();
 
-            file.write_all(&chunk)
-                .await
-                .map_err(|e| store_upload_error(&name, e))?;
+            if let Err(e) = file.write_all(&chunk).await {
+                let err = store_upload_error(&name, e);
+                drop(file);
+                remove_partial(&name, &path).await;
+                return Err(err);
+            }
 
             add_chunk(&id, len).await;
         }
-        file.flush()
-            .await
-            .map_err(|e| store_upload_error(&name, e))?;
+        if let Err(e) = file.flush().await {
+            let err = store_upload_error(&name, e);
+            drop(file);
+            remove_partial(&name, &path).await;
+            return Err(err);
+        }
 
         logging::log!("[{name}]\tfinished");
     }
