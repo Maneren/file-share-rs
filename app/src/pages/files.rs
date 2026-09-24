@@ -35,13 +35,14 @@ pub fn FilesPage() -> impl IntoView {
 
     let app_config = expect_context::<Arc<AppConfig>>();
 
-    let upload_bar = app_config.allow_upload.then(|| {
-        view! { <ActionBar path=path_signal create_folder_action=create_folder_action /> }
-    });
-
     view! {
         <div class="p-3 App">
-            {upload_bar} <Breadcrumbs path=path_signal />
+            <ActionBar
+                path=path_signal
+                allow_upload=app_config.allow_upload
+                create_folder_action=create_folder_action
+            />
+            <Breadcrumbs path=path_signal />
             // Snapshot path: the island remounts fresh on every navigation.
             <ListingBrowser path=path.get_untracked() allow_upload=app_config.allow_upload />
         </div>

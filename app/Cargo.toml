@@ -25,7 +25,6 @@ serde_json.workspace = true
 serde.workspace = true
 server_fn.workspace = true
 thiserror.workspace = true
-tokio-stream = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 urlencoding.workspace = true
 wasm-bindgen.workspace = true
@@ -45,5 +44,4 @@ ssr = [
   "dep:leptos_axum",
   "dep:nucleo",
   "dep:tokio",
-  "dep:tokio-stream",
 ]

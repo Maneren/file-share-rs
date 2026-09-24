@@ -24,4 +24,4 @@ pub use loading::Loading;
 pub use new_folder::NewFolderButton;
 pub use pagination::{PAGE_SIZE, Pagination};
 pub use sort_header::SortHeader;
-pub use upload::{FileUpload, clear_listing_refresh, set_listing_refresh};
+pub use upload::{FileUpload, set_listing_refresh};

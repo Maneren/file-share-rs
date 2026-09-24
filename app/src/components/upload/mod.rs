@@ -51,7 +51,7 @@ pub fn set_listing_refresh(refresh: Callback<()>) {
 }
 
 /// Forget the current listing so a later upload can't hit a dead island.
-pub fn clear_listing_refresh() {
+fn clear_listing_refresh() {
     if let Ok(mut slot) = refresh_slot().lock() {
         *slot = None;
     }
@@ -121,7 +121,7 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
         current_upload.set(None);
         xhr_handle.set(None);
         if let Some(input) = file_ref.get() {
-            let _ = input.set_value("");
+            input.set_value("");
         }
         notify_listing_changed();
     });
