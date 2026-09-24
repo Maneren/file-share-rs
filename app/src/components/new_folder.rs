@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use leptos::{html::Input, prelude::*};
+use leptos::{html::Input, logging, prelude::*};
 
 use crate::{api::NewFolder, paths::display_os_string};
 
@@ -9,10 +9,14 @@ pub fn NewFolderButton(path: Signal<PathBuf>, action: ServerAction<NewFolder>) -
     let new_folder_input = NodeRef::<Input>::new();
 
     let on_new_folder_focus = move |_| {
-        let input = new_folder_input.get().unwrap();
+        let input = new_folder_input
+            .get()
+            .expect("input is mounted with its dialog");
         let input_length =
             u32::try_from(input.value().len()).expect("New folder name is shorter than u32::MAX");
-        let _ = input.set_selection_range(0, input_length);
+        if input.set_selection_range(0, input_length).is_err() {
+            logging::warn!("Couldn't select new folder name");
+        }
     };
 
     view! {

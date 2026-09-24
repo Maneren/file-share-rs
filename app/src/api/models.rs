@@ -75,19 +75,19 @@ impl ServerEntry {
         }
     }
 
-    pub(crate) fn is_folder(&self) -> bool {
+    pub(crate) const fn is_folder(&self) -> bool {
         matches!(self, Self::Folder { .. })
     }
 
     /// File size, or 0 for folders (only compared within the folder group).
-    pub(crate) fn file_size(&self) -> u64 {
+    pub(crate) const fn file_size(&self) -> u64 {
         match self {
             Self::File { size, .. } => *size,
             Self::Folder { .. } => 0,
         }
     }
 
-    pub(crate) fn modified(&self) -> SystemTime {
+    pub(crate) const fn modified(&self) -> SystemTime {
         match self {
             Self::Folder { last_modified, .. } | Self::File { last_modified, .. } => *last_modified,
         }

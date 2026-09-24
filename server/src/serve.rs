@@ -15,7 +15,7 @@ use socket2::{Domain, Socket, Type};
 use tokio::task::JoinSet;
 
 #[must_use]
-pub fn is_v6_wildcard(addr: &SocketAddr) -> bool {
+pub const fn is_v6_wildcard(addr: &SocketAddr) -> bool {
     matches!(addr.ip(), std::net::IpAddr::V6(ip) if ip.is_unspecified())
 }
 

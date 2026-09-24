@@ -18,17 +18,15 @@ pub mod state;
 use std::{fs::create_dir_all, io::IsTerminal, net::SocketAddr, process, sync::Arc};
 
 use axum_server::Handle;
-use colored::Colorize;
-use file_share_app::{App, AppConfig};
+use colored::Colorize as _;
+use file_share_app::{App, Config as AppConfig};
 use leptos::{logging::error, prelude::get_configuration};
 use leptos_axum::generate_route_list;
 use tokio::{signal, spawn, task::JoinSet};
 
 use crate::{
-    cli::{Config, get_config},
+    cli::get_config,
     net::{display_targets, print_qr_codes},
-    router::create_router,
-    security::SecurityConfig,
     serve::serve_address,
     state::AppState,
 };
@@ -42,14 +40,14 @@ async fn main() {
     let leptos_options = conf.leptos_options;
     let routes = generate_route_list(App);
 
-    let cli_config = get_config().await.unwrap_or_else(|e| {
+    let cli_config = get_config().unwrap_or_else(|e| {
         eprintln!("Failed to get CLI config: {e}");
         process::exit(1);
     });
 
-    let security = Arc::new(SecurityConfig::new(&cli_config));
+    let security = Arc::new(security::Config::new(&cli_config));
 
-    let Config {
+    let cli::Config {
         target_dir,
         port,
         qr,
@@ -79,7 +77,7 @@ async fn main() {
         target_dir.to_string_lossy().yellow().bold()
     );
 
-    let app = create_router(app_state.clone(), routes);
+    let app = router::create(app_state.clone(), routes);
 
     let targets = display_targets(&interfaces, port);
 

@@ -45,3 +45,6 @@ ssr = [
   "dep:nucleo",
   "dep:tokio",
 ]
+
+[lints]
+workspace = true

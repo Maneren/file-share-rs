@@ -12,7 +12,7 @@ use axum::{
     extract::State,
     http::Request,
     middleware::Next,
-    response::{IntoResponse, Response as AxumResponse},
+    response::{IntoResponse as _, Response as AxumResponse},
 };
 use tokio::fs;
 use urlencoding::decode;
@@ -20,7 +20,7 @@ use urlencoding::decode;
 use super::responses::PATH_NOT_FOUND;
 use crate::state::AppState;
 
-pub async fn gate_shared_files(
+pub async fn shared_files(
     State(app_state): State<AppState>,
     req: Request<Body>,
     next: Next,

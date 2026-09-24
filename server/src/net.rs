@@ -4,7 +4,7 @@
 
 use std::net::IpAddr;
 
-use colored::Colorize;
+use colored::Colorize as _;
 use if_addrs::{Interface, get_if_addrs};
 use leptos::logging::warn;
 use qr_code::QrCode;
@@ -15,7 +15,7 @@ use qr_code::QrCode;
 const VIRTUAL_IFACE_PREFIXES: &[&str] = &["docker", "veth", "br-", "virbr"];
 
 /// Unicast scopes with no usable route for LAN clients (ARP/ND link-local).
-fn is_link_local(ip: &IpAddr) -> bool {
+const fn is_link_local(ip: &IpAddr) -> bool {
     match ip {
         IpAddr::V4(ip) => ip.is_link_local(),
         IpAddr::V6(ip) => ip.is_unicast_link_local(),
@@ -25,7 +25,7 @@ fn is_link_local(ip: &IpAddr) -> bool {
 /// Addresses worth showing to the user: drops loopback, link-local,
 /// multicast and unspecified addresses.
 #[must_use]
-pub fn is_usable_address(ip: &IpAddr) -> bool {
+pub const fn is_usable_address(ip: &IpAddr) -> bool {
     !(ip.is_loopback() || ip.is_unspecified() || ip.is_multicast() || is_link_local(ip))
 }
 

@@ -14,7 +14,7 @@ use axum::{
 };
 use file_share_app::shell;
 use leptos::prelude::provide_context;
-use leptos_axum::{AxumRouteListing, LeptosRoutes};
+use leptos_axum::{AxumRouteListing, LeptosRoutes as _};
 use tower::Layer as _;
 use tower_http::{
     catch_panic::CatchPanicLayer,
@@ -29,7 +29,7 @@ use tower_http::{
 
 use crate::{
     fileserv::{
-        file_and_error_handler, file_upload_with_path, file_upload_without_path, gate_shared_files,
+        file_and_error_handler, file_upload_with_path, file_upload_without_path, gate,
         handle_archive_with_path, handle_archive_without_path,
     },
     security::{login, rate_limit, require_auth},
@@ -52,7 +52,7 @@ Endpoints:
 Available methods are tar, tar.gz, tar.zst, zip.
 ";
 
-pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Router {
+pub fn create(app_state: AppState, routes: Vec<AxumRouteListing>) -> Router {
     // Compress only responses that actually benefit from it.
     let compression_predicate = DefaultPredicate::new()
         // skip upload progress
@@ -102,7 +102,7 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
         .route("/upload/", post(file_upload_without_path))
         .nest_service(
             "/files",
-            middleware::from_fn_with_state(app_state.clone(), gate_shared_files)
+            middleware::from_fn_with_state(app_state.clone(), gate::shared_files)
                 .layer(ServeDir::new(&target_dir)),
         )
         .layer(compression)

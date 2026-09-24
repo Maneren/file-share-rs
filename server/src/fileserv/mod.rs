@@ -18,6 +18,5 @@ pub mod upload;
 pub use archive_handler::{
     ArchiveQuery, Method, handle_archive_with_path, handle_archive_without_path,
 };
-pub use gate::gate_shared_files;
 pub use static_files::file_and_error_handler;
 pub use upload::{file_upload, file_upload_with_path, file_upload_without_path};

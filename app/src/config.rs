@@ -10,7 +10,7 @@ pub use crate::messages::{
 };
 
 #[derive(Debug, Clone)]
-pub struct AppConfig {
+pub struct Config {
     pub target_dir: PathBuf,
     pub allow_upload: bool,
 }

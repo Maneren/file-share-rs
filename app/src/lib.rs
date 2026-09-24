@@ -1,4 +1,4 @@
-#![allow(non_snake_case)]
+#![expect(non_snake_case, reason = "Leptos components are PascalCase")]
 
 //! Shared Leptos app: routing shell, pages, components and server functions.
 //!
@@ -24,14 +24,13 @@ pub mod messages;
 pub mod pagination;
 pub mod paths;
 pub mod time;
-pub mod utils;
 
 pub mod pages;
 
 pub use crate::{
     app::{App, shell},
     config::{
-        AppConfig, PATH_NOT_FOUND_MESSAGE, UPLOAD_DISABLED_MESSAGE, UPLOAD_READ_ERROR_MESSAGE,
+        Config, PATH_NOT_FOUND_MESSAGE, UPLOAD_DISABLED_MESSAGE, UPLOAD_READ_ERROR_MESSAGE,
         UPLOAD_STORE_ERROR_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE,
     },
     pages::{AppError, ErrorTemplate, FilesPage, LoginPage},

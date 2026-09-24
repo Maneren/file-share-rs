@@ -6,17 +6,17 @@
 use std::sync::Arc;
 
 use axum::extract::FromRef;
-use file_share_app::AppConfig;
+use file_share_app::Config as AppConfig;
 use leptos::prelude::LeptosOptions;
 
-use crate::security::SecurityConfig;
+use crate::security;
 
 #[derive(FromRef, Clone, Debug)]
 pub struct AppState {
     pub app_config: Arc<AppConfig>,
     pub leptos_options: Arc<LeptosOptions>,
     /// Server-only hardening (auth token, caps). Never sent to the client.
-    pub security: Arc<SecurityConfig>,
+    pub security: Arc<security::Config>,
 }
 
 impl FromRef<AppState> for LeptosOptions {

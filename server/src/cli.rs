@@ -2,7 +2,7 @@ use std::{net::IpAddr, path::PathBuf};
 
 use clap::{ArgAction, Parser};
 use port_check::{free_local_port, is_local_port_free};
-use rfd::AsyncFileDialog;
+use rfd::FileDialog;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -113,12 +113,12 @@ pub fn parse_size(input: &str) -> Result<u64, String> {
     {
         return Err(invalid());
     }
-    let whole: u128 = whole.parse().map_err(|_| invalid())?;
+    let whole: u128 = whole.parse().map_err(|e| format!("{}: {e}", invalid()))?;
     // Fixed-point fraction scaled to micros.
     let mut frac_value: u128 = if frac.is_empty() {
         0
     } else {
-        frac.parse().map_err(|_| invalid())?
+        frac.parse().map_err(|e| format!("{}: {e}", invalid()))?
     };
     for _ in frac.len()..6 {
         frac_value *= 10;
@@ -160,8 +160,7 @@ pub struct Config {
 ///
 /// Panics if the current working directory is invalid or unreadable for current
 /// process.
-#[allow(clippy::unused_async)] // it's used only in release build
-pub async fn get_config() -> Result<Config, String> {
+pub fn get_config() -> Result<Config, String> {
     let Cli {
         target_dir,
         port,
@@ -178,12 +177,11 @@ pub async fn get_config() -> Result<Config, String> {
     } = Cli::parse();
 
     let target_dir = if picker {
-        AsyncFileDialog::new()
+        FileDialog::new()
             .set_title("Select directory to share")
             .pick_folder()
-            .await
             .ok_or("No directory selected")?
-            .path()
+            .as_path()
             .to_path_buf()
     } else {
         target_dir
@@ -233,7 +231,7 @@ mod tests {
         assert_eq!(parse_size("1.5gb"), Ok(1_610_612_736));
         assert_eq!(parse_size("2K"), Ok(2048));
         assert_eq!(parse_size("1T"), Ok(1024 * 1024 * 1024 * 1024));
-        assert!(parse_size("10XB").is_err());
-        assert!(parse_size("abc").is_err());
+        parse_size("10XB").expect_err("invalid suffix");
+        parse_size("abc").expect_err("invalid number");
     }
 }

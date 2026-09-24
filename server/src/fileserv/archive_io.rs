@@ -1,9 +1,10 @@
-#![allow(clippy::items_after_statements)]
 //! Utilities for creating archives (`tar`, `tar.gz`, `tar.zst`, `zip`).
 //!
 //! NOTE: fastest compression level throughout, so compression never
 //! bottlenecks archive streaming.
 
+#[cfg(target_family = "unix")]
+use std::os::unix::fs::PermissionsExt as _;
 use std::{ffi::OsStr, io, path::Path};
 
 use async_compression::{
@@ -14,7 +15,6 @@ use async_walkdir::WalkDir;
 use async_zip::{
     Compression, StringEncoding, ZipEntryBuilder, ZipString, tokio::write::ZipFileWriter,
 };
-use cfg_if::cfg_if;
 use file_share_app::archive::Method;
 use futures::io::copy;
 use thiserror::Error as ThisError;
@@ -40,7 +40,7 @@ pub enum Error {
     Other(String),
 
     #[error("An error occurred while creating {0}")]
-    ArchiveCreation(String, #[source] Box<Error>),
+    ArchiveCreation(String, #[source] Box<Self>),
 }
 
 /// Create an archive from given dir using the given method.
@@ -203,9 +203,9 @@ async fn add_file_to_zip<W>(
 where
     W: AsyncWrite + Unpin,
 {
-    let relative = path.strip_prefix(base_dir).map_err(|_| {
+    let relative = path.strip_prefix(base_dir).map_err(|e| {
         Error::InvalidPath(format!(
-            "Failed to strip {} from {}",
+            "Failed to strip {} from {}: {e}",
             base_dir.display(),
             path.display()
         ))
@@ -230,18 +230,18 @@ where
 
     let entry = ZipEntryBuilder::new(zip_name, compression);
 
-    cfg_if! { if #[cfg(target_family = "unix")] {
-      use std::os::unix::fs::PermissionsExt as _;
-      #[allow(clippy::cast_possible_truncation)]
-      let entry = entry.unix_permissions(
-        file
-          .metadata()
-          .await
-          .map_err(|e| Error::Io(format!("Failed to get metadata for {}", path.display()), e))?
-          .permissions()
-          .mode() as u16
-      );
-    }}
+    #[cfg(target_family = "unix")]
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "unix permissions are 12-bit flags"
+    )]
+    let entry = entry.unix_permissions(
+        file.metadata()
+            .await
+            .map_err(|e| Error::Io(format!("Failed to get metadata for {}", path.display()), e))?
+            .permissions()
+            .mode() as u16,
+    );
 
     let mut sink = zip.write_entry_stream(entry).await.map_err(|e| {
         Error::ArchiveCreation(write_context.clone(), Error::Other(e.to_string()).into())

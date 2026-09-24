@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::cli::Config;
+use crate::cli::Config as CliConfig;
 
 /// Max tracked IPs before stale buckets are evicted.
 const MAX_TRACKED_IPS: usize = 8192;
@@ -16,7 +16,7 @@ const MAX_TRACKED_IPS: usize = 8192;
 const BUCKET_TTL: Duration = Duration::from_secs(300);
 
 #[derive(Debug)]
-pub struct SecurityConfig {
+pub struct Config {
     /// When `Some`, every request needs the token (Bearer or login cookie).
     pub auth_token: Option<String>,
     /// Bounds `/upload` bodies and the browser upload server-fn (`None` =
@@ -31,9 +31,9 @@ pub struct SecurityConfig {
     rate_limiter: Option<RateLimiter>,
 }
 
-impl SecurityConfig {
+impl Config {
     #[must_use]
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: &CliConfig) -> Self {
         Self {
             auth_token: config.auth_token.clone(),
             max_upload_size: config.max_upload_size,
@@ -49,7 +49,7 @@ impl SecurityConfig {
 
     /// Whether any request must carry the token.
     #[must_use]
-    pub fn auth_enabled(&self) -> bool {
+    pub const fn auth_enabled(&self) -> bool {
         self.auth_token.is_some()
     }
 
@@ -106,19 +106,25 @@ impl RateLimiter {
             }
         }
         let now = Instant::now();
-        let bucket = buckets.entry(ip).or_insert_with(|| Bucket {
-            tokens: self.max_burst,
-            last: now,
-        });
-        let elapsed = now.duration_since(bucket.last).as_secs_f64();
-        bucket.last = now;
-        bucket.tokens = (bucket.tokens + elapsed * self.rate_per_sec).min(self.max_burst);
-        if bucket.tokens >= 1.0 {
-            bucket.tokens -= 1.0;
-            true
-        } else {
-            false
-        }
+        let allowed = {
+            let bucket = buckets.entry(ip).or_insert_with(|| Bucket {
+                tokens: self.max_burst,
+                last: now,
+            });
+            let elapsed = now.duration_since(bucket.last).as_secs_f64();
+            bucket.last = now;
+            bucket.tokens = elapsed
+                .mul_add(self.rate_per_sec, bucket.tokens)
+                .min(self.max_burst);
+            if bucket.tokens >= 1.0 {
+                bucket.tokens -= 1.0;
+                true
+            } else {
+                false
+            }
+        };
+        drop(buckets);
+        allowed
     }
 }
 
@@ -130,11 +136,13 @@ struct Bucket {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
 
-    fn test_config() -> Config {
-        Config {
-            target_dir: std::path::PathBuf::from("."),
+    fn test_config() -> CliConfig {
+        CliConfig {
+            target_dir: PathBuf::from("."),
             allow_upload: false,
             port: 0,
             qr: false,
@@ -150,11 +158,11 @@ mod tests {
 
     #[test]
     fn burst_then_throttle() {
-        let security = SecurityConfig::new(&Config {
+        let security = Config::new(&CliConfig {
             rate_limit: Some(2),
             ..test_config()
         });
-        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let ip: IpAddr = "127.0.0.1".parse().expect("literal parses");
         assert!(security.allow_request(ip));
         assert!(security.allow_request(ip));
         assert!(!security.allow_request(ip));
@@ -162,15 +170,15 @@ mod tests {
 
     #[test]
     fn disabled_allows_everything() {
-        let security = SecurityConfig::new(&test_config());
-        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let security = Config::new(&test_config());
+        let ip: IpAddr = "127.0.0.1".parse().expect("literal parses");
         assert!(security.allow_request(ip));
         assert!(security.allow_request(ip));
     }
 
     #[test]
     fn token_verification() {
-        let security = SecurityConfig::new(&Config {
+        let security = Config::new(&CliConfig {
             auth_token: Some("secret".to_string()),
             ..test_config()
         });

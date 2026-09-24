@@ -350,7 +350,7 @@ mod tests {
             },
         );
         assert_eq!(page.total, 5);
-        assert!(page.entries.is_empty());
+        assert_eq!(page.entries.len(), 0);
     }
 
     #[test]
@@ -366,7 +366,7 @@ mod tests {
         );
         assert_eq!(page.total, 0);
         assert_eq!(page.hidden_count, 1);
-        assert!(page.entries.is_empty());
+        assert_eq!(page.entries.len(), 0);
     }
 
     #[test]
@@ -398,7 +398,8 @@ mod tests {
             offset: 200,
         };
         let back: ListQuery =
-            serde_json::from_str(&serde_json::to_string(&query).unwrap()).unwrap();
+            serde_json::from_str(&serde_json::to_string(&query).expect("test fixture serializes"))
+                .expect("test fixture deserializes");
         assert_eq!(back, query);
 
         let page = ListingPage {
@@ -408,7 +409,8 @@ mod tests {
             initials: vec!['A', 'Z'],
         };
         let back: ListingPage =
-            serde_json::from_str(&serde_json::to_string(&page).unwrap()).unwrap();
+            serde_json::from_str(&serde_json::to_string(&page).expect("test fixture serializes"))
+                .expect("test fixture deserializes");
         assert_eq!(back.total, 5);
         assert_eq!(back.hidden_count, 1);
         assert_eq!(back.initials, ['A', 'Z']);

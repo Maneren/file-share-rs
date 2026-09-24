@@ -14,7 +14,6 @@ fn looks_same_origin(next: &str) -> bool {
 }
 
 #[component]
-#[allow(clippy::must_use_candidate)]
 pub fn LoginPage() -> impl IntoView {
     let query = use_query_map();
 

@@ -10,13 +10,13 @@ use axum::{
 };
 use file_share_app::{
     UPLOAD_READ_ERROR_MESSAGE, UPLOAD_STORE_ERROR_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE,
-    format::format_bytes,
+    format::bytes,
     fs_guard::{is_safe_file_name, remove_partial_upload, resolve_contained_path},
 };
 use leptos::logging;
 use tokio::{
     fs::OpenOptions,
-    io::{AsyncWriteExt, BufWriter},
+    io::{AsyncWriteExt as _, BufWriter},
 };
 
 use super::responses::{PATH_NOT_FOUND, UPLOAD_DISABLED};
@@ -170,11 +170,7 @@ pub async fn file_upload(
                 .into_response();
         }
 
-        logging::log!(
-            "Writing {} bytes to {}",
-            format_bytes(total_bytes),
-            path.display()
-        );
+        logging::log!("Writing {} bytes to {}", bytes(total_bytes), path.display());
     }
 
     StatusCode::OK.into_response()

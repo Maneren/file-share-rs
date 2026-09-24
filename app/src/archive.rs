@@ -20,26 +20,26 @@ pub enum Method {
 impl Method {
     /// Every archive method the server can produce. The folder-download
     /// dropdown renders from this list so the UI can never drift out of sync.
-    pub const ALL: [Method; 4] = [Method::Tar, Method::TarGz, Method::TarZstd, Method::Zip];
+    pub const ALL: [Self; 4] = [Self::Tar, Self::TarGz, Self::TarZstd, Self::Zip];
 
     /// URL query value and file extension, e.g. `tar.zst`.
     #[must_use]
-    pub fn as_str(&self) -> &'static str {
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            Method::Tar => "tar",
-            Method::TarGz => "tar.gz",
-            Method::TarZstd => "tar.zst",
-            Method::Zip => "zip",
+            Self::Tar => "tar",
+            Self::TarGz => "tar.gz",
+            Self::TarZstd => "tar.zst",
+            Self::Zip => "zip",
         }
     }
 
     #[must_use]
-    pub fn mimetype(&self) -> &'static str {
+    pub const fn mimetype(&self) -> &'static str {
         match self {
-            Method::Tar => "application/x-tar",
-            Method::TarGz => "application/gzip",
-            Method::TarZstd => "application/zstd",
-            Method::Zip => "application/zip",
+            Self::Tar => "application/x-tar",
+            Self::TarGz => "application/gzip",
+            Self::TarZstd => "application/zstd",
+            Self::Zip => "application/zip",
         }
     }
 
@@ -47,17 +47,17 @@ impl Method {
     /// `None` when the format cannot be stream-extracted in the browser (zip
     /// keeps its central directory at the end of the file).
     #[must_use]
-    pub fn wire_compression(&self) -> Option<&'static str> {
+    pub const fn wire_compression(&self) -> Option<&'static str> {
         match self {
-            Method::Tar => Some("none"),
-            Method::TarGz => Some("gzip"),
-            Method::TarZstd => Some("zstd"),
-            Method::Zip => None,
+            Self::Tar => Some("none"),
+            Self::TarGz => Some("gzip"),
+            Self::TarZstd => Some("zstd"),
+            Self::Zip => None,
         }
     }
 
     #[must_use]
-    pub fn is_streamable(&self) -> bool {
+    pub const fn is_streamable(&self) -> bool {
         self.wire_compression().is_some()
     }
 
@@ -65,12 +65,12 @@ impl Method {
     /// e.g. `curl … | tar --zstd -x -C .`. `None` for non-tar formats (zip),
     /// which cannot be extracted from a pipe — download the file instead.
     #[must_use]
-    pub fn tar_extract_flags(&self) -> Option<&'static str> {
+    pub const fn tar_extract_flags(&self) -> Option<&'static str> {
         match self {
-            Method::Tar => Some(""),
-            Method::TarGz => Some("-z"),
-            Method::TarZstd => Some("--zstd"),
-            Method::Zip => None,
+            Self::Tar => Some(""),
+            Self::TarGz => Some("-z"),
+            Self::TarZstd => Some("--zstd"),
+            Self::Zip => None,
         }
     }
 }
@@ -96,10 +96,10 @@ impl FromStr for Method {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
-            "tar" => Ok(Method::Tar),
-            "tar.gz" => Ok(Method::TarGz),
-            "tar.zst" => Ok(Method::TarZstd),
-            "zip" => Ok(Method::Zip),
+            "tar" => Ok(Self::Tar),
+            "tar.gz" => Ok(Self::TarGz),
+            "tar.zst" => Ok(Self::TarZstd),
+            "zip" => Ok(Self::Zip),
             _ => Err(ParseMethodError(value.to_owned())),
         }
     }

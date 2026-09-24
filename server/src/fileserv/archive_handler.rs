@@ -26,7 +26,7 @@ use tokio_stream::{Stream, StreamExt as _};
 use tokio_util::io::ReaderStream;
 
 use super::{archive_io, responses::PATH_NOT_FOUND};
-use crate::{security::SecurityConfig, state::AppState};
+use crate::{security, state::AppState};
 
 /// Size of the in-memory pipe between archive creation and the HTTP body.
 /// Large enough to keep a 1 Gbps link fed while the compressor runs ahead.
@@ -106,7 +106,7 @@ async fn check_archive_dir(path: &StdPath) -> Result<(), Box<Response<Body>>> {
     }
 }
 
-/// Per-request archive bounds, copied out of [`SecurityConfig`].
+/// Per-request archive bounds, copied out of [`security::Config`].
 #[derive(Clone, Copy)]
 struct ArchiveLimits {
     max_size: Option<u64>,
@@ -114,7 +114,7 @@ struct ArchiveLimits {
 }
 
 impl ArchiveLimits {
-    fn new(security: &SecurityConfig) -> Self {
+    const fn new(security: &security::Config) -> Self {
         Self {
             max_size: security.max_archive_size,
             timeout: security.archive_timeout,
@@ -195,7 +195,7 @@ fn handle_archive(
 /// the exact UTF-8 name. Returns `None` when no valid header can be built
 /// instead of panicking on attacker-influenced input.
 fn content_disposition(file_name: &str) -> Option<HeaderValue> {
-    fn is_attr_char(b: u8) -> bool {
+    const fn is_attr_char(b: u8) -> bool {
         b.is_ascii_alphanumeric()
             || matches!(
                 b,
@@ -219,7 +219,7 @@ fn content_disposition(file_name: &str) -> Option<HeaderValue> {
         if is_attr_char(b) {
             encoded.push(b as char);
         } else {
-            let _ = write!(encoded, "%{b:02X}");
+            write!(encoded, "%{b:02X}").expect("writing to a string can't fail");
         }
     }
 
@@ -233,7 +233,7 @@ fn content_disposition(file_name: &str) -> Option<HeaderValue> {
 /// covers trees that grow afterwards.
 async fn check_archive_limits(
     root: &StdPath,
-    security: &SecurityConfig,
+    security: &security::Config,
 ) -> Result<(), Box<Response<Body>>> {
     let max_size = security.max_archive_size;
     let max_depth = security.max_archive_depth;
@@ -294,7 +294,7 @@ struct CountingWriter<W> {
 }
 
 impl<W> CountingWriter<W> {
-    fn new(inner: W, max: Option<u64>) -> Self {
+    const fn new(inner: W, max: Option<u64>) -> Self {
         Self {
             inner,
             written: 0,
@@ -340,7 +340,7 @@ struct AbortOnDrop<S> {
 }
 
 impl<S> AbortOnDrop<S> {
-    fn new(handle: JoinHandle<()>, stream: S) -> Self {
+    const fn new(handle: JoinHandle<()>, stream: S) -> Self {
         Self {
             handle: Some(handle),
             stream,

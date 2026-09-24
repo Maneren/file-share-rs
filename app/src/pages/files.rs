@@ -5,7 +5,7 @@ use leptos_router::{hooks::use_params, params::Params};
 use urlencoding::decode;
 
 use crate::{
-    AppConfig,
+    Config,
     api::NewFolder,
     components::{ActionBar, Breadcrumbs, ListingBrowser},
 };
@@ -16,7 +16,6 @@ struct PathQuery {
 }
 
 #[component]
-#[allow(clippy::must_use_candidate)]
 pub fn FilesPage() -> impl IntoView {
     let path_query = use_params::<PathQuery>();
 
@@ -33,7 +32,7 @@ pub fn FilesPage() -> impl IntoView {
 
     let path_signal = Signal::from(path);
 
-    let app_config = expect_context::<Arc<AppConfig>>();
+    let app_config = expect_context::<Arc<Config>>();
 
     view! {
         <div class="p-3 App">

@@ -17,7 +17,7 @@ use leptos::{
     logging,
     prelude::*,
 };
-use wasm_bindgen::{JsCast, JsValue, closure::Closure};
+use wasm_bindgen::{JsCast as _, JsValue, closure::Closure};
 use web_sys::{FormData, ProgressEvent, XmlHttpRequest};
 use web_time::Instant;
 
@@ -83,7 +83,154 @@ impl XhrCallbacks {
     }
 }
 
+/// Handles needed to wire an upload request. All are `Copy`, so the helper
+/// takes them by value.
+#[derive(Clone, Copy)]
+struct UploadWiring {
+    uploaded: RwSignal<VecDeque<(u64, Instant)>>,
+    xhr_handle: RwSignal<Option<XmlHttpRequest>>,
+    current_upload: RwSignal<Option<Progress>>,
+    fail: Callback<String>,
+    succeed: Callback<()>,
+}
+
+/// Read selected files from the form; reports problems through `fail`.
+/// Returns the form data and total byte count.
+fn collect_upload_files(
+    form_ref: NodeRef<Form>,
+    file_ref: NodeRef<Input>,
+    fail: Callback<String>,
+) -> Option<(FormData, u64)> {
+    let (Some(form), Some(input)) = (form_ref.get_untracked(), file_ref.get_untracked()) else {
+        return None;
+    };
+    let Ok(form_data) = FormData::new_with_form(&form) else {
+        fail.run("Couldn't read selected files.".to_string());
+        return None;
+    };
+    let files = input.files().map_or_default(|list| {
+        (0..list.length())
+            .filter_map(|i| list.get(i))
+            .collect::<Vec<_>>()
+    });
+    if files.is_empty() {
+        fail.run("No files selected.".to_string());
+        return None;
+    }
+
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "file sizes fit u64 in practice"
+    )]
+    let total = files.iter().map(|file| file.size() as u64).sum::<u64>();
+    Some((form_data, total))
+}
+
+/// Build the XHR, attach progress/terminal handlers and send `form_data`.
+/// Reports failures through `fail` and returns the in-flight request.
+fn start_xhr_upload(
+    xhr_url: &str,
+    form_data: &FormData,
+    wiring: UploadWiring,
+) -> Option<XmlHttpRequest> {
+    let UploadWiring {
+        uploaded,
+        xhr_handle,
+        current_upload,
+        fail,
+        succeed,
+    } = wiring;
+
+    let fail_start = || fail.run("Couldn't start upload.".to_string());
+    let Ok(xhr) = XmlHttpRequest::new() else {
+        fail_start();
+        return None;
+    };
+    let Ok(upload) = xhr.upload() else {
+        fail_start();
+        return None;
+    };
+
+    let callbacks: Rc<RefCell<XhrCallbacks>> = Rc::new(RefCell::new(XhrCallbacks::default()));
+
+    let onprogress = Closure::wrap(Box::new(move |event: JsValue| {
+        let event: ProgressEvent = event.unchecked_into();
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "progress bytes fit u64 in practice"
+        )]
+        let loaded = event.loaded() as u64;
+        uploaded.update(|samples| {
+            if samples.len() >= MAX_SAMPLES {
+                samples.pop_front();
+            }
+            samples.push_back((loaded, Instant::now()));
+        });
+    }) as Box<dyn FnMut(_)>);
+    upload.set_onprogress(Some(onprogress.as_ref().unchecked_ref()));
+
+    // Each terminal handler schedules the holder's drop past the JS
+    // stack; cloning inside keeps the handlers `FnMut`.
+    let release_on = callbacks.clone();
+    let onload = Closure::wrap(Box::new({
+        let xhr = xhr.clone();
+        move |_: JsValue| {
+            let status = xhr.status().unwrap_or(0);
+            if status == 200 {
+                succeed.run(());
+            } else if status == 413 {
+                fail.run("File exceeds the upload size limit.".to_string());
+            } else {
+                fail.run(format!("Upload failed (status {status})."));
+            }
+            let release_on = release_on.clone();
+            leptos::task::spawn_local(async move {
+                release_on.borrow_mut().clear();
+            });
+        }
+    }) as Box<dyn FnMut(_)>);
+    xhr.set_onload(Some(onload.as_ref().unchecked_ref()));
+
+    let release_on = callbacks.clone();
+    let onerror = Closure::wrap(Box::new(move |_: JsValue| {
+        fail.run("Upload failed (network error).".to_string());
+        let release_on = release_on.clone();
+        leptos::task::spawn_local(async move {
+            release_on.borrow_mut().clear();
+        });
+    }) as Box<dyn FnMut(_)>);
+    xhr.set_onerror(Some(onerror.as_ref().unchecked_ref()));
+
+    let release_on = callbacks.clone();
+    let onabort = Closure::wrap(Box::new(move |_: JsValue| {
+        xhr_handle.set(None);
+        current_upload.set(None);
+        let release_on = release_on.clone();
+        leptos::task::spawn_local(async move {
+            release_on.borrow_mut().clear();
+        });
+    }) as Box<dyn FnMut(_)>);
+    xhr.set_onabort(Some(onabort.as_ref().unchecked_ref()));
+
+    callbacks.borrow_mut().progress = Some(onprogress);
+    callbacks.borrow_mut().load = Some(onload);
+    callbacks.borrow_mut().error = Some(onerror);
+    callbacks.borrow_mut().abort = Some(onabort);
+
+    if xhr.open("POST", xhr_url).is_err() || xhr.send_with_opt_form_data(Some(form_data)).is_err() {
+        fail_start();
+        return None;
+    }
+    Some(xhr)
+}
+
 #[island]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Leptos requires ownership of props"
+)]
 pub fn FileUpload(path: PathBuf) -> impl IntoView {
     let current_upload = RwSignal::new(None::<Progress>);
     let upload_error = RwSignal::new(None::<String>);
@@ -99,9 +246,11 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
     // which JS-backed types can't.
     on_cleanup(clear_listing_refresh);
 
-    let cancel = Callback::new(move |_| {
-        if let Some(xhr) = xhr_handle.get_untracked() {
-            let _ = xhr.abort();
+    let cancel = Callback::new(move |()| {
+        if let Some(xhr) = xhr_handle.get_untracked()
+            && xhr.abort().is_err()
+        {
+            logging::warn!("Couldn't abort upload");
         }
         xhr_handle.set(None);
         current_upload.set(None);
@@ -117,7 +266,7 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
         current_upload.set(None);
     });
 
-    let succeed = Callback::new(move |_| {
+    let succeed = Callback::new(move |()| {
         current_upload.set(None);
         xhr_handle.set(None);
         if let Some(input) = file_ref.get_untracked() {
@@ -134,28 +283,9 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
             fail.run("Upload already in progress.".to_string());
             return;
         }
-        let (Some(form), Some(input)) = (form_ref.get_untracked(), file_ref.get_untracked()) else {
+        let Some((form_data, total)) = collect_upload_files(form_ref, file_ref, fail) else {
             return;
         };
-        let Ok(form_data) = FormData::new_with_form(&form) else {
-            fail.run("Couldn't read selected files.".to_string());
-            return;
-        };
-        let files = input
-            .files()
-            .map(|list| {
-                (0..list.length())
-                    .filter_map(|i| list.get(i))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        if files.is_empty() {
-            fail.run("No files selected.".to_string());
-            return;
-        }
-
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let total = files.iter().map(|file| file.size() as u64).sum::<u64>();
 
         let progress = Progress {
             size: total,
@@ -165,85 +295,16 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
         let uploaded = progress.uploaded;
         current_upload.set(Some(progress));
 
-        let Ok(xhr) = XmlHttpRequest::new() else {
-            fail.run("Couldn't start upload.".to_string());
-            return;
+        let wiring = UploadWiring {
+            uploaded,
+            xhr_handle,
+            current_upload,
+            fail,
+            succeed,
         };
-        let Ok(upload) = xhr.upload() else {
-            fail.run("Couldn't start upload.".to_string());
-            return;
-        };
-
-        let callbacks: Rc<RefCell<XhrCallbacks>> = Rc::new(RefCell::new(XhrCallbacks::default()));
-
-        let onprogress = Closure::wrap(Box::new(move |event: JsValue| {
-            let event: ProgressEvent = event.unchecked_into();
-            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-            let loaded = event.loaded() as u64;
-            uploaded.update(|samples| {
-                if samples.len() >= MAX_SAMPLES {
-                    samples.pop_front();
-                }
-                samples.push_back((loaded, Instant::now()));
-            });
-        }) as Box<dyn FnMut(_)>);
-        upload.set_onprogress(Some(onprogress.as_ref().unchecked_ref()));
-
-        // Each terminal handler schedules the holder's drop past the JS
-        // stack; cloning inside keeps the handlers `FnMut`.
-        let release_on = callbacks.clone();
-        let onload = Closure::wrap(Box::new({
-            let xhr = xhr.clone();
-            move |_: JsValue| {
-                let status = xhr.status().unwrap_or(0);
-                if status == 200 {
-                    succeed.run(());
-                } else if status == 413 {
-                    fail.run("File exceeds the upload size limit.".to_string());
-                } else {
-                    fail.run(format!("Upload failed (status {status})."));
-                }
-                let release_on = release_on.clone();
-                leptos::task::spawn_local(async move {
-                    release_on.borrow_mut().clear();
-                });
-            }
-        }) as Box<dyn FnMut(_)>);
-        xhr.set_onload(Some(onload.as_ref().unchecked_ref()));
-
-        let release_on = callbacks.clone();
-        let onerror = Closure::wrap(Box::new(move |_: JsValue| {
-            fail.run("Upload failed (network error).".to_string());
-            let release_on = release_on.clone();
-            leptos::task::spawn_local(async move {
-                release_on.borrow_mut().clear();
-            });
-        }) as Box<dyn FnMut(_)>);
-        xhr.set_onerror(Some(onerror.as_ref().unchecked_ref()));
-
-        let release_on = callbacks.clone();
-        let onabort = Closure::wrap(Box::new(move |_: JsValue| {
-            xhr_handle.set(None);
-            current_upload.set(None);
-            let release_on = release_on.clone();
-            leptos::task::spawn_local(async move {
-                release_on.borrow_mut().clear();
-            });
-        }) as Box<dyn FnMut(_)>);
-        xhr.set_onabort(Some(onabort.as_ref().unchecked_ref()));
-
-        callbacks.borrow_mut().progress = Some(onprogress);
-        callbacks.borrow_mut().load = Some(onload);
-        callbacks.borrow_mut().error = Some(onerror);
-        callbacks.borrow_mut().abort = Some(onabort);
-
-        if xhr.open("POST", &xhr_url).is_err()
-            || xhr.send_with_opt_form_data(Some(&form_data)).is_err()
-        {
-            fail.run("Couldn't start upload.".to_string());
-            return;
+        if let Some(xhr) = start_xhr_upload(&xhr_url, &form_data, wiring) {
+            xhr_handle.set(Some(xhr));
         }
-        xhr_handle.set(Some(xhr));
     };
 
     view! {

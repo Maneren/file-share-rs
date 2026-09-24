@@ -1,7 +1,7 @@
 use std::time::{self, UNIX_EPOCH};
 
-use chrono::{DateTime, TimeZone, Utc};
-use chrono_humanize::Humanize;
+use chrono::{DateTime, TimeZone as _, Utc};
+use chrono_humanize::Humanize as _;
 use leptos::prelude::IntoRender;
 use serde::{Deserialize, Serialize};
 
@@ -9,8 +9,10 @@ use serde::{Deserialize, Serialize};
 pub struct SystemTime(pub i64, pub u32);
 
 impl From<time::SystemTime> for SystemTime {
-    #[allow(clippy::similar_names)]
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(
+        clippy::cast_possible_wrap,
+        reason = "pre-epoch timestamps wrap by construction"
+    )]
     fn from(time: time::SystemTime) -> Self {
         let (sec, nsec) = match time.duration_since(UNIX_EPOCH) {
             Ok(dur) => (dur.as_secs() as i64, dur.subsec_nanos()),
@@ -30,14 +32,13 @@ impl From<time::SystemTime> for SystemTime {
 }
 
 impl From<SystemTime> for DateTime<Utc> {
-    #[allow(clippy::similar_names)]
     fn from(time: SystemTime) -> Self {
         let SystemTime(sec, nsec) = time;
         // Out-of-range timestamps (settable via `touch`) yield `None`;
         // fall back to the epoch instead of panicking the listing.
         Utc.timestamp_opt(sec, nsec)
             .single()
-            .unwrap_or(DateTime::<Utc>::UNIX_EPOCH)
+            .unwrap_or(Self::UNIX_EPOCH)
     }
 }
 

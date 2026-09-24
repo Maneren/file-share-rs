@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 use leptos::prelude::*;
 use web_time::Instant;
 
-use crate::format::format_bytes;
+use crate::format;
 
 #[component]
 pub fn ProgressBar(
@@ -22,8 +22,7 @@ pub fn ProgressBar(
         uploaded.with(|queue| {
             queue
                 .back()
-                .map(|(uploaded, _)| uploaded * 100 / size)
-                .unwrap_or_default()
+                .map_or_default(|(uploaded, _)| uploaded * 100 / size)
         })
     });
     let average_speed = Memo::new(move |_| {
@@ -35,13 +34,20 @@ pub fn ProgressBar(
             if elapsed <= f64::EPSILON {
                 return 0.0;
             }
-            #[allow(clippy::cast_precision_loss)]
+            #[expect(
+                clippy::cast_precision_loss,
+                reason = "byte counts lose nothing at display precision"
+            )]
             let size_f64 = *last_size as f64;
             size_f64 / elapsed
         })
     });
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    let formatted_speed = move || format_bytes(average_speed() as u64);
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "displayed speed saturates harmlessly past u64"
+    )]
+    let formatted_speed = move || format::bytes(average_speed() as u64);
 
     view! {
         <div class="flex flex-row gap-5 justify-between items-baseline m-2 w-full">

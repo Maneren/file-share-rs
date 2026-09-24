@@ -8,7 +8,7 @@ use leptos::{either::Either, prelude::*};
 use crate::{
     api::{Entries, ServerEntry},
     components::Icon,
-    format::format_bytes,
+    format,
     paths::{format_file_href, format_folder_href},
 };
 
@@ -32,12 +32,12 @@ fn EntryComponent(
             <Icon icon=icon />
             <span
                 class="flex overflow-hidden text-ellipsis whitespace-nowrap items-center"
-                title=name.clone()
+                title=name
             >
                 {name.clone()}
             </span>
             <span class="flex justify-end items-center">{size}</span>
-            <span class="hidden items-center md:flex" title=relative_time.clone()>
+            <span class="hidden items-center md:flex" title=relative_time>
                 {relative_time.clone()}
             </span>
         </div>
@@ -79,7 +79,7 @@ pub fn FileEntries(path: PathBuf, entries: Entries) -> impl IntoView {
                                 href=format_file_href(&base, &name)
                                 name=name
                                 icon=icon
-                                size=Some(format_bytes(size))
+                                size=Some(format::bytes(size))
                                 relative_time=last_modified.humanize()
                             />
                         }

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use leptos::prelude::*;
 
 use crate::{
-    api::{ListQuery, SortColumn, SortDir, list_dir},
+    api::{self, ListQuery, SortColumn, SortDir},
     components::{
         EmptyState, FileEntries, ListingToolbar, Loading, PAGE_SIZE, Pagination, SortHeader,
         set_listing_refresh,
@@ -47,13 +47,13 @@ pub fn ListingBrowser(path: PathBuf, allow_upload: bool) -> impl IntoView {
             limit: PAGE_SIZE,
             offset: page.get() * PAGE_SIZE,
         },
-        list_dir,
+        api::dir::list,
     );
 
     // Refetch when an upload finishes. Client-only: effects don't run
     // during SSR, and the slot is only meaningful in the browser.
     Effect::new(move |_| {
-        set_listing_refresh(Callback::new(move |_| listing.refetch()));
+        set_listing_refresh(Callback::new(move |()| listing.refetch()));
     });
 
     let has_active_filter =

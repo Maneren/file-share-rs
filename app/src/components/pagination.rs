@@ -46,34 +46,36 @@ pub fn Pagination(page: RwSignal<usize>, total: usize) -> impl IntoView {
                     {move || {
                         page_window(page.get(), pages)
                             .into_iter()
-                            .map(|item| match item {
-                                None => {
-                                    view! {
-                                        <span class="join-item btn btn-sm btn-disabled">"…"</span>
-                                    }
-                                        .into_any()
-                                }
-                                Some(p) => {
-                                    let label = (p + 1).to_string();
-                                    if p == page.get() {
+                            .map(|item| {
+                                item.map_or_else(
+                                    || {
                                         view! {
-                                            <button class="join-item btn btn-sm btn-primary">
-                                                {label}
-                                            </button>
+                                            <span class="join-item btn btn-sm btn-disabled">"…"</span>
                                         }
                                             .into_any()
-                                    } else {
-                                        view! {
-                                            <button
-                                                class="join-item btn btn-sm"
-                                                on:click=move |_| page.set(p)
-                                            >
-                                                {label}
-                                            </button>
+                                    },
+                                    |p| {
+                                        let label = (p + 1).to_string();
+                                        if p == page.get() {
+                                            view! {
+                                                <button class="join-item btn btn-sm btn-primary">
+                                                    {label}
+                                                </button>
+                                            }
+                                                .into_any()
+                                        } else {
+                                            view! {
+                                                <button
+                                                    class="join-item btn btn-sm"
+                                                    on:click=move |_| page.set(p)
+                                                >
+                                                    {label}
+                                                </button>
+                                            }
+                                                .into_any()
                                         }
-                                            .into_any()
-                                    }
-                                }
+                                    },
+                                )
                             })
                             .collect_view()
                     }}

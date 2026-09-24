@@ -70,7 +70,7 @@ fn longest_matching_suffix<'a, 'b>(
         .map(|(_, name)| name)
 }
 
-pub(crate) fn get_folder_icon(folder_name: &str) -> &'static str {
+pub fn get_folder_icon(folder_name: &str) -> &'static str {
     let lowercase = folder_name.to_ascii_lowercase();
     let trimmed = lowercase.trim_matches(['_', ' ', '.']);
 
@@ -86,7 +86,7 @@ pub(crate) fn get_folder_icon(folder_name: &str) -> &'static str {
         .unwrap_or(&FOLDER_ICON)
 }
 
-pub(crate) fn get_file_icon(file_name: &str) -> &'static str {
+pub fn get_file_icon(file_name: &str) -> &'static str {
     let lower = file_name.to_ascii_lowercase();
 
     // Exact filename match (`Dockerfile`, `Makefile`, …).
@@ -101,8 +101,9 @@ pub(crate) fn get_file_icon(file_name: &str) -> &'static str {
     // lookups (covers `.tar.gz`, `.d.ts`); the full scan below remains
     // for exotic unanchored fragments, preserving old behavior exactly.
     for (dot, _) in lower.match_indices('.') {
-        if let Some(svg) = FILENAMES_MAP
-            .get(&lower[dot..])
+        if let Some(svg) = lower
+            .get(dot..)
+            .and_then(|suffix| FILENAMES_MAP.get(suffix))
             .and_then(|name| get_icon(name))
         {
             return svg;

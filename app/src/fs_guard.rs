@@ -8,6 +8,7 @@
 use std::path::PathBuf;
 use std::path::{Component, Path};
 
+#[must_use]
 pub fn is_safe_relative_path(path: &Path) -> bool {
     !path.is_absolute()
         && path

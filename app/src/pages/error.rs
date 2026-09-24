@@ -12,9 +12,10 @@ pub enum AppError {
 }
 
 impl AppError {
-    pub fn status_code(&self) -> StatusCode {
+    #[must_use]
+    pub const fn status_code(&self) -> StatusCode {
         match self {
-            AppError::NotFound => StatusCode::NOT_FOUND,
+            Self::NotFound => StatusCode::NOT_FOUND,
         }
     }
 }

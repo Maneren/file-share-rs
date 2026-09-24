@@ -8,7 +8,7 @@ use axum::{
     extract::{ConnectInfo, State},
     http::{HeaderValue, Request, StatusCode, header},
     middleware::Next,
-    response::{IntoResponse, Redirect, Response},
+    response::{IntoResponse as _, Redirect, Response},
 };
 use serde::Deserialize;
 

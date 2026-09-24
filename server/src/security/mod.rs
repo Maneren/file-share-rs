@@ -7,4 +7,4 @@ mod auth;
 mod config;
 
 pub use auth::{login, rate_limit, require_auth};
-pub use config::SecurityConfig;
+pub use config::Config;

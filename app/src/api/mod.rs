@@ -9,11 +9,9 @@
 //! Browser uploads go to `POST /upload` directly (see the server crate),
 //! with native XHR progress — no upload server-fn needed.
 
-pub mod list_dir;
+pub mod dir;
 pub mod listing;
 pub mod models;
-pub mod new_folder;
 
-pub use list_dir::{ListDir, list_dir};
+pub use dir::{List, NewFolder};
 pub use models::{Entries, ListQuery, ListingPage, ServerEntry, SortColumn, SortDir};
-pub use new_folder::{NewFolder, new_folder};

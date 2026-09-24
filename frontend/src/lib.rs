@@ -1,11 +1,6 @@
-#![warn(clippy::pedantic)]
-#![allow(clippy::wildcard_imports)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::must_use_candidate)]
-
 use console_error_panic_hook::set_once;
 use console_log::init_with_level;
-#[allow(unused_imports)]
+#[expect(unused_imports, reason = "pulls island code into the wasm binary")]
 use file_share_app::*;
 use log::Level;
 use wasm_bindgen::prelude::wasm_bindgen;
