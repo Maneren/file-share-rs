@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use axum::{
     Router,
+    extract::DefaultBodyLimit,
     http::{HeaderValue, header},
     middleware,
     response::Redirect,
@@ -103,6 +104,10 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
                 .layer(ServeDir::new(&target_dir)),
         )
         .layer(compression)
+        // The custom cap needs the built-in 2 MiB cap disabled first;
+        // without this every body over 2 MiB dies mid-stream with a
+        // multipart parse error. `usize::MAX` keeps back-compat.
+        .layer(DefaultBodyLimit::disable())
         .layer(RequestBodyLimitLayer::new(body_limit))
         // A panicking handler becomes `500` instead of a hung connection.
         .layer(CatchPanicLayer::new())

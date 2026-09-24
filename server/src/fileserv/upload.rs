@@ -57,10 +57,11 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
         let mut field = match multipart.next_field().await {
             Ok(Some(field)) => field,
             // A corrupt/truncated multipart body must not look like an
-            // empty (successful) upload.
+            // empty (successful) upload. Debug-format: the Display is a
+            // generic wrapper, the source carries the real multer error.
             Ok(None) => break,
             Err(e) => {
-                logging::error!("Failed to read multipart: {e}");
+                logging::error!("Failed to read multipart: {e:?}");
                 return (StatusCode::BAD_REQUEST, UPLOAD_READ_ERROR_MESSAGE).into_response();
             },
         };
@@ -112,7 +113,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             let chunk = match field.chunk().await {
                 Ok(chunk) => chunk,
                 Err(e) => {
-                    logging::error!("Failed to read upload for {}: {e}", path.display());
+                    logging::error!("Failed to read upload for {}: {e:?}", path.display());
                     remove_partial_upload(&path).await;
                     return (StatusCode::BAD_REQUEST, UPLOAD_READ_ERROR_MESSAGE).into_response();
                 },
