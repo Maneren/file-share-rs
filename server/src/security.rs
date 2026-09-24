@@ -15,7 +15,7 @@ use std::{
 use axum::{
     Form,
     body::Body,
-    extract::State,
+    extract::{ConnectInfo, State},
     http::{HeaderValue, Request, StatusCode, header},
     middleware::Next,
     response::{IntoResponse, Redirect, Response},
@@ -141,6 +141,30 @@ impl RateLimiter {
 struct Bucket {
     tokens: f64,
     last: Instant,
+}
+
+/// Per-IP token-bucket rate limiting (`--rate-limit`).
+///
+/// Runs outside auth so floods are shed first. No-op without the flag;
+/// fails open when the peer address is unknown.
+pub async fn rate_limit(
+    State(app_state): State<AppState>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    let allowed = req
+        .extensions()
+        .get::<ConnectInfo<std::net::SocketAddr>>()
+        .is_none_or(|ConnectInfo(addr)| app_state.security.allow_request(addr.ip()));
+    if allowed {
+        return next.run(req).await;
+    }
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        [(header::RETRY_AFTER, "1")],
+        "Too many requests",
+    )
+        .into_response()
 }
 
 /// Require the shared `--auth-token` on every request when configured.

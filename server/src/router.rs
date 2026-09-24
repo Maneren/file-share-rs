@@ -31,7 +31,7 @@ use crate::{
         file_and_error_handler, file_upload_with_path, file_upload_without_path, gate_shared_files,
         handle_archive_with_path, handle_archive_without_path,
     },
-    security::{login, require_auth},
+    security::{login, rate_limit, require_auth},
     state::AppState,
 };
 
@@ -107,6 +107,12 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
         // connection. (No global timeout: it would kill legit long
         // uploads/archives; archives get a per-request `--archive-timeout`.)
         .layer(CatchPanicLayer::new())
+        // Outermost (runs first): shed floods before auth. No-op without
+        // `--rate-limit`.
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            rate_limit,
+        ))
         // Outermost (runs first): auth rejects unauthenticated requests
         // before any body is read. No-op without `--auth-token`.
         .layer(middleware::from_fn_with_state(

@@ -65,7 +65,7 @@ pub fn serve_address(
         servers.spawn(async move {
             server
                 .handle(handle)
-                .serve(app.into_make_service())
+                .serve(app.into_make_service_with_connect_info::<SocketAddr>())
                 .await
                 .map_err(|e| format!("Failed to serve at {addr}: {e}"))
         });
@@ -73,7 +73,7 @@ pub fn serve_address(
         servers.spawn(async move {
             bind(addr)
                 .handle(handle)
-                .serve(app.into_make_service())
+                .serve(app.into_make_service_with_connect_info::<SocketAddr>())
                 .await
                 .map_err(|e| format!("Failed to start server at {addr}: {e}"))
         });
