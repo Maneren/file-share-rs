@@ -55,7 +55,17 @@ pub async fn file_upload_without_path(
 }
 
 pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl IntoResponse {
-    while let Ok(Some(mut field)) = multipart.next_field().await {
+    loop {
+        let mut field = match multipart.next_field().await {
+            Ok(Some(field)) => field,
+            // A corrupt/truncated multipart body must not look like an
+            // empty (successful) upload.
+            Ok(None) => break,
+            Err(e) => {
+                logging::error!("Failed to read multipart: {e}");
+                return (StatusCode::BAD_REQUEST, UPLOAD_READ_ERROR_MESSAGE).into_response();
+            },
+        };
         let Some(file_name) = field.file_name() else {
             continue;
         };
@@ -74,6 +84,14 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
 
         let file = match File::create_new(&path).await {
             Ok(file) => file,
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                logging::error!("Upload target {} already exists", path.display());
+                return (StatusCode::CONFLICT, "File already exists").into_response();
+            },
+            Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+                logging::error!("Permission denied creating {}: {err}", path.display());
+                return (StatusCode::FORBIDDEN, UPLOAD_STORE_ERROR_MESSAGE).into_response();
+            },
             Err(err) => {
                 logging::error!("Failed to create file {}: {err}", path.display());
                 return (
@@ -93,6 +111,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
                 Ok(chunk) => chunk,
                 Err(e) => {
                     logging::error!("Failed to read upload for {}: {e}", path.display());
+                    remove_partial(&path).await;
                     return (StatusCode::BAD_REQUEST, UPLOAD_READ_ERROR_MESSAGE).into_response();
                 },
             };
@@ -101,6 +120,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             total_bytes += chunk.len() as u64;
             if let Err(err) = file.write_all(&chunk).await {
                 logging::error!("Failed to write file {}: {err}", path.display());
+                remove_partial(&path).await;
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     UPLOAD_STORE_ERROR_MESSAGE,
@@ -110,6 +130,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
         }
         if let Err(err) = file.flush().await {
             logging::error!("Failed to flush file {}: {err}", path.display());
+            remove_partial(&path).await;
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 UPLOAD_STORE_ERROR_MESSAGE,
@@ -125,4 +146,15 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
     }
 
     StatusCode::OK.into_response()
+}
+
+/// Best-effort removal of a partially written upload so failed transfers
+/// don't leave corrupt files behind.
+async fn remove_partial(path: &StdPath) {
+    if let Err(err) = tokio::fs::remove_file(path).await {
+        logging::error!(
+            "Failed to remove partial upload {}: {err}",
+            path.display()
+        );
+    }
 }
