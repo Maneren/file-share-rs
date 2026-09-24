@@ -46,6 +46,7 @@ Endpoints:
 - /archive?method=              -- create an archive from root directory
 - /upload/*path                 -- upload a file to a path
 - /upload                       -- upload a file to root directory
+- /login                        -- browser login form (only with --auth-token)
 
 Available methods are tar, tar.gz, tar.zst, zip.
 ";
@@ -81,6 +82,9 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
     Router::new()
         .route("/", get(|| async { Redirect::to("/index") }))
         .route("/help", get(|| async { API_HELP_TEXT }))
+        // POST verifies the token (sets the cookie); GET is served by the
+        // Leptos `/login` route registered above, which renders the login
+        // page (Axum merges the two methods for this path).
         .route("/login", post(login))
         .leptos_routes_with_context(
             &app_state,

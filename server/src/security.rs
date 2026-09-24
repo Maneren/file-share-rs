@@ -175,14 +175,16 @@ pub async fn rate_limit(
 ///
 /// Accepts `Authorization: Bearer <token>` (curl/API) or the `fs_auth`
 /// cookie set by `POST /login` (browser UI fetches carry cookies, so the web
-/// UI keeps working after one login). No-op when no token is configured.
+/// UI keeps working after one login). Browsers asking for HTML are redirected
+/// to the Leptos login page, which stays public together with the assets it
+/// needs; API clients get a bare `401`. No-op when no token is configured.
 pub async fn require_auth(
     State(app_state): State<AppState>,
     req: Request<Body>,
     next: Next,
 ) -> Response {
     let security = &app_state.security;
-    if !security.auth_enabled() || req.uri().path() == "/login" {
+    if !security.auth_enabled() || is_public_path(req.uri().path()) {
         return next.run(req).await;
     }
 
@@ -194,16 +196,27 @@ pub async fn require_auth(
         return next.run(req).await;
     }
 
-    let mut response = if wants_html(&req) {
-        login_page(&safe_next(req.uri().path())).into_response()
-    } else {
-        (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
-    };
+    if wants_html(&req) {
+        let original = req
+            .uri()
+            .path_and_query()
+            .map_or("/", |original| original.as_str());
+        let target = format!("/login?next={}", urlencoding::encode(original));
+        return Redirect::to(&target).into_response();
+    }
+
+    let mut response = (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
     response
         .headers_mut()
         .insert(header::WWW_AUTHENTICATE, HeaderValue::from_static("Bearer"));
-    *response.status_mut() = StatusCode::UNAUTHORIZED;
     response
+}
+
+/// Paths that stay public when auth is on: the login flow itself plus the
+/// build assets (`/pkg/*`, favicon) the Leptos login page needs. They carry
+/// no secrets — the token never leaves the server.
+fn is_public_path(path: &str) -> bool {
+    path == "/login" || path == "/favicon.ico" || path.starts_with("/pkg/")
 }
 
 #[derive(Deserialize)]
@@ -213,17 +226,22 @@ pub struct LoginForm {
 }
 
 /// Verify the token from the login form; on success set the cookie and
-/// redirect back, otherwise `403` without saying why.
+/// redirect back, otherwise bounce to the styled login page with an error.
+/// Without `--auth-token` there is nothing to log into, so go home.
 pub async fn login(State(app_state): State<AppState>, Form(form): Form<LoginForm>) -> Response {
-    if !app_state.security.auth_enabled() || !app_state.security.verify_token(&form.token) {
-        return (StatusCode::FORBIDDEN, "Forbidden").into_response();
+    let next = form.next.map_or_else(|| "/".to_string(), |n| safe_next(&n));
+    if !app_state.security.auth_enabled() {
+        return Redirect::to("/").into_response();
     }
-    let target = form.next.map_or_else(|| "/".to_string(), |n| safe_next(&n));
+    if !app_state.security.verify_token(&form.token) {
+        let target = format!("/login?next={}&error=1", urlencoding::encode(&next));
+        return Redirect::to(&target).into_response();
+    }
     let cookie = format!(
         "{AUTH_COOKIE}={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={COOKIE_MAX_AGE}",
         urlencoding::encode(&form.token),
     );
-    ([(header::SET_COOKIE, cookie)], Redirect::to(&target)).into_response()
+    ([(header::SET_COOKIE, cookie)], Redirect::to(&next)).into_response()
 }
 
 /// Extract `Authorization: Bearer <token>`, if present and well-formed.
@@ -271,21 +289,6 @@ fn safe_next(next: &str) -> String {
     } else {
         "/".to_string()
     }
-}
-
-/// `401` page with an inline login form (avoids a redirect round-trip).
-fn login_page(next: &str) -> (StatusCode, [(header::HeaderName, &'static str); 1], String) {
-    let body = format!(
-        "<!DOCTYPE html><html><body><h1>Login required</h1><form method=\"post\" \
-         action=\"/login\"><input type=\"hidden\" name=\"next\" value=\"{next}\"><input \
-         type=\"password\" name=\"token\" placeholder=\"Access token\" autofocus><button \
-         type=\"submit\">Log in</button></form></body></html>"
-    );
-    (
-        StatusCode::UNAUTHORIZED,
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
-        body,
-    )
 }
 
 #[cfg(test)]
@@ -337,6 +340,18 @@ mod tests {
         assert!(!security.verify_token("wrong"));
         assert!(!security.verify_token("secre"));
         assert!(!security.verify_token("secret-longer"));
+    }
+
+    #[test]
+    fn login_assets_stay_public() {
+        assert!(is_public_path("/login"));
+        assert!(is_public_path("/pkg/file-share.css"));
+        assert!(is_public_path("/pkg/file-share.js"));
+        assert!(is_public_path("/favicon.ico"));
+        assert!(!is_public_path("/"));
+        assert!(!is_public_path("/index"));
+        assert!(!is_public_path("/files/a.txt"));
+        assert!(!is_public_path("/pkg-notes"));
     }
 
     #[test]
