@@ -128,18 +128,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d62b7694a562cdf5a74227903507c56ab2cc8bdd1f781ed5cb4cf9c9f810bfc"
 
 [[package]]
-name = "async-broadcast"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "435a87a52755b8f27fcf321ac4f04b2802e337c8c4872923137471ec39c37532"
-dependencies = [
- "event-listener",
- "event-listener-strategy",
- "futures-core",
- "pin-project-lite",
-]
-
-[[package]]
 name = "async-channel"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1009,12 +997,9 @@ dependencies = [
 name = "file-share-app"
 version = "1.7.1"
 dependencies = [
- "async-broadcast",
- "axum",
  "cfg-if",
  "chrono",
  "chrono-humanize",
- "futures",
  "http",
  "include-flate",
  "leptos",
@@ -1022,7 +1007,6 @@ dependencies = [
  "leptos_meta",
  "leptos_router",
  "leptos_router_macro",
- "multer",
  "nucleo",
  "rust-embed",
  "serde",
@@ -1030,8 +1014,8 @@ dependencies = [
  "server_fn",
  "thiserror 2.0.20",
  "tokio",
- "tokio-stream",
  "urlencoding",
+ "wasm-bindgen",
  "web-sys",
  "web-time",
 ]

@@ -1,7 +1,5 @@
-//! `POST /upload` handlers (curl API).
-//!
-//! Distinct from the Leptos `upload_file` server-fn used by the browser UI
-//! (`file-share-app`), which streams progress over SSE.
+//! `POST /upload` handlers: the single upload endpoint used by both curl
+//! and the browser UI (which posts here directly with native XHR progress).
 
 use std::path::{Path as StdPath, PathBuf};
 

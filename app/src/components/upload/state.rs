@@ -1,5 +1,5 @@
-//! Upload progress state shared between [`super::FileUpload`],
-//! [`super::progress_bar::ProgressBar`] and [`super::progress_hook`].
+//! Upload progress state shared between [`super::FileUpload`] and
+//! [`super::progress_bar::ProgressBar`].
 
 use std::collections::VecDeque;
 
