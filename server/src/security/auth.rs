@@ -23,7 +23,7 @@ const COOKIE_MAX_AGE: u64 = 30 * 24 * 60 * 60;
 /// Require the shared `--auth-token` on every request when configured.
 ///
 /// Accepts `Authorization: Bearer <token>` or the `fs_auth` cookie from
-/// `POST /login`. Browsers asking for HTML are redirected to the Leptos login
+/// `POST /login`. Browsers asking for HTML are redirected to the login
 /// page; API clients get a bare `401`. No-op without the flag.
 pub async fn require_auth(
     State(app_state): State<AppState>,

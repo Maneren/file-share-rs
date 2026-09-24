@@ -229,8 +229,8 @@ fn content_disposition(file_name: &str) -> Option<HeaderValue> {
 }
 
 /// Reject over-limit trees before streaming so the client gets a clean error
-/// instead of a truncated archive. No-op when unset; the mid-stream
-/// [`CountingWriter`] covers trees that grow afterwards.
+/// instead of a truncated archive. No-op when unset; [`CountingWriter`]
+/// covers trees that grow afterwards.
 async fn check_archive_limits(
     root: &StdPath,
     security: &SecurityConfig,

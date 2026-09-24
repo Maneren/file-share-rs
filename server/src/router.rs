@@ -80,7 +80,7 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
     Router::new()
         .route("/", get(|| async { Redirect::to("/index") }))
         .route("/help", get(|| async { API_HELP_TEXT }))
-        // POST verifies the token; GET renders the Leptos login page
+        // POST verifies the token; GET renders the login page
         // (registered with the Leptos routes below, merged by Axum).
         .route("/login", post(login))
         .leptos_routes_with_context(

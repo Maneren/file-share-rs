@@ -47,7 +47,7 @@ impl SecurityConfig {
         }
     }
 
-    /// Whether any request must carry the shared token.
+    /// Whether any request must carry the token.
     #[must_use]
     pub fn auth_enabled(&self) -> bool {
         self.auth_token.is_some()
