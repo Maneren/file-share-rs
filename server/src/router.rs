@@ -70,11 +70,13 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
     let app_config = Arc::clone(&app_state.app_config);
     let target_dir = app_state.app_config.target_dir.clone();
 
-    // Bounds `/upload` bodies and the browser upload server-fn; unlimited
-    // without `--max-upload-size` (back-compat).
+    // Bounds `/upload` bodies; unlimited without `--max-upload-size`
+    // (back-compat). The margin covers multipart framing — precise
+    // enforcement counts file bytes in the upload handler.
     let body_limit = app_state
         .security
         .max_upload_size
+        .map(body_limit_with_margin)
         .and_then(|max| usize::try_from(max).ok())
         .unwrap_or(usize::MAX);
 
@@ -137,4 +139,29 @@ pub fn create_router(app_state: AppState, routes: Vec<AxumRouteListing>) -> Rout
             HeaderValue::from_static("SAMEORIGIN"),
         ))
         .with_state(app_state)
+}
+
+/// HTTP-layer headroom over `--max-upload-size`: the layer counts the whole
+/// body including multipart framing, while precise enforcement counts file
+/// bytes in the upload handler. 1% with a 64 KiB floor fits thousands of
+/// parts without loosening small limits meaningfully.
+fn body_limit_with_margin(max: u64) -> u64 {
+    max.saturating_add((max / 100).max(64 * 1024))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::body_limit_with_margin;
+
+    #[test]
+    fn margin_covers_framing() {
+        // 1 MiB file limit: floor dominates, envelope (~hundreds of bytes)
+        // fits comfortably, 1.1 MiB of body still trips the handler first.
+        assert_eq!(body_limit_with_margin(1024 * 1024), 1024 * 1024 + 64 * 1024);
+        // Large limits scale by percentage.
+        assert_eq!(
+            body_limit_with_margin(1024 * 1024 * 1024),
+            1024 * 1024 * 1024 + 1024 * 1024 * 1024 / 100
+        );
+    }
 }

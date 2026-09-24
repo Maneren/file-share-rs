@@ -53,10 +53,11 @@ pub struct Cli {
     #[arg(long, value_name = "RPS")]
     pub rate_limit: Option<u32>,
 
-    /// Max request body size, e.g. `100MB`, `1GB`
+    /// Max uploaded file size, e.g. `100MB`, `1GB`
     ///
-    /// Bounds `/upload` and the browser upload endpoint; without it request
-    /// bodies are unlimited (back-compat).
+    /// Each file's content must fit; the HTTP layer allows ~1% + 64 KiB of
+    /// multipart framing headroom on top. Without it uploads are unlimited
+    /// (back-compat).
     #[arg(long, value_name = "SIZE", value_parser = parse_size)]
     pub max_upload_size: Option<u64>,
 

@@ -32,7 +32,7 @@ pub use crate::{
     app::{App, shell},
     config::{
         AppConfig, PATH_NOT_FOUND_MESSAGE, UPLOAD_DISABLED_MESSAGE, UPLOAD_READ_ERROR_MESSAGE,
-        UPLOAD_STORE_ERROR_MESSAGE,
+        UPLOAD_STORE_ERROR_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE,
     },
     pages::{AppError, ErrorTemplate, FilesPage, LoginPage},
 };

@@ -9,7 +9,7 @@ use axum::{
     response::IntoResponse,
 };
 use file_share_app::{
-    UPLOAD_READ_ERROR_MESSAGE, UPLOAD_STORE_ERROR_MESSAGE,
+    UPLOAD_READ_ERROR_MESSAGE, UPLOAD_STORE_ERROR_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE,
     format::format_bytes,
     fs_guard::{is_safe_file_name, remove_partial_upload, resolve_contained_path},
 };
@@ -23,7 +23,11 @@ use super::responses::{PATH_NOT_FOUND, UPLOAD_DISABLED};
 use crate::state::AppState;
 
 pub async fn file_upload_with_path(
-    State(AppState { app_config, .. }): State<AppState>,
+    State(AppState {
+        app_config,
+        security,
+        ..
+    }): State<AppState>,
     Path(path): Path<String>,
     multipart: Multipart,
 ) -> impl IntoResponse {
@@ -36,23 +40,37 @@ pub async fn file_upload_with_path(
         return PATH_NOT_FOUND.into_response();
     };
 
-    file_upload(base_path, multipart).await.into_response()
+    file_upload(base_path, multipart, security.max_upload_size)
+        .await
+        .into_response()
 }
 
 pub async fn file_upload_without_path(
-    State(AppState { app_config, .. }): State<AppState>,
+    State(AppState {
+        app_config,
+        security,
+        ..
+    }): State<AppState>,
     multipart: Multipart,
 ) -> impl IntoResponse {
     if !app_config.allow_upload {
         return UPLOAD_DISABLED.into_response();
     }
 
-    file_upload(app_config.target_dir.clone(), multipart)
-        .await
-        .into_response()
+    file_upload(
+        app_config.target_dir.clone(),
+        multipart,
+        security.max_upload_size,
+    )
+    .await
+    .into_response()
 }
 
-pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl IntoResponse {
+pub async fn file_upload(
+    base_dir: PathBuf,
+    mut multipart: Multipart,
+    max_file_size: Option<u64>,
+) -> impl IntoResponse {
     loop {
         let mut field = match multipart.next_field().await {
             Ok(Some(field)) => field,
@@ -114,6 +132,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
                 Ok(chunk) => chunk,
                 Err(e) => {
                     logging::error!("Failed to read upload for {}: {e:?}", path.display());
+                    drop(file);
                     remove_partial_upload(&path).await;
                     return (StatusCode::BAD_REQUEST, UPLOAD_READ_ERROR_MESSAGE).into_response();
                 },
@@ -121,8 +140,17 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
             let Some(chunk) = chunk else { break };
 
             total_bytes += chunk.len() as u64;
+            // Precise limit on file content (the HTTP layer only sees the
+            // whole body including framing, so it can't judge file sizes).
+            if max_file_size.is_some_and(|max| total_bytes > max) {
+                logging::error!("Upload of {} exceeds the size limit", path.display());
+                drop(file);
+                remove_partial_upload(&path).await;
+                return (StatusCode::PAYLOAD_TOO_LARGE, UPLOAD_TOO_LARGE_MESSAGE).into_response();
+            }
             if let Err(err) = file.write_all(&chunk).await {
                 logging::error!("Failed to write file {}: {err}", path.display());
+                drop(file);
                 remove_partial_upload(&path).await;
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -133,6 +161,7 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
         }
         if let Err(err) = file.flush().await {
             logging::error!("Failed to flush file {}: {err}", path.display());
+            drop(file);
             remove_partial_upload(&path).await;
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,

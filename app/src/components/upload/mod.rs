@@ -198,6 +198,8 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
                 let status = xhr.status().unwrap_or(0);
                 if status == 200 {
                     succeed.run(());
+                } else if status == 413 {
+                    fail.run("File exceeds the upload size limit.".to_string());
                 } else {
                     fail.run(format!("Upload failed (status {status})."));
                 }

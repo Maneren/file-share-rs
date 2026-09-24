@@ -17,3 +17,6 @@ pub const UPLOAD_READ_ERROR_MESSAGE: &str = "Failed to read upload";
 /// Message returned to clients when storing an upload fails.
 /// Details stay server-side in the logs.
 pub const UPLOAD_STORE_ERROR_MESSAGE: &str = "Failed to store upload";
+
+/// Message returned to clients when an uploaded file exceeds the size limit.
+pub const UPLOAD_TOO_LARGE_MESSAGE: &str = "File exceeds the upload size limit";

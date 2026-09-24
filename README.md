@@ -69,10 +69,11 @@ Options:
           Excess requests get `429 Too Many Requests`. Disabled when absent.
 
       --max-upload-size <SIZE>
-          Max request body size, e.g. `100MB`, `1GB`
+          Max uploaded file size, e.g. `100MB`, `1GB`
 
-          Bounds `/upload` and the browser upload endpoint; without it request
-          bodies are unlimited (back-compat).
+          Each file's content must fit; the HTTP layer allows ~1% + 64 KiB of
+          multipart framing headroom on top. Without it uploads are unlimited
+          (back-compat).
 
       --max-archive-size <SIZE>
           Max total bytes in one generated archive, e.g. `2GB`

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 pub use crate::messages::{
     PATH_NOT_FOUND_MESSAGE, UPLOAD_DISABLED_MESSAGE, UPLOAD_READ_ERROR_MESSAGE,
-    UPLOAD_STORE_ERROR_MESSAGE,
+    UPLOAD_STORE_ERROR_MESSAGE, UPLOAD_TOO_LARGE_MESSAGE,
 };
 
 #[derive(Debug, Clone)]
