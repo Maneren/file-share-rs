@@ -152,9 +152,6 @@ pub async fn file_upload(base_dir: PathBuf, mut multipart: Multipart) -> impl In
 /// don't leave corrupt files behind.
 async fn remove_partial(path: &StdPath) {
     if let Err(err) = tokio::fs::remove_file(path).await {
-        logging::error!(
-            "Failed to remove partial upload {}: {err}",
-            path.display()
-        );
+        logging::error!("Failed to remove partial upload {}: {err}", path.display());
     }
 }

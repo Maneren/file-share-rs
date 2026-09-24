@@ -30,7 +30,8 @@ const AUTH_COOKIE: &str = "fs_auth";
 /// How long the login cookie lasts (30 days).
 const COOKIE_MAX_AGE: u64 = 30 * 24 * 60 * 60;
 
-/// Cap on tracked IPs before stale buckets are evicted (memory DoS guard).
+/// Cap on tracked IPs before stale buckets are evicted (bounds memory under
+/// spoofed-source floods).
 const MAX_TRACKED_IPS: usize = 8192;
 
 /// Idle time after which an IP bucket is evicted during cleanup.
@@ -94,7 +95,10 @@ impl SecurityConfig {
     #[must_use]
     pub fn allow_request(&self, ip: IpAddr) -> bool {
         self.rate_limiter.as_ref().is_none_or(|limiter| {
-            let mut buckets = limiter.buckets.lock().unwrap_or_else(|e| e.into_inner());
+            let mut buckets = limiter
+                .buckets
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if buckets.len() > MAX_TRACKED_IPS {
                 buckets.retain(|_, bucket| bucket.last.elapsed() < BUCKET_TTL);
                 if buckets.len() > MAX_TRACKED_IPS {
@@ -191,14 +195,13 @@ pub async fn require_auth(
     }
 
     let mut response = if wants_html(&req) {
-        login_page(safe_next(req.uri().path())).into_response()
+        login_page(&safe_next(req.uri().path())).into_response()
     } else {
         (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
     };
-    response.headers_mut().insert(
-        header::WWW_AUTHENTICATE,
-        HeaderValue::from_static("Bearer"),
-    );
+    response
+        .headers_mut()
+        .insert(header::WWW_AUTHENTICATE, HeaderValue::from_static("Bearer"));
     *response.status_mut() = StatusCode::UNAUTHORIZED;
     response
 }
@@ -211,10 +214,7 @@ pub struct LoginForm {
 
 /// Verify the token from the login form; on success set the cookie and
 /// redirect back, otherwise `403` without saying why.
-pub async fn login(
-    State(app_state): State<AppState>,
-    Form(form): Form<LoginForm>,
-) -> Response {
+pub async fn login(State(app_state): State<AppState>, Form(form): Form<LoginForm>) -> Response {
     if !app_state.security.auth_enabled() || !app_state.security.verify_token(&form.token) {
         return (StatusCode::FORBIDDEN, "Forbidden").into_response();
     }
@@ -243,7 +243,11 @@ fn cookie_token(req: &Request<Body>) -> Option<String> {
     cookies.split(';').find_map(|pair| {
         let (name, value) = pair.split_once('=')?;
         (name.trim() == AUTH_COOKIE)
-            .then(|| urlencoding::decode(value.trim()).ok().map(|v| v.into_owned()))
+            .then(|| {
+                urlencoding::decode(value.trim())
+                    .ok()
+                    .map(std::borrow::Cow::into_owned)
+            })
             .flatten()
     })
 }
@@ -262,18 +266,20 @@ fn safe_next(next: &str) -> String {
         && next
             .chars()
             .all(|c| !c.is_control() && !matches!(c, '"' | '\'' | '<' | '>' | '\\' | ' '));
-    if valid { next.to_string() } else { "/".to_string() }
+    if valid {
+        next.to_string()
+    } else {
+        "/".to_string()
+    }
 }
 
 /// `401` page with an inline login form (avoids a redirect round-trip).
-fn login_page(next: String) -> (StatusCode, [(header::HeaderName, &'static str); 1], String) {
+fn login_page(next: &str) -> (StatusCode, [(header::HeaderName, &'static str); 1], String) {
     let body = format!(
-        "<!DOCTYPE html><html><body><h1>Login required</h1>\
-        <form method=\"post\" action=\"/login\">\
-        <input type=\"hidden\" name=\"next\" value=\"{next}\">\
-        <input type=\"password\" name=\"token\" placeholder=\"Access token\" autofocus>\
-        <button type=\"submit\">Log in</button>\
-        </form></body></html>"
+        "<!DOCTYPE html><html><body><h1>Login required</h1><form method=\"post\" \
+         action=\"/login\"><input type=\"hidden\" name=\"next\" value=\"{next}\"><input \
+         type=\"password\" name=\"token\" placeholder=\"Access token\" autofocus><button \
+         type=\"submit\">Log in</button></form></body></html>"
     );
     (
         StatusCode::UNAUTHORIZED,

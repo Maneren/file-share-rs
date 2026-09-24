@@ -319,10 +319,7 @@ impl<W: io::AsyncWrite + Unpin> io::AsyncWrite for CountingWriter<W> {
         if let Some(max) = this.max {
             let incoming = u64::try_from(buf.len()).unwrap_or(u64::MAX);
             if this.written.saturating_add(incoming) > max {
-                return Poll::Ready(Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "archive size limit exceeded",
-                )));
+                return Poll::Ready(Err(std::io::Error::other("archive size limit exceeded")));
             }
         }
         let result = Pin::new(&mut this.inner).poll_write(cx, buf);

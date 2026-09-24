@@ -81,34 +81,58 @@ pub struct Cli {
 
 /// Parse a byte size like `1024`, `100MB`, `1.5GB` (case-insensitive).
 ///
+/// Exact integer math (up to 6 fractional digits), so `1.5GB` is precisely
+/// `1610612736` with no float rounding.
+///
 /// # Errors
 ///
-/// Returns a message when the value has no numeric prefix or an unknown suffix.
+/// Returns a message when the value has no numeric prefix, has an unknown
+/// suffix, or overflows `u64`.
 pub fn parse_size(input: &str) -> Result<u64, String> {
+    let invalid = || format!("Invalid size: '{input}'");
     let input = input.trim();
     let split = input
         .find(|c: char| !c.is_ascii_digit() && c != '.')
         .unwrap_or(input.len());
     let (number, suffix) = input.split_at(split);
-    let number: f64 = number
-        .parse()
-        .map_err(|_| format!("Invalid size: '{input}'"))?;
-    if number < 0.0 {
-        return Err(format!("Invalid size: '{input}'"));
-    }
-    let multiplier: f64 = match suffix.trim().to_ascii_uppercase().as_str() {
-        "" | "B" => 1.0,
-        "K" | "KB" => 1024.0,
-        "M" | "MB" => 1024.0 * 1024.0,
-        "G" | "GB" => 1024.0 * 1024.0 * 1024.0,
-        "T" | "TB" => 1024.0 * 1024.0 * 1024.0 * 1024.0,
+    let multiplier: u128 = match suffix.trim().to_ascii_uppercase().as_str() {
+        "" | "B" => 1,
+        "K" | "KB" => 1024,
+        "M" | "MB" => 1024 * 1024,
+        "G" | "GB" => 1024 * 1024 * 1024,
+        "T" | "TB" => 1024 * 1024 * 1024 * 1024,
         _ => return Err(format!("Unknown size suffix in '{input}'")),
     };
-    let bytes = number * multiplier;
-    if bytes > u64::MAX as f64 {
-        return Err(format!("Size too large: '{input}'"));
+    let (whole, frac) = match number.split_once('.') {
+        Some((whole, frac)) => (whole, frac),
+        None => (number, ""),
+    };
+    if whole.is_empty()
+        || !whole.bytes().all(|b| b.is_ascii_digit())
+        || !frac.bytes().all(|b| b.is_ascii_digit())
+        || frac.len() > 6
+    {
+        return Err(invalid());
     }
-    Ok(bytes as u64)
+    let whole: u128 = whole.parse().map_err(|_| invalid())?;
+    // Fixed-point fraction scaled to micros.
+    let mut frac_value: u128 = if frac.is_empty() {
+        0
+    } else {
+        frac.parse().map_err(|_| invalid())?
+    };
+    for _ in frac.len()..6 {
+        frac_value *= 10;
+    }
+    whole
+        .checked_mul(multiplier)
+        .and_then(|base| {
+            frac_value
+                .checked_mul(multiplier)
+                .map(|extra| base + extra / 1_000_000)
+        })
+        .and_then(|bytes| u64::try_from(bytes).ok())
+        .ok_or_else(invalid)
 }
 
 #[derive(Debug, Clone)]
