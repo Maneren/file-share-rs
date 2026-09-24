@@ -6,6 +6,7 @@ use crate::{
     api::{ListQuery, SortColumn, SortDir, list_dir},
     components::{
         EmptyState, FileEntries, ListingToolbar, Loading, PAGE_SIZE, Pagination, SortHeader,
+        set_listing_refresh,
     },
 };
 
@@ -48,6 +49,12 @@ pub fn ListingBrowser(path: PathBuf, allow_upload: bool) -> impl IntoView {
         },
         list_dir,
     );
+
+    // Refetch when an upload finishes. Client-only: effects don't run
+    // during SSR, and the slot is only meaningful in the browser.
+    Effect::new(move |_| {
+        set_listing_refresh(Callback::new(move |_| listing.refetch()));
+    });
 
     let has_active_filter =
         Signal::derive(move || !search.get().is_empty() || initial.get().is_some());

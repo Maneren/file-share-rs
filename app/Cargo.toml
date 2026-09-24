@@ -14,15 +14,11 @@ leptos_router.workspace = true
 leptos_router_macro.workspace = true
 leptos_axum = { workspace = true, optional = true }
 
-async-broadcast = { workspace = true, optional = true }
-axum = { workspace = true, optional = true }
 chrono.workspace = true
 chrono-humanize.workspace = true
 cfg-if.workspace = true
-futures.workspace = true
 http.workspace = true
 include-flate.workspace = true
-multer = { workspace = true, optional = true }
 nucleo = { workspace = true, optional = true }
 rust-embed.workspace = true
 serde_json.workspace = true
@@ -32,6 +28,7 @@ thiserror.workspace = true
 tokio-stream = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 urlencoding.workspace = true
+wasm-bindgen.workspace = true
 web-sys.workspace = true
 web-time.workspace = true
 
@@ -46,9 +43,6 @@ ssr = [
   "leptos_meta/ssr",
   "leptos_router/ssr",
   "dep:leptos_axum",
-  "dep:async-broadcast",
-  "dep:axum",
-  "dep:multer",
   "dep:nucleo",
   "dep:tokio",
   "dep:tokio-stream",

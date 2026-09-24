@@ -21,7 +21,6 @@ leptos_router = { version = "0.8", features = ["nightly"] }
 leptos_router_macro = { version = "0.8" }
 server_fn = { version = "0.8", features = ["multipart"] }
 
-async-broadcast = "0.7"
 async-compression = { version = "0.4", features = ["tokio", "gzip", "zstd"] }
 async-walkdir = "2.0"
 async_zip = { version = "0.0.19", features = ["deflate", "tokio"] }
@@ -41,7 +40,6 @@ include-flate = { version = "0.3", default-features = false, features = [
   "zstd",
 ] }
 log = "0.4"
-multer = "3.1"
 nucleo = "0.5"
 port_check = "0.3"
 qr_code = "2.0"
@@ -76,7 +74,16 @@ tower-http = { version = "0.6", features = [
 ] }
 urlencoding = "2"
 wasm-bindgen = "0.2"
-web-sys = { version = "0.3.70", features = ["File", "FileList"] }
+web-sys = { version = "0.3.70", features = [
+  "File",
+  "FileList",
+  "FormData",
+  "HtmlFormElement",
+  "HtmlInputElement",
+  "ProgressEvent",
+  "XmlHttpRequest",
+  "XmlHttpRequestUpload",
+] }
 web-time = "1.1"
 
 [profile.dev]
