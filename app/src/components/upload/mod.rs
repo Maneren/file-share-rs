@@ -309,41 +309,40 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
 
     view! {
         <div class="flex flex-col gap-2 grow">
-            <UploadForm
-                action=target_url
-                file_ref=file_ref
-                form_ref=form_ref
-                on_submit=on_submit
-            />
+            <UploadForm action=target_url file_ref=file_ref form_ref=form_ref on_submit=on_submit />
 
             {move || {
-                current_upload.get().map(|progress| {
-                    view! {
-                        <div class="flex gap-2 items-center">
-                            <ProgressBar
-                                size=progress.size
-                                start_time=progress.start_time
-                                uploaded=progress.uploaded.read_only()
-                            />
-                            <button
-                                type="button"
-                                class="btn btn-sm btn-ghost"
-                                on:click=move |_| cancel.run(())
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    }
-                })
+                current_upload
+                    .get()
+                    .map(|progress| {
+                        view! {
+                            <div class="flex gap-2 items-center">
+                                <ProgressBar
+                                    size=progress.size
+                                    start_time=progress.start_time
+                                    uploaded=progress.uploaded.read_only()
+                                />
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-ghost"
+                                    on:click=move |_| cancel.run(())
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        }
+                    })
             }}
             {move || {
-                upload_error.get().map(|error| {
-                    view! {
-                        <div class="alert alert-error" role="alert">
-                            <span>{error}</span>
-                        </div>
-                    }
-                })
+                upload_error
+                    .get()
+                    .map(|error| {
+                        view! {
+                            <div class="alert alert-error" role="alert">
+                                <span>{error}</span>
+                            </div>
+                        }
+                    })
             }}
         </div>
     }

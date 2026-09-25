@@ -49,9 +49,7 @@ pub fn ListingToolbar(
                 view! { <span class="text-xs opacity-50">"A–Z"</span> }
             }>
                 {move || Suspend::new(async move {
-                    let present = listing
-                        .await
-                        .map_or_default(|page_data| page_data.initials);
+                    let present = listing.await.map_or_default(|page_data| page_data.initials);
                     view! {
                         <For each=|| 'A'..='Z' key=|letter| *letter let:letter>
                             <button
