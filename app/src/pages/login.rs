@@ -46,14 +46,11 @@ fn LoginForm(next: String, failed: bool) -> impl IntoView {
     let (show, set_show) = signal(false);
 
     view! {
-        {failed
-            .then(|| {
-                view! {
-                    <div class="alert alert-error" role="alert">
-                        <span>"Invalid access token."</span>
-                    </div>
-                }
-            })}
+        <Show when=move || failed>
+            <div class="alert alert-error" role="alert">
+                <span>"Invalid access token."</span>
+            </div>
+        </Show>
         <form method="post" action="/login" class="flex flex-col gap-3">
             <input type="hidden" name="next" value=next />
             <label class="flex flex-col gap-1">

@@ -311,39 +311,27 @@ pub fn FileUpload(path: PathBuf) -> impl IntoView {
         <div class="flex flex-col gap-2 grow">
             <UploadForm action=target_url file_ref=file_ref form_ref=form_ref on_submit=on_submit />
 
-            {move || {
-                current_upload
-                    .get()
-                    .map(|progress| {
-                        view! {
-                            <div class="flex gap-2 items-center">
-                                <ProgressBar
-                                    size=progress.size
-                                    start_time=progress.start_time
-                                    uploaded=progress.uploaded.read_only()
-                                />
-                                <button
-                                    type="button"
-                                    class="btn btn-sm btn-ghost"
-                                    on:click=move |_| cancel.run(())
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        }
-                    })
-            }}
-            {move || {
-                upload_error
-                    .get()
-                    .map(|error| {
-                        view! {
-                            <div class="alert alert-error" role="alert">
-                                <span>{error}</span>
-                            </div>
-                        }
-                    })
-            }}
+            <ShowLet some=current_upload let:progress>
+                <div class="flex gap-2 items-center">
+                    <ProgressBar
+                        size=progress.size
+                        start_time=progress.start_time
+                        uploaded=progress.uploaded.read_only()
+                    />
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-ghost"
+                        on:click=move |_| cancel.run(())
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </ShowLet>
+            <ShowLet some=upload_error let:error>
+                <div class="alert alert-error" role="alert">
+                    <span>{error}</span>
+                </div>
+            </ShowLet>
         </div>
     }
 }
